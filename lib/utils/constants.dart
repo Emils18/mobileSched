@@ -1,42 +1,70 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  static const Color backgroundDark = Color(0xFF0A0A0F);
-  static const Color backgroundLight = Color(0xFF1A1A2E);
-  static const Color glassBorder = Color(0x33FFFFFF);
-  static const Color glassBackground = Color(0x1AFFFFFF);
-  static const Color primaryGlow = Color(0xFF6C63FF);
-  static const Color secondaryGlow = Color(0xFF3F3D9E);
-  static const Color successGreen = Color(0xFF00E5A0);
-  static const Color errorRed = Color(0xFFFF4D6D);
-  static const Color textPrimary = Color(0xFFFFFFFF);
-  static const Color textSecondary = Color(0xB3FFFFFF);
-  static const Color cardHighlight = Color(0x33FFD700);
+  static const Color bgDeep = Color(0xFF050B14);
+  static const Color bgDark = Color(0xFF0A1222);
+  
+  static const Color primary = Color(0xFF00F0FF); 
+  static const Color secondary = Color(0xFF00FF87); 
+  static const Color accentPurple = Color(0xFF8A2BE2);
+  
+  static const Color cardGlass = Color(0x0FFFFFFF);
+  static const Color cardBorder = Color(0x1AFFFFFF);
+  
+  static const Color textTitle = Color(0xFFFFFFFF);
+  static const Color textBody = Color(0xFF94A3B8);
+  static const Color textMuted = Color(0xFF475569);
+  
+  static const Color success = Color(0xFF00FF87);
+  static const Color error = Color(0xFFFF3B30);
+  static const Color warning = Color(0xFFFFCC00);
+  static const Color orange = Color(0xFFFF9500); // For late warnings
 }
 
-class AppSpacing {
-  static const double xs = 4.0;
-  static const double sm = 8.0;
-  static const double md = 16.0;
-  static const double lg = 24.0;
-  static const double xl = 32.0;
-  static const double xxl = 48.0;
-}
+class AppFormatters {
+  static String formatTime(DateTime? time) {
+    if (time == null) return "--:--";
+    int h = time.hour;
+    int m = time.minute;
+    String amPm = h >= 12 ? "PM" : "AM";
+    if (h > 12) h -= 12;
+    if (h == 0) h = 12;
+    String mStr = m.toString().padLeft(2, '0');
+    return "$h:$mStr $amPm";
+  }
 
-class AppBorderRadius {
-  static const double sm = 8.0;
-  static const double md = 16.0;
-  static const double lg = 24.0;
-  static const double xl = 32.0;
+  static String formatTimeOfDay(TimeOfDay time) {
+    int h = time.hour;
+    int m = time.minute;
+    String amPm = h >= 12 ? "PM" : "AM";
+    if (h > 12) h -= 12;
+    if (h == 0) h = 12;
+    String mStr = m.toString().padLeft(2, '0');
+    return "$h:$mStr $amPm";
+  }
 
-  static BorderRadius circularSm = BorderRadius.circular(sm);
-  static BorderRadius circularMd = BorderRadius.circular(md);
-  static BorderRadius circularLg = BorderRadius.circular(lg);
-  static BorderRadius circularXl = BorderRadius.circular(xl);
-}
+  static String formatDate(String dateStr) {
+    try {
+      final parts = dateStr.split('-');
+      final y = parts[0];
+      final m = int.parse(parts[1]);
+      final d = int.parse(parts[2]);
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return "${months[m - 1]} $d, $y";
+    } catch (e) {
+      return dateStr;
+    }
+  }
 
-class GlassEffect {
-  static const double blurSigma = 10.0;
-  static const double opacity = 0.15;
-  static const double borderWidth = 0.8;
+  static String getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return "Good morning";
+    if (hour < 17) return "Good afternoon";
+    return "Good evening";
+  }
+
+  static String getDayName(int weekday) {
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return days[weekday - 1];
+  }
 }

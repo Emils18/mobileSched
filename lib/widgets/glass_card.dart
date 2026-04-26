@@ -1,63 +1,74 @@
-import 'package:flutter/material.dart';
-import '../utils/constants.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import '../utils/constants.dart';
 
 class GlassCard extends StatelessWidget {
   final Widget child;
   final double? width;
   final double? height;
-  final EdgeInsetsGeometry? margin;
-  final EdgeInsetsGeometry? padding;
-  final BorderRadiusGeometry? borderRadius;
-  final VoidCallback? onTap;
+  final EdgeInsetsGeometry padding;
+  final BorderRadius? borderRadius;
+  final bool hasGlow;
+  final Color? borderColor;
 
   const GlassCard({
     super.key,
     required this.child,
     this.width,
     this.height,
-    this.margin,
-    this.padding,
+    this.padding = const EdgeInsets.all(24),
     this.borderRadius,
-    this.onTap,
+    this.hasGlow = false,
+    this.borderColor,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: width,
-        height: height,
-        margin: margin ?? const EdgeInsets.all(AppSpacing.sm),
-        padding: padding ?? const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              AppColors.glassBackground,
-              AppColors.glassBackground.withOpacity(0.05),
-            ],
-          ),
-          borderRadius: borderRadius ?? AppBorderRadius.circularLg,
-          border: Border.all(
-            color: AppColors.glassBorder,
-            width: GlassEffect.borderWidth,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primaryGlow.withOpacity(0.1),
-              blurRadius: 15,
-              spreadRadius: 2,
+    final radius = borderRadius ?? BorderRadius.circular(24);
+    final borderCol = borderColor ?? AppColors.cardBorder;
+
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        borderRadius: radius,
+        boxShadow: hasGlow
+            ? [
+                BoxShadow(
+                  color: (borderColor ?? AppColors.primary).withValues(alpha: 0.15),
+                  blurRadius: 30,
+                  spreadRadius: -5,
+                )
+              ]
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 20,
+                  spreadRadius: -5,
+                  offset: const Offset(0, 10),
+                )
+              ],
+      ),
+      child: ClipRRect(
+        borderRadius: radius,
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+          child: Container(
+            padding: padding,
+            decoration: BoxDecoration(
+              color: AppColors.cardGlass,
+              borderRadius: radius,
+              border: Border.all(
+                  color: borderCol, width: borderCol != AppColors.cardBorder ? 1.5 : 1),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white.withValues(alpha: 0.08),
+                  Colors.white.withValues(alpha: 0.02),
+                ],
+              ),
             ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: borderRadius ?? AppBorderRadius.circularLg,
-          child: BackdropFilter(
-            filter:  ImageFilter.blur(sigmaX: GlassEffect.blurSigma, sigmaY: GlassEffect.blurSigma),
             child: child,
           ),
         ),

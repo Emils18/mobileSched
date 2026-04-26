@@ -1,150 +1,189 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 import '../models/attendance_model.dart';
+import '../utils/constants.dart';
 
-class AttendanceService extends ChangeNotifier {
-  List<AttendanceModel> _attendances = [];
-  static const String _storageKey = 'attendance_records';
+class AttendanceService {
+  static final AttendanceService _instance = AttendanceService._internal();
+  factory AttendanceService() => _instance;
+  AttendanceService._internal();
 
-  List<AttendanceModel> get attendances => List.unmodifiable(_attendances);
+  late SharedPreferences _prefs;
+  static const String _historyKey = 'mobilesched_logs';
+  static const String _nameKey = 'mobilesched_user_name';
+  static const String _dutyDaysKey = 'mobilesched_duty_days';
+  static const String _timeInKey = 'mobilesched_time_in';
+  static const String _timeOutKey = 'mobilesched_time_out';
 
-  // Get today's attendance record
-  AttendanceModel? get todayAttendance {
-    final today = DateTime.now();
-    try {
-      return _attendances.firstWhere(
-        (record) =>
-            record.timeIn.year == today.year &&
-            record.timeIn.month == today.month &&
-            record.timeIn.day == today.day,
-      );
-    } catch (e) {
-      return null;
-    }
+  final _uuid = const Uuid();
+
+  Future<void> init() async {
+    _prefs = await SharedPreferences.getInstance();
   }
 
-  // Get last 3 records for history preview
-  List<AttendanceModel> get historyPreview {
-    final sorted = List<AttendanceModel>.from(_attendances)
-      ..sort((a, b) => b.timeIn.compareTo(a.timeIn));
-    return sorted.take(5).toList();
+  // --- SETTINGS / SCHEDULE (unchanged) ---
+  String? getUserName() => _prefs.getString(_nameKey);
+  Future<void> setUserName(String name) async =>
+      await _prefs.setString(_nameKey, name);
+
+  List<int> getDutyDays() {
+    final days = _prefs.getStringList(_dutyDaysKey);
+    if (days == null) return [1, 2, 3, 4, 5, 6];
+    return days.map((e) => int.parse(e)).toList();
   }
 
-  // Today's status text
-  String get todayStatus {
-    final today = todayAttendance;
-    if (today == null) return 'Not Started';
-    if (today.timeOut != null) return 'Completed ✓';
-    return 'Clocked In ⏺';
+  Future<void> setDutyDays(List<int> days) async {
+    await _prefs.setStringList(_dutyDaysKey, days.map((e) => e.toString()).toList());
   }
 
-  // Last Time In (today or most recent)
-  String get lastTimeIn {
-    if (todayAttendance != null) {
-      return todayAttendance!.formattedTimeIn;
-    }
-    if (_attendances.isEmpty) return '—';
-    final latest = _attendances.reduce((a, b) => a.timeIn.isAfter(b.timeIn) ? a : b);
-    return latest.formattedTimeIn;
+  TimeOfDay getScheduledTimeIn() {
+    final str = _prefs.getString(_timeInKey);
+    if (str == null) return const TimeOfDay(hour: 16, minute: 30);
+    final parts = str.split(':');
+    return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
   }
 
-  // Last Time Out (today or most recent)
-  String get lastTimeOut {
-    final completed = _attendances.where((a) => a.timeOut != null);
-    if (todayAttendance?.timeOut != null) {
-      return todayAttendance!.formattedTimeOut;
-    }
-    if (completed.isEmpty) return '—';
-    final latest = completed.reduce((a, b) => a.timeOut!.isAfter(b.timeOut!) ? a : b);
-    return latest.formattedTimeOut;
+  Future<void> setScheduledTimeIn(TimeOfDay time) async {
+    await _prefs.setString(_timeInKey, "${time.hour}:${time.minute}");
   }
 
-  AttendanceService() {
-    _loadData();
+  TimeOfDay getScheduledTimeOut() {
+    final str = _prefs.getString(_timeOutKey);
+    if (str == null) return const TimeOfDay(hour: 21, minute: 30);
+    final parts = str.split(':');
+    return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
   }
 
-  Future<void> _loadData() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jsonString = prefs.getString(_storageKey);
-    if (jsonString != null) {
-      final List<dynamic> jsonList = jsonDecode(jsonString);
-      _attendances = jsonList.map((json) => AttendanceModel.fromJson(json)).toList();
-      notifyListeners();
-    }
+  Future<void> setScheduledTimeOut(TimeOfDay time) async {
+    await _prefs.setString(_timeOutKey, "${time.hour}:${time.minute}");
   }
 
-  Future<void> _saveData() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jsonList = _attendances.map((record) => record.toJson()).toList();
-    await prefs.setString(_storageKey, jsonEncode(jsonList));
+  // --- ATTENDANCE LOGS ---
+  List<AttendanceModel> _getRawLogs() {
+    final List<String>? data = _prefs.getStringList(_historyKey);
+    if (data == null) return [];
+    return data.map((e) => AttendanceModel.fromJson(e)).toList();
   }
 
-  // Time In Logic
-  Future<bool> timeIn(BuildContext context, {required VoidCallback onSuccess, required VoidCallback onError}) async {
+  Future<void> _saveLogs(List<AttendanceModel> logs) async {
+    final data = logs.map((e) => e.toJson()).toList();
+    await _prefs.setStringList(_historyKey, data);
+  }
+
+  /// Returns all logs in reverse chronological order.
+  List<AttendanceModel> getHistory() => _getRawLogs().reversed.toList();
+
+  /// Returns logs for today (date == current date).
+  List<AttendanceModel> getTodayLogs() {
+    final todayStr = _todayString();
+    return _getRawLogs().where((l) => l.date == todayStr).toList();
+  }
+
+  int getTotalDaysPresent() {
+    final dates = _getRawLogs().map((l) => l.date).toSet();
+    return dates.length;
+  }
+
+  String _todayString() {
     final now = DateTime.now();
-
-    // Check if already timed in today
-    if (todayAttendance != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('❌ Already have a Time In for today!', style: TextStyle(color: Colors.white)), backgroundColor: Colors.red),
-      );
-      onError();
-      return false;
-    }
-
-    final newRecord = AttendanceModel(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      timeIn: now,
-      timeOut: null,
-    );
-
-    _attendances.add(newRecord);
-    await _saveData();
-    notifyListeners();
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('✅ Time In recorded successfully!', style: TextStyle(color: Colors.white)), backgroundColor: Colors.green),
-    );
-    onSuccess();
-    return true;
+    return "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
   }
 
-  // Time Out Logic
-  Future<bool> timeOut(BuildContext context, {required VoidCallback onSuccess, required VoidCallback onError}) async {
-    final today = todayAttendance;
+  String _calculateInStatus(DateTime timestamp) {
+    final weekday = timestamp.weekday;
+    if (!getDutyDays().contains(weekday)) return "NO DUTY DAY";
 
-    if (today == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('⚠️ Please do Time In first!', style: TextStyle(color: Colors.white)), backgroundColor: Colors.orange),
-      );
-      onError();
-      return false;
-    }
+    final schedIn = getScheduledTimeIn();
+    final schedOut = getScheduledTimeOut();
+    final schedInDT = DateTime(timestamp.year, timestamp.month, timestamp.day, schedIn.hour, schedIn.minute);
+    final schedOutDT = DateTime(timestamp.year, timestamp.month, timestamp.day, schedOut.hour, schedOut.minute);
 
-    if (today.timeOut != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('❌ Time Out already recorded for today!', style: TextStyle(color: Colors.white)), backgroundColor: Colors.red),
-      );
-      onError();
-      return false;
-    }
+    if (timestamp.isBefore(schedInDT.subtract(const Duration(minutes: 15)))) return "OUTSIDE SCHEDULE";
+    if (timestamp.isAfter(schedOutDT)) return "OUTSIDE SCHEDULE";
+    if (timestamp.isAfter(schedInDT)) return "LATE";
+    return "ON TIME";
+  }
 
-    // Update existing record
-    final index = _attendances.indexOf(today);
-    final updatedRecord = AttendanceModel(
-      id: today.id,
-      timeIn: today.timeIn,
-      timeOut: DateTime.now(),
+  String _calculateOutStatus(DateTime timestamp) {
+    final weekday = timestamp.weekday;
+    if (!getDutyDays().contains(weekday)) return "NO DUTY DAY";
+
+    final schedIn = getScheduledTimeIn();
+    final schedOut = getScheduledTimeOut();
+    final schedInDT = DateTime(timestamp.year, timestamp.month, timestamp.day, schedIn.hour, schedIn.minute);
+    final schedOutDT = DateTime(timestamp.year, timestamp.month, timestamp.day, schedOut.hour, schedOut.minute);
+
+    if (timestamp.isBefore(schedInDT)) return "OUTSIDE SCHEDULE";
+    if (timestamp.isAfter(schedOutDT)) return "MANUAL ENTRY";
+    if (timestamp.isBefore(schedOutDT.subtract(const Duration(minutes: 15)))) return "MANUAL ENTRY";
+    return "ON TIME";
+  }
+
+  Future<AttendanceModel> timeIn() async {
+    final now = DateTime.now();
+    final status = _calculateInStatus(now);
+    final log = AttendanceModel(
+      id: _uuid.v4(),
+      timestamp: now,
+      type: 'in',
+      status: status,
     );
-    _attendances[index] = updatedRecord;
-    await _saveData();
-    notifyListeners();
+    final logs = _getRawLogs();
+    logs.add(log);
+    await _saveLogs(logs);
+    return log;
+  }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('✅ Time Out recorded successfully!', style: TextStyle(color: Colors.white)), backgroundColor: Colors.green),
+  // NEW method – update form status of a specific log
+  Future<void> updateFormStatus(String logId, String? formStatus) async {
+    final logs = _getRawLogs();
+    final index = logs.indexWhere((log) => log.id == logId);
+    if (index != -1) {
+      logs[index] = AttendanceModel(
+        id: logs[index].id,
+        timestamp: logs[index].timestamp,
+        type: logs[index].type,
+        status: logs[index].status,
+        accomplishment: logs[index].accomplishment,
+        formStatus: formStatus,
+      );
+      await _saveLogs(logs);
+    }
+  }
+
+  Future<AttendanceModel> timeOut(String accomplishment) async {
+    final now = DateTime.now();
+    final status = _calculateOutStatus(now);
+    final log = AttendanceModel(
+      id: _uuid.v4(),
+      timestamp: now,
+      type: 'out',
+      status: status,
+      accomplishment: accomplishment,
     );
-    onSuccess();
-    return true;
+    final logs = _getRawLogs();
+    logs.add(log);
+    await _saveLogs(logs);
+    return log;
+  }
+
+  Future<void> undoLastLog() async {
+    final logs = _getRawLogs();
+    if (logs.isNotEmpty) {
+      logs.removeLast();
+      await _saveLogs(logs);
+    }
+  }
+
+  Future<void> clearTodayLogs() async {
+    final todayStr = _todayString();
+    final logs = _getRawLogs().where((l) => l.date != todayStr).toList();
+    await _saveLogs(logs);
+  }
+
+  bool hasLogOfTypeToday(String type) {
+    final todayStr = _todayString();
+    return _getRawLogs().any((l) => l.date == todayStr && l.type == type);
   }
 }

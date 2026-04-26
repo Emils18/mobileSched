@@ -1,41 +1,45 @@
-import 'package:intl/intl.dart';
+import 'dart:convert';
 
 class AttendanceModel {
   final String id;
-  final DateTime timeIn;
-  final DateTime? timeOut;
+  final DateTime timestamp;
+  final String type; // 'in' or 'out'
+  final String status;
+  final String? accomplishment;
+  final String? formStatus; // null, 'pending', 'submitted', 'not_submitted'
 
   AttendanceModel({
     required this.id,
-    required this.timeIn,
-    this.timeOut,
+    required this.timestamp,
+    required this.type,
+    required this.status,
+    this.accomplishment,
+    this.formStatus,
   });
 
-  // For display
-  String get formattedDate => DateFormat('MMM dd, yyyy').format(timeIn);
-  String get formattedTimeIn => DateFormat('hh:mm a').format(timeIn);
-  String get formattedTimeOut => timeOut != null ? DateFormat('hh:mm a').format(timeOut!) : '--:-- --';
-  String get duration {
-    if (timeOut == null) return 'Active';
-    final difference = timeOut!.difference(timeIn);
-    final hours = difference.inHours;
-    final minutes = difference.inMinutes.remainder(60);
-    return '$hours hr ${minutes} min';
-  }
+  String get date =>
+      "${timestamp.year}-${timestamp.month.toString().padLeft(2, '0')}-${timestamp.day.toString().padLeft(2, '0')}";
 
-  bool get isCompleted => timeOut != null;
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'timestamp': timestamp.toIso8601String(),
+        'type': type,
+        'status': status,
+        'accomplishment': accomplishment,
+        'formStatus': formStatus,
+      };
 
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'timeIn': timeIn.toIso8601String(),
-    'timeOut': timeOut?.toIso8601String(),
-  };
+  factory AttendanceModel.fromMap(Map<String, dynamic> map) =>
+      AttendanceModel(
+        id: map['id'],
+        timestamp: DateTime.parse(map['timestamp']),
+        type: map['type'],
+        status: map['status'],
+        accomplishment: map['accomplishment'],
+        formStatus: map['formStatus'],
+      );
 
-  factory AttendanceModel.fromJson(Map<String, dynamic> json) {
-    return AttendanceModel(
-      id: json['id'],
-      timeIn: DateTime.parse(json['timeIn']),
-      timeOut: json['timeOut'] != null ? DateTime.parse(json['timeOut']) : null,
-    );
-  }
+  String toJson() => json.encode(toMap());
+  factory AttendanceModel.fromJson(String source) =>
+      AttendanceModel.fromMap(json.decode(source));
 }
