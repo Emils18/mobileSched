@@ -1,62 +1,69 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'screens/dashboard_screen.dart';
-import 'services/attendance_service.dart';
-import 'services/notification_service.dart';
-import 'services/google_form_service.dart';
-import 'services/pending_submission_service.dart';
-import 'utils/constants.dart';
 
-void main() async {
+import 'screens/splash_screen.dart';
+import 'services/attendance_service.dart';
+import 'services/google_form_service.dart';
+import 'services/notification_service.dart';
+import 'services/pending_submission_service.dart';
+import 'services/theme_service.dart';
+import 'theme/app_theme.dart';
+
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
   ]);
 
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
-      systemNavigationBarColor: AppColors.bgDeep,
-      systemNavigationBarIconBrightness: Brightness.light,
-    ),
-  );
+  await Future.wait([
+    AttendanceService().init(),
+    NotificationService().init(),
+    GoogleFormService().init(),
+    PendingSubmissionService().init(),
+    ThemeService().init(),
+  ]);
 
-  await AttendanceService().init();
-  await NotificationService().init();
-  await GoogleFormService().init();
-  await PendingSubmissionService().init();
-
-  runApp(const MioSchedApp());
+  runApp(const MobileSchedApp());
 }
 
-class MioSchedApp extends StatelessWidget {
-  const MioSchedApp({super.key});
+class MobileSchedApp extends StatelessWidget {
+  const MobileSchedApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'MioSched',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        primaryColor: AppColors.primary,
-        scaffoldBackgroundColor: AppColors.bgDeep,
-        fontFamily: 'Inter',
-        bottomSheetTheme: const BottomSheetThemeData(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-        ),
-        timePickerTheme: TimePickerThemeData(
-          backgroundColor: AppColors.bgDark,
-          hourMinuteTextColor: Colors.white,
-          dayPeriodTextColor: Colors.white,
-          dialHandColor: AppColors.primary,
-          dialBackgroundColor: Colors.black.withValues(alpha: 0.3),  // fixed
-        ),
-      ),
-      home: const DashboardScreen(),
+    final themeService = ThemeService();
+
+    return AnimatedBuilder(
+      animation: themeService,
+      builder: (context, child) {
+        final palette = MobileSchedTheme.palette(
+          themeService.preset,
+        );
+
+        SystemChrome.setSystemUIOverlayStyle(
+          SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness:
+                palette.isDark ? Brightness.light : Brightness.dark,
+            statusBarBrightness:
+                palette.isDark ? Brightness.dark : Brightness.light,
+            systemNavigationBarColor: palette.background,
+            systemNavigationBarIconBrightness:
+                palette.isDark ? Brightness.light : Brightness.dark,
+            systemNavigationBarDividerColor: Colors.transparent,
+          ),
+        );
+
+        return MaterialApp(
+          title: 'MobileSched',
+          debugShowCheckedModeBanner: false,
+          theme: MobileSchedTheme.build(
+            themeService.preset,
+          ),
+          home: const SplashScreen(),
+        );
+      },
     );
   }
 }

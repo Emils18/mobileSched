@@ -1,189 +1,431 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
+
 import '../models/attendance_model.dart';
-import '../utils/constants.dart';
 
 class AttendanceService {
   static final AttendanceService _instance = AttendanceService._internal();
+
   factory AttendanceService() => _instance;
+
   AttendanceService._internal();
 
-  late SharedPreferences _prefs;
   static const String _historyKey = 'mobilesched_logs';
   static const String _nameKey = 'mobilesched_user_name';
   static const String _dutyDaysKey = 'mobilesched_duty_days';
   static const String _timeInKey = 'mobilesched_time_in';
   static const String _timeOutKey = 'mobilesched_time_out';
 
-  final _uuid = const Uuid();
+  static const TimeOfDay _defaultTimeIn = TimeOfDay(
+    hour: 16,
+    minute: 30,
+  );
+
+  static const TimeOfDay _defaultTimeOut = TimeOfDay(
+    hour: 21,
+    minute: 30,
+  );
+
+  late SharedPreferences _prefs;
+
+  final Uuid _uuid = const Uuid();
 
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
   }
 
-  // --- SETTINGS / SCHEDULE (unchanged) ---
-  String? getUserName() => _prefs.getString(_nameKey);
-  Future<void> setUserName(String name) async =>
-      await _prefs.setString(_nameKey, name);
+  String? getUserName() {
+    final name = _prefs.getString(_nameKey)?.trim();
+
+    if (name == null || name.isEmpty) {
+      return null;
+    }
+
+    return name;
+  }
+
+  Future<void> setUserName(String name) async {
+    await _prefs.setString(
+      _nameKey,
+      name.trim(),
+    );
+  }
 
   List<int> getDutyDays() {
-    final days = _prefs.getStringList(_dutyDaysKey);
-    if (days == null) return [1, 2, 3, 4, 5, 6];
-    return days.map((e) => int.parse(e)).toList();
+    final storedDays = _prefs.getStringList(_dutyDaysKey);
+
+    if (storedDays == null || storedDays.isEmpty) {
+      return [1, 2, 3, 4, 5, 6];
+    }
+
+    final parsedDays = storedDays
+        .map(int.tryParse)
+        .whereType<int>()
+        .where((day) => day >= 1 && day <= 7)
+        .toSet()
+        .toList()
+      ..sort();
+
+    if (parsedDays.isEmpty) {
+      return [1, 2, 3, 4, 5, 6];
+    }
+
+    return parsedDays;
   }
 
   Future<void> setDutyDays(List<int> days) async {
-    await _prefs.setStringList(_dutyDaysKey, days.map((e) => e.toString()).toList());
+    final validDays = days
+        .where((day) => day >= 1 && day <= 7)
+        .toSet()
+        .toList()
+      ..sort();
+
+    await _prefs.setStringList(
+      _dutyDaysKey,
+      validDays.map((day) => day.toString()).toList(),
+    );
   }
 
   TimeOfDay getScheduledTimeIn() {
-    final str = _prefs.getString(_timeInKey);
-    if (str == null) return const TimeOfDay(hour: 16, minute: 30);
-    final parts = str.split(':');
-    return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
+    return _parseStoredTime(
+      _prefs.getString(_timeInKey),
+      _defaultTimeIn,
+    );
   }
 
   Future<void> setScheduledTimeIn(TimeOfDay time) async {
-    await _prefs.setString(_timeInKey, "${time.hour}:${time.minute}");
+    await _prefs.setString(
+      _timeInKey,
+      '${time.hour}:${time.minute}',
+    );
   }
 
   TimeOfDay getScheduledTimeOut() {
-    final str = _prefs.getString(_timeOutKey);
-    if (str == null) return const TimeOfDay(hour: 21, minute: 30);
-    final parts = str.split(':');
-    return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
+    return _parseStoredTime(
+      _prefs.getString(_timeOutKey),
+      _defaultTimeOut,
+    );
   }
 
   Future<void> setScheduledTimeOut(TimeOfDay time) async {
-    await _prefs.setString(_timeOutKey, "${time.hour}:${time.minute}");
+    await _prefs.setString(
+      _timeOutKey,
+      '${time.hour}:${time.minute}',
+    );
   }
 
-  // --- ATTENDANCE LOGS ---
-  List<AttendanceModel> _getRawLogs() {
-    final List<String>? data = _prefs.getStringList(_historyKey);
-    if (data == null) return [];
-    return data.map((e) => AttendanceModel.fromJson(e)).toList();
+  bool isScheduleValid(TimeOfDay timeIn, TimeOfDay timeOut) {
+    return _minutesOfDay(timeOut) > _minutesOfDay(timeIn);
   }
 
-  Future<void> _saveLogs(List<AttendanceModel> logs) async {
-    final data = logs.map((e) => e.toJson()).toList();
-    await _prefs.setStringList(_historyKey, data);
+  List<AttendanceModel> getHistory() {
+    final logs = _getRawLogs()
+      ..sort(
+        (first, second) => second.timestamp.compareTo(first.timestamp),
+      );
+
+    return logs;
   }
 
-  /// Returns all logs in reverse chronological order.
-  List<AttendanceModel> getHistory() => _getRawLogs().reversed.toList();
-
-  /// Returns logs for today (date == current date).
   List<AttendanceModel> getTodayLogs() {
-    final todayStr = _todayString();
-    return _getRawLogs().where((l) => l.date == todayStr).toList();
+    final today = _todayString();
+
+    final logs = _getRawLogs()
+        .where((log) => log.date == today)
+        .toList()
+      ..sort(
+        (first, second) => first.timestamp.compareTo(second.timestamp),
+      );
+
+    return logs;
   }
 
   int getTotalDaysPresent() {
-    final dates = _getRawLogs().map((l) => l.date).toSet();
-    return dates.length;
+    final datesWithClockIn = _getRawLogs()
+        .where((log) => log.type == 'in')
+        .map((log) => log.date)
+        .toSet();
+
+    return datesWithClockIn.length;
   }
 
-  String _todayString() {
-    final now = DateTime.now();
-    return "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
-  }
+  bool hasLogOfTypeToday(String type) {
+    final normalizedType = type.toLowerCase();
+    final today = _todayString();
 
-  String _calculateInStatus(DateTime timestamp) {
-    final weekday = timestamp.weekday;
-    if (!getDutyDays().contains(weekday)) return "NO DUTY DAY";
-
-    final schedIn = getScheduledTimeIn();
-    final schedOut = getScheduledTimeOut();
-    final schedInDT = DateTime(timestamp.year, timestamp.month, timestamp.day, schedIn.hour, schedIn.minute);
-    final schedOutDT = DateTime(timestamp.year, timestamp.month, timestamp.day, schedOut.hour, schedOut.minute);
-
-    if (timestamp.isBefore(schedInDT.subtract(const Duration(minutes: 15)))) return "OUTSIDE SCHEDULE";
-    if (timestamp.isAfter(schedOutDT)) return "OUTSIDE SCHEDULE";
-    if (timestamp.isAfter(schedInDT)) return "LATE";
-    return "ON TIME";
-  }
-
-  String _calculateOutStatus(DateTime timestamp) {
-    final weekday = timestamp.weekday;
-    if (!getDutyDays().contains(weekday)) return "NO DUTY DAY";
-
-    final schedIn = getScheduledTimeIn();
-    final schedOut = getScheduledTimeOut();
-    final schedInDT = DateTime(timestamp.year, timestamp.month, timestamp.day, schedIn.hour, schedIn.minute);
-    final schedOutDT = DateTime(timestamp.year, timestamp.month, timestamp.day, schedOut.hour, schedOut.minute);
-
-    if (timestamp.isBefore(schedInDT)) return "OUTSIDE SCHEDULE";
-    if (timestamp.isAfter(schedOutDT)) return "MANUAL ENTRY";
-    if (timestamp.isBefore(schedOutDT.subtract(const Duration(minutes: 15)))) return "MANUAL ENTRY";
-    return "ON TIME";
+    return _getRawLogs().any(
+      (log) => log.date == today && log.type == normalizedType,
+    );
   }
 
   Future<AttendanceModel> timeIn() async {
     final now = DateTime.now();
-    final status = _calculateInStatus(now);
+
     final log = AttendanceModel(
       id: _uuid.v4(),
       timestamp: now,
       type: 'in',
-      status: status,
+      status: _calculateInStatus(now),
+      formStatus: null,
     );
+
     final logs = _getRawLogs();
     logs.add(log);
+
     await _saveLogs(logs);
+
     return log;
   }
 
-  // NEW method – update form status of a specific log
-  Future<void> updateFormStatus(String logId, String? formStatus) async {
-    final logs = _getRawLogs();
-    final index = logs.indexWhere((log) => log.id == logId);
-    if (index != -1) {
-      logs[index] = AttendanceModel(
-        id: logs[index].id,
-        timestamp: logs[index].timestamp,
-        type: logs[index].type,
-        status: logs[index].status,
-        accomplishment: logs[index].accomplishment,
-        formStatus: formStatus,
-      );
-      await _saveLogs(logs);
-    }
-  }
-
   Future<AttendanceModel> timeOut(String accomplishment) async {
+    final cleanAccomplishment = accomplishment.trim();
+
+    if (cleanAccomplishment.isEmpty) {
+      throw Exception('Please enter your daily accomplishment.');
+    }
+
     final now = DateTime.now();
-    final status = _calculateOutStatus(now);
+
     final log = AttendanceModel(
       id: _uuid.v4(),
       timestamp: now,
       type: 'out',
-      status: status,
-      accomplishment: accomplishment,
+      status: _calculateOutStatus(now),
+      accomplishment: cleanAccomplishment,
+      formStatus: null,
     );
+
     final logs = _getRawLogs();
     logs.add(log);
+
     await _saveLogs(logs);
+
     return log;
   }
 
-  Future<void> undoLastLog() async {
+  Future<void> updateFormStatus(
+    String logId,
+    String? formStatus,
+  ) async {
     final logs = _getRawLogs();
-    if (logs.isNotEmpty) {
-      logs.removeLast();
-      await _saveLogs(logs);
-    }
-  }
+    final index = logs.indexWhere((log) => log.id == logId);
 
-  Future<void> clearTodayLogs() async {
-    final todayStr = _todayString();
-    final logs = _getRawLogs().where((l) => l.date != todayStr).toList();
+    if (index == -1) {
+      return;
+    }
+
+    logs[index] = formStatus == null
+        ? logs[index].copyWith(clearFormStatus: true)
+        : logs[index].copyWith(formStatus: formStatus);
+
     await _saveLogs(logs);
   }
 
-  bool hasLogOfTypeToday(String type) {
-    final todayStr = _todayString();
-    return _getRawLogs().any((l) => l.date == todayStr && l.type == type);
+  Future<bool> undoLastLog() async {
+    final logs = _getRawLogs();
+    final today = _todayString();
+
+    final todayIndexes = <int>[];
+
+    for (int index = 0; index < logs.length; index++) {
+      if (logs[index].date == today) {
+        todayIndexes.add(index);
+      }
+    }
+
+    if (todayIndexes.isEmpty) {
+      return false;
+    }
+
+    int latestIndex = todayIndexes.first;
+
+    for (final index in todayIndexes.skip(1)) {
+      if (logs[index]
+          .timestamp
+          .isAfter(logs[latestIndex].timestamp)) {
+        latestIndex = index;
+      }
+    }
+
+    logs.removeAt(latestIndex);
+    await _saveLogs(logs);
+
+    return true;
+  }
+
+  Future<void> clearTodayLogs() async {
+    final today = _todayString();
+
+    final remainingLogs = _getRawLogs()
+        .where((log) => log.date != today)
+        .toList();
+
+    await _saveLogs(remainingLogs);
+  }
+
+  List<AttendanceModel> _getRawLogs() {
+    final data = _prefs.getStringList(_historyKey);
+
+    if (data == null || data.isEmpty) {
+      return [];
+    }
+
+    final validLogs = <AttendanceModel>[];
+
+    for (final item in data) {
+      try {
+        final log = AttendanceModel.fromJson(item);
+
+        if (log.id.isNotEmpty) {
+          validLogs.add(log);
+        }
+      } catch (_) {
+        // Ignore an invalid old entry instead of crashing the entire app.
+      }
+    }
+
+    return validLogs;
+  }
+
+  Future<void> _saveLogs(List<AttendanceModel> logs) async {
+    final encodedLogs = logs
+        .map((log) => log.toJson())
+        .toList();
+
+    await _prefs.setStringList(
+      _historyKey,
+      encodedLogs,
+    );
+  }
+
+  String _calculateInStatus(DateTime timestamp) {
+    if (!getDutyDays().contains(timestamp.weekday)) {
+      return 'NO DUTY DAY';
+    }
+
+    final scheduledIn = getScheduledTimeIn();
+    final scheduledOut = getScheduledTimeOut();
+
+    final scheduledInDate = _combineDateAndTime(
+      timestamp,
+      scheduledIn,
+    );
+
+    final scheduledOutDate = _combineDateAndTime(
+      timestamp,
+      scheduledOut,
+    );
+
+    final earliestAllowed = scheduledInDate.subtract(
+      const Duration(minutes: 15),
+    );
+
+    if (timestamp.isBefore(earliestAllowed) ||
+        timestamp.isAfter(scheduledOutDate)) {
+      return 'OUTSIDE SCHEDULE';
+    }
+
+    if (timestamp.isAfter(scheduledInDate)) {
+      return 'LATE';
+    }
+
+    return 'ON TIME';
+  }
+
+  String _calculateOutStatus(DateTime timestamp) {
+    if (!getDutyDays().contains(timestamp.weekday)) {
+      return 'NO DUTY DAY';
+    }
+
+    final scheduledIn = getScheduledTimeIn();
+    final scheduledOut = getScheduledTimeOut();
+
+    final scheduledInDate = _combineDateAndTime(
+      timestamp,
+      scheduledIn,
+    );
+
+    final scheduledOutDate = _combineDateAndTime(
+      timestamp,
+      scheduledOut,
+    );
+
+    final earliestAllowed = scheduledOutDate.subtract(
+      const Duration(minutes: 15),
+    );
+
+    if (timestamp.isBefore(scheduledInDate)) {
+      return 'OUTSIDE SCHEDULE';
+    }
+
+    if (timestamp.isBefore(earliestAllowed)) {
+      return 'EARLY OUT';
+    }
+
+    if (timestamp.isAfter(scheduledOutDate.add(
+      const Duration(minutes: 15),
+    ))) {
+      return 'LATE OUT';
+    }
+
+    return 'ON TIME';
+  }
+
+  TimeOfDay _parseStoredTime(
+    String? value,
+    TimeOfDay fallback,
+  ) {
+    if (value == null || value.isEmpty) {
+      return fallback;
+    }
+
+    final parts = value.split(':');
+
+    if (parts.length != 2) {
+      return fallback;
+    }
+
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+
+    if (hour == null ||
+        minute == null ||
+        hour < 0 ||
+        hour > 23 ||
+        minute < 0 ||
+        minute > 59) {
+      return fallback;
+    }
+
+    return TimeOfDay(
+      hour: hour,
+      minute: minute,
+    );
+  }
+
+  DateTime _combineDateAndTime(
+    DateTime date,
+    TimeOfDay time,
+  ) {
+    return DateTime(
+      date.year,
+      date.month,
+      date.day,
+      time.hour,
+      time.minute,
+    );
+  }
+
+  int _minutesOfDay(TimeOfDay time) {
+    return (time.hour * 60) + time.minute;
+  }
+
+  String _todayString() {
+    final now = DateTime.now();
+    final month = now.month.toString().padLeft(2, '0');
+    final day = now.day.toString().padLeft(2, '0');
+
+    return '${now.year}-$month-$day';
   }
 }

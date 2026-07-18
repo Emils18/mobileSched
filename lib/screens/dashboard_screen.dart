@@ -13,6 +13,8 @@ import '../utils/constants.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/premium_button.dart';
 import '../widgets/status_chip.dart';
+import '../services/theme_service.dart';
+import '../theme/app_theme.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -97,341 +99,820 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   // ---------------- Settings Sheet (identical to before, no warnings) ----------------
   void _showSettingsSheet({bool isFirstTime = false}) {
-    final TextEditingController nameController =
-        TextEditingController(text: _userName);
-    List<int> tempDays = List.from(_dutyDays);
-    TimeOfDay tempIn = _schedIn;
-    TimeOfDay tempOut = _schedOut;
+  final TextEditingController nameController =
+      TextEditingController(text: _userName);
 
-    final notifService = NotificationService();
-    bool notifEnabled = notifService.isEnabled;
-    bool soundEnabled = notifService.isSoundEnabled;
-    bool vibrationEnabled = notifService.isVibrationEnabled;
-    bool persistentEnabled = notifService.isPersistentEnabled;
+  List<int> tempDays = List<int>.from(_dutyDays);
+  TimeOfDay tempIn = _schedIn;
+  TimeOfDay tempOut = _schedOut;
 
-    showModalBottomSheet(
-      context: context,
-      isDismissible: !isFirstTime,
-      enableDrag: !isFirstTime,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => Padding(
-          padding:
-              EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-          child: GlassCard(
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(32)),
-            padding: const EdgeInsets.all(32),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    isFirstTime ? "Welcome to MioSched" : "Settings & Schedule",
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    isFirstTime
-                        ? "Set your name and default duty schedule."
-                        : "Update your profile and schedule.",
-                    style: const TextStyle(color: AppColors.textBody),
-                  ),
-                  const SizedBox(height: 32),
+  final NotificationService notifService = NotificationService();
 
-                  // Name Input
-                  const Text("PREFERRED NAME",
-                      style: TextStyle(
-                          color: AppColors.textMuted,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1)),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: nameController,
-                    style: const TextStyle(color: Colors.white, fontSize: 16),
-                    textCapitalization: TextCapitalization.words,
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: Colors.black.withValues(alpha: 0.2),
-                      hintText: "Enter your name",
-                      hintStyle:
-                          TextStyle(color: Colors.white.withValues(alpha: 0.2)),
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide.none),
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 16),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
+  bool notifEnabled = notifService.isEnabled;
+  bool soundEnabled = notifService.isSoundEnabled;
+  bool vibrationEnabled = notifService.isVibrationEnabled;
+  bool persistentEnabled = notifService.isPersistentEnabled;
 
-                  // Duty days
-                  const Text("DUTY DAYS",
-                      style: TextStyle(
-                          color: AppColors.textMuted,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1)),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: List.generate(7, (index) {
-                      int dayNum = index + 1;
-                      bool isSelected = tempDays.contains(dayNum);
-                      return ChoiceChip(
-                        label: Text(AppFormatters.getDayName(dayNum)),
-                        selected: isSelected,
-                        onSelected: (val) => setModalState(() {
-                          if (val) {
-                            tempDays.add(dayNum);
-                          } else {
-                            tempDays.remove(dayNum);
-                          }
-                        }),
-                        selectedColor: AppColors.primary.withValues(alpha: 0.2),
-                        backgroundColor:
-                            Colors.black.withValues(alpha: 0.2),
-                        labelStyle: TextStyle(
-                            color: isSelected
-                                ? AppColors.primary
-                                : AppColors.textBody),
-                        side: BorderSide(
-                            color: isSelected
-                                ? AppColors.primary
-                                : Colors.transparent),
-                      );
-                    }),
-                  ),
-                  const SizedBox(height: 24),
+  showModalBottomSheet<void>(
+    context: context,
+    isDismissible: !isFirstTime,
+    enableDrag: !isFirstTime,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    builder: (sheetContext) {
+      return StatefulBuilder(
+        builder: (context, setModalState) {
+          final theme = Theme.of(context);
+          final colorScheme = theme.colorScheme;
 
-                  // Time pickers
-                  Row(
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+            ),
+            child: GlassCard(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(32),
+              ),
+              padding: const EdgeInsets.fromLTRB(
+                24,
+                26,
+                24,
+                24,
+              ),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.88,
+                ),
+                child: SingleChildScrollView(
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: _buildTimePickerBox("TIME IN", tempIn, () async {
-                          final t = await showTimePicker(
-                              context: context, initialTime: tempIn);
-                          if (t != null) setModalState(() => tempIn = t);
-                        }),
+                      Center(
+                        child: Container(
+                          width: 46,
+                          height: 5,
+                          decoration: BoxDecoration(
+                            color: theme.dividerColor,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child:
-                            _buildTimePickerBox("TIME OUT", tempOut, () async {
-                          final t = await showTimePicker(
-                              context: context, initialTime: tempOut);
-                          if (t != null) setModalState(() => tempOut = t);
-                        }),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
+                      const SizedBox(height: 22),
 
-                  // Notification Settings
-                  const Text("NOTIFICATIONS",
-                      style: TextStyle(
-                          color: AppColors.textMuted,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1)),
-                  const SizedBox(height: 12),
-
-                  SwitchListTile(
-                    title: const Text("Enable Notifications",
-                        style: TextStyle(color: Colors.white)),
-                    subtitle: const Text("Turn all alerts on/off",
-                        style: TextStyle(
-                            color: AppColors.textBody, fontSize: 12)),
-                    value: notifEnabled,
-                    activeThumbColor: AppColors.primary,
-                    contentPadding: EdgeInsets.zero,
-                    onChanged: (val) async {
-                      await notifService.setEnabled(val);
-                      setModalState(() => notifEnabled = val);
-                    },
-                  ),
-
-                  SwitchListTile(
-                    title: const Text("Sound",
-                        style: TextStyle(color: Colors.white)),
-                    subtitle: const Text("Play sound on notification",
-                        style: TextStyle(
-                            color: AppColors.textBody, fontSize: 12)),
-                    value: soundEnabled,
-                    activeThumbColor: AppColors.primary,
-                    contentPadding: EdgeInsets.zero,
-                    onChanged: notifEnabled
-                        ? (val) async {
-                            await notifService.setSound(val);
-                            setModalState(() => soundEnabled = val);
-                          }
-                        : null,
-                  ),
-
-                  SwitchListTile(
-                    title: const Text("Vibration",
-                        style: TextStyle(color: Colors.white)),
-                    subtitle: const Text("Vibrate when notified",
-                        style: TextStyle(
-                            color: AppColors.textBody, fontSize: 12)),
-                    value: vibrationEnabled,
-                    activeThumbColor: AppColors.primary,
-                    contentPadding: EdgeInsets.zero,
-                    onChanged: notifEnabled
-                        ? (val) async {
-                            await notifService.setVibration(val);
-                            setModalState(() => vibrationEnabled = val);
-                          }
-                        : null,
-                  ),
-
-                  SwitchListTile(
-                    title: const Text("Persistent",
-                        style: TextStyle(color: Colors.white)),
-                    subtitle: const Text("Cannot swipe away notification",
-                        style: TextStyle(
-                            color: AppColors.textBody, fontSize: 12)),
-                    value: persistentEnabled,
-                    activeThumbColor: AppColors.primary,
-                    contentPadding: EdgeInsets.zero,
-                    onChanged: notifEnabled
-                        ? (val) async {
-                            await notifService.setPersistent(val);
-                            setModalState(() => persistentEnabled = val);
-                          }
-                        : null,
-                  ),
-
-                  const SizedBox(height: 18),
-
-                  // Test Notification button
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      icon: const Icon(Icons.notifications_active_rounded),
-                      label: const Text("Test Notification"),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        side: const BorderSide(color: AppColors.primary),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      onPressed: () async {
-                        final sent = await notifService.showTestNotification();
-                        if (!context.mounted) return;   // use context.mounted
-                        if (sent) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Notification sent"),
-                              behavior: SnackBarBehavior.floating,
+                      Row(
+                        children: [
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  colorScheme.primary,
+                                  colorScheme.secondary,
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(16),
                             ),
-                          );
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Enable notifications first"),
-                              behavior: SnackBarBehavior.floating,
+                            child: const Icon(
+                              Icons.tune_rounded,
+                              color: Colors.white,
                             ),
-                          );
-                        }
-                      },
-                    ),
-                  ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  isFirstTime
+                                      ? 'Welcome to MobileSched'
+                                      : 'Settings & Schedule',
+                                  style: TextStyle(
+                                    color: colorScheme.onSurface,
+                                    fontSize: 23,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: -0.4,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  isFirstTime
+                                      ? 'Set up your profile and regular duty schedule.'
+                                      : 'Update your profile, schedule, theme, and integrations.',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
 
-                  const SizedBox(height: 24),
+                      const SizedBox(height: 30),
 
-                  // Google Form Settings
-                  const Text("GOOGLE FORM",
-                      style: TextStyle(
-                          color: AppColors.textMuted,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1)),
-                  const SizedBox(height: 12),
-                  SwitchListTile(
-                    title: const Text("Submit to Google Form",
-                        style: TextStyle(color: Colors.white)),
-                    subtitle: const Text(
-                        "Automatically send logs to your Form",
-                        style:
-                            TextStyle(color: AppColors.textBody, fontSize: 12)),
-                    value: GoogleFormService().isEnabled,
-                    activeThumbColor: AppColors.primary,
-                    contentPadding: EdgeInsets.zero,
-                    onChanged: (val) async {
-                      await GoogleFormService().setEnabled(val);
-                      setModalState(() {});
-                    },
-                  ),
+                      _buildSettingsLabel(
+                        context,
+                        'PREFERRED NAME',
+                      ),
+                      const SizedBox(height: 12),
 
-                  const SizedBox(height: 28),
+                      TextField(
+                        controller: nameController,
+                        textCapitalization: TextCapitalization.words,
+                        textInputAction: TextInputAction.done,
+                        style: TextStyle(
+                          color: colorScheme.onSurface,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        decoration: const InputDecoration(
+                          hintText: 'Enter your preferred name',
+                          prefixIcon: Icon(
+                            Icons.person_outline_rounded,
+                          ),
+                        ),
+                      ),
 
-                  // Save Configuration
-                  SizedBox(
-                    width: double.infinity,
-                    child: PremiumButton(
-                      text: "Save Configuration",
-                      icon: Icons.save_rounded,
-                      onTap: () async {
-                        final name = nameController.text.trim();
-                        if (name.isNotEmpty) {
+                      const SizedBox(height: 26),
+
+                      _buildSettingsLabel(
+                        context,
+                        'DUTY DAYS',
+                      ),
+                      const SizedBox(height: 12),
+
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: List<Widget>.generate(
+                          7,
+                          (index) {
+                            final int dayNumber = index + 1;
+                            final bool isSelected =
+                                tempDays.contains(dayNumber);
+
+                            return ChoiceChip(
+                              label: Text(
+                                AppFormatters.getDayName(dayNumber),
+                              ),
+                              selected: isSelected,
+                              onSelected: (selected) {
+                                setModalState(() {
+                                  if (selected) {
+                                    if (!tempDays.contains(dayNumber)) {
+                                      tempDays.add(dayNumber);
+                                      tempDays.sort();
+                                    }
+                                  } else {
+                                    tempDays.remove(dayNumber);
+                                  }
+                                });
+                              },
+                              selectedColor:
+                                  colorScheme.primary.withValues(alpha: 0.17),
+                              backgroundColor: colorScheme.surface,
+                              labelStyle: TextStyle(
+                                color: isSelected
+                                    ? colorScheme.primary
+                                    : colorScheme.onSurface
+                                        .withValues(alpha: 0.72),
+                                fontWeight: FontWeight.w700,
+                              ),
+                              side: BorderSide(
+                                color: isSelected
+                                    ? colorScheme.primary
+                                    : theme.dividerColor,
+                              ),
+                              showCheckmark: false,
+                            );
+                          },
+                        ),
+                      ),
+
+                      const SizedBox(height: 26),
+
+                      _buildSettingsLabel(
+                        context,
+                        'REGULAR SCHEDULE',
+                      ),
+                      const SizedBox(height: 12),
+
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildTimePickerBox(
+  context: context,
+  label: 'TIME IN',
+  time: tempIn,
+  icon: Icons.login_rounded,
+  onTap: () async {
+    final selectedTime = await showTimePicker(
+      context: context,
+      initialTime: tempIn,
+    );
+
+    if (selectedTime != null) {
+      setModalState(() {
+        tempIn = selectedTime;
+      });
+    }
+  },
+),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child:_buildTimePickerBox(
+                            context: context,
+                            label: 'TIME OUT',
+                            time: tempOut,
+                            icon: Icons.logout_rounded,
+                            onTap: () async {
+                              final selectedTime = await showTimePicker(
+                                context: context,
+                                initialTime: tempOut,
+                              );
+
+                              if (selectedTime != null) {
+                                setModalState(() {
+                                  tempOut = selectedTime;
+                                });
+                              }
+                            },
+                          ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 30),
+
+                      _buildThemeSelector(
+                        context,
+                        setModalState,
+                      ),
+
+                      const SizedBox(height: 32),
+
+                      _buildSettingsLabel(
+                        context,
+                        'NOTIFICATIONS',
+                      ),
+                      const SizedBox(height: 8),
+
+                      _buildSettingsSwitch(
+                        context: context,
+                        title: 'Enable notifications',
+                        subtitle: 'Turn all MobileSched alerts on or off.',
+                        icon: Icons.notifications_active_outlined,
+                        value: notifEnabled,
+                        onChanged: (value) async {
+                          await notifService.setEnabled(value);
+
+                          setModalState(() {
+                            notifEnabled = value;
+                          });
+                        },
+                      ),
+
+                      _buildSettingsSwitch(
+                        context: context,
+                        title: 'Sound',
+                        subtitle: 'Play a sound when an alert is shown.',
+                        icon: Icons.volume_up_outlined,
+                        value: soundEnabled,
+                        enabled: notifEnabled,
+                        onChanged: (value) async {
+                          await notifService.setSound(value);
+
+                          setModalState(() {
+                            soundEnabled = value;
+                          });
+                        },
+                      ),
+
+                      _buildSettingsSwitch(
+                        context: context,
+                        title: 'Vibration',
+                        subtitle: 'Vibrate the phone for notifications.',
+                        icon: Icons.vibration_rounded,
+                        value: vibrationEnabled,
+                        enabled: notifEnabled,
+                        onChanged: (value) async {
+                          await notifService.setVibration(value);
+
+                          setModalState(() {
+                            vibrationEnabled = value;
+                          });
+                        },
+                      ),
+
+                      _buildSettingsSwitch(
+                        context: context,
+                        title: 'Persistent alert',
+                        subtitle:
+                            'Keep the notification visible until handled.',
+                        icon: Icons.push_pin_outlined,
+                        value: persistentEnabled,
+                        enabled: notifEnabled,
+                        onChanged: (value) async {
+                          await notifService.setPersistent(value);
+
+                          setModalState(() {
+                            persistentEnabled = value;
+                          });
+                        },
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: notifEnabled
+                              ? () async {
+                                  final sent = await notifService
+                                      .showTestNotification();
+
+                                  if (!context.mounted) {
+                                    return;
+                                  }
+
+                                  ScaffoldMessenger.of(context)
+                                    ..hideCurrentSnackBar()
+                                    ..showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          sent
+                                              ? 'Notification sent successfully.'
+                                              : 'Enable notifications first.',
+                                        ),
+                                      ),
+                                    );
+                                }
+                              : null,
+                          icon: const Icon(
+                            Icons.notifications_active_rounded,
+                          ),
+                          label: const Text(
+                            'Test Notification',
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: colorScheme.primary,
+                            side: BorderSide(
+                              color: notifEnabled
+                                  ? colorScheme.primary
+                                  : theme.dividerColor,
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 15,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 30),
+
+                      _buildSettingsLabel(
+                        context,
+                        'GOOGLE FORM',
+                      ),
+                      const SizedBox(height: 8),
+
+                      _buildSettingsSwitch(
+                        context: context,
+                        title: 'Submit to Google Form',
+                        subtitle:
+                            'Open a prefilled Google Form after attendance.',
+                        icon: Icons.description_outlined,
+                        value: GoogleFormService().isEnabled,
+                        onChanged: (value) async {
+                          await GoogleFormService().setEnabled(value);
+
+                          setModalState(() {});
+                        },
+                      ),
+
+                      const SizedBox(height: 30),
+
+                      PremiumButton(
+                        text: 'SAVE CONFIGURATION',
+                        icon: Icons.save_rounded,
+                        onTap: () async {
+                          final String name =
+                              nameController.text.trim();
+
+                          if (name.isEmpty) {
+                            ScaffoldMessenger.of(context)
+                              ..hideCurrentSnackBar()
+                              ..showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Please enter your preferred name.',
+                                  ),
+                                ),
+                              );
+
+                            return;
+                          }
+
+                          if (tempDays.isEmpty) {
+                            ScaffoldMessenger.of(context)
+                              ..hideCurrentSnackBar()
+                              ..showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Select at least one duty day.',
+                                  ),
+                                ),
+                              );
+
+                            return;
+                          }
+
+                          if (!_service.isScheduleValid(
+                            tempIn,
+                            tempOut,
+                          )) {
+                            ScaffoldMessenger.of(context)
+                              ..hideCurrentSnackBar()
+                              ..showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Time Out must be later than Time In.',
+                                  ),
+                                ),
+                              );
+
+                            return;
+                          }
+
                           await _service.setUserName(name);
                           await _service.setDutyDays(tempDays);
                           await _service.setScheduledTimeIn(tempIn);
                           await _service.setScheduledTimeOut(tempOut);
+
                           _loadData();
-                          if (context.mounted) Navigator.pop(context);
-                        }
-                      },
-                    ),
+
+                          if (context.mounted) {
+                            Navigator.pop(context);
+                          }
+                        },
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      if (!isFirstTime)
+                        SizedBox(
+                          width: double.infinity,
+                          child: TextButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                            },
+                            child: const Text(
+                              'Cancel',
+                            ),
+                          ),
+                        ),
+
+                      const SizedBox(height: 12),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                ],
+                ),
               ),
             ),
+          );
+        },
+      );
+    },
+  ).whenComplete(nameController.dispose);
+}
+
+Widget _buildThemeSelector(
+  BuildContext context,
+  StateSetter setModalState,
+) {
+  final ThemeService themeService = ThemeService();
+  final AppThemePreset currentTheme = themeService.preset;
+  final ThemeData theme = Theme.of(context);
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      _buildSettingsLabel(
+        context,
+        'APP THEME',
+      ),
+      const SizedBox(height: 7),
+      Text(
+        'Choose how MobileSched looks on your device.',
+        style: theme.textTheme.bodySmall?.copyWith(
+          height: 1.4,
+        ),
+      ),
+      const SizedBox(height: 14),
+      LayoutBuilder(
+        builder: (context, constraints) {
+          final bool useSingleColumn =
+              constraints.maxWidth < 360;
+
+          final double cardWidth = useSingleColumn
+              ? constraints.maxWidth
+              : (constraints.maxWidth - 10) / 2;
+
+          return Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: AppThemePreset.values.map((preset) {
+              final AppPalette palette =
+                  MobileSchedTheme.palette(preset);
+
+              final bool isSelected =
+                  currentTheme == preset;
+
+              return Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(18),
+                  onTap: () async {
+                    await themeService.setPreset(preset);
+
+                    if (!context.mounted) {
+                      return;
+                    }
+
+                    setModalState(() {});
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
+                    curve: Curves.easeOutCubic,
+                    width: cardWidth,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? palette.primary.withValues(alpha: 0.14)
+                          : theme.colorScheme.surface
+                              .withValues(alpha: 0.75),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: isSelected
+                            ? palette.primary
+                            : theme.dividerColor,
+                        width: isSelected ? 1.6 : 1,
+                      ),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: palette.primary
+                                    .withValues(alpha: 0.16),
+                                blurRadius: 18,
+                                spreadRadius: -4,
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 39,
+                          height: 39,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                palette.primary,
+                                palette.secondary,
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(13),
+                          ),
+                          child: Icon(
+                            themeService.getIcon(preset),
+                            color: Colors.white,
+                            size: 19,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment:
+                                CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                themeService.getName(preset),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: theme.colorScheme.onSurface,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                themeService.getDescription(preset),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style:
+                                    theme.textTheme.bodySmall?.copyWith(
+                                  fontSize: 9,
+                                  height: 1.2,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (isSelected) ...[
+                          const SizedBox(width: 5),
+                          Icon(
+                            Icons.check_circle_rounded,
+                            color: palette.primary,
+                            size: 19,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          );
+        },
+      ),
+    ],
+  );
+}
+
+Widget _buildSettingsLabel(
+  BuildContext context,
+  String text,
+) {
+  return Text(
+    text,
+    style: TextStyle(
+      color: Theme.of(context)
+          .textTheme
+          .bodyMedium
+          ?.color
+          ?.withValues(alpha: 0.68),
+      fontSize: 11,
+      fontWeight: FontWeight.w900,
+      letterSpacing: 1.2,
+    ),
+  );
+}
+
+Widget _buildSettingsSwitch({
+  required BuildContext context,
+  required String title,
+  required String subtitle,
+  required IconData icon,
+  required bool value,
+  required Future<void> Function(bool value) onChanged,
+  bool enabled = true,
+}) {
+  final theme = Theme.of(context);
+  final colorScheme = theme.colorScheme;
+
+  return Opacity(
+    opacity: enabled ? 1 : 0.45,
+    child: SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      value: value,
+      activeThumbColor: colorScheme.primary,
+      onChanged: enabled
+          ? (newValue) {
+              onChanged(newValue);
+            }
+          : null,
+      secondary: Container(
+        width: 42,
+        height: 42,
+        decoration: BoxDecoration(
+          color: colorScheme.primary.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(13),
+        ),
+        child: Icon(
+          icon,
+          color: colorScheme.primary,
+          size: 21,
+        ),
+      ),
+      title: Text(
+        title,
+        style: TextStyle(
+          color: colorScheme.onSurface,
+          fontSize: 14,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      subtitle: Padding(
+        padding: const EdgeInsets.only(top: 3),
+        child: Text(
+          subtitle,
+          style: theme.textTheme.bodySmall?.copyWith(
+            fontSize: 11,
+            height: 1.35,
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
-  Widget _buildTimePickerBox(String label, TimeOfDay time, VoidCallback onTap) {
-    return GestureDetector(
+
+
+
+
+
+Widget _buildTimePickerBox({
+  required BuildContext context,
+  required String label,
+  required TimeOfDay time,
+  required IconData icon,
+  required VoidCallback onTap,
+}) {
+  final ThemeData theme = Theme.of(context);
+  final ColorScheme colors = theme.colorScheme;
+
+  return Material(
+    color: Colors.transparent,
+    child: InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+        padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.2),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.cardBorder),
+          color: colors.surface.withValues(alpha: 0.75),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: theme.dividerColor,
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label,
-                style: const TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold)),
-            const SizedBox(height: 4),
-            Text(AppFormatters.formatTimeOfDay(time),
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold)),
+            Row(
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: colors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: colors.primary,
+                    size: 18,
+                  ),
+                ),
+                const Spacer(),
+                Icon(
+                  Icons.edit_rounded,
+                  color: colors.onSurface.withValues(alpha: 0.45),
+                  size: 17,
+                ),
+              ],
+            ),
+            const SizedBox(height: 15),
+            Text(
+              label,
+              style: TextStyle(
+                color: colors.onSurface.withValues(alpha: 0.55),
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1,
+              ),
+            ),
+            const SizedBox(height: 5),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                AppFormatters.formatTimeOfDay(time),
+                style: TextStyle(
+                  color: colors.onSurface,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
+
+
+  
 
   void _showFeedback(String message, {bool isError = false}) {
     // Here we don't need a context.mounted check because this method is always called after a check or in a context that is guaranteed (but to be safe we can add one)
