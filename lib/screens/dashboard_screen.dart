@@ -44,10 +44,18 @@ class _DashboardScreenState extends State<DashboardScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+
     _loadData();
     _startTimer();
     _checkPendingSubmission();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _scheduleSavedReminders();
+
+      if (!mounted) {
+        return;
+      }
+
       if (_userName == null || _userName!.isEmpty) {
         _showSettingsSheet(isFirstTime: true);
       }
@@ -86,6 +94,10 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   void _loadData() {
+    if (!mounted) {
+      return;
+    }
+
     setState(() {
       _userName = _service.getUserName();
       _dutyDays = _service.getDutyDays();
@@ -95,6 +107,18 @@ class _DashboardScreenState extends State<DashboardScreen>
       _history = _service.getHistory().take(3).toList();
       _totalDays = _service.getTotalDaysPresent();
     });
+  }
+
+  Future<void> _scheduleSavedReminders() async {
+    try {
+      await NotificationService().scheduleReminders(
+        dutyDays: _service.getDutyDays(),
+        timeIn: _service.getScheduledTimeIn(),
+        timeOut: _service.getScheduledTimeOut(),
+      );
+    } catch (error) {
+      debugPrint('Failed to schedule reminders: $error');
+    }
   }
 
   // ---------------- Settings Sheet (identical to before, no warnings) ----------------
@@ -371,6 +395,14 @@ class _DashboardScreenState extends State<DashboardScreen>
                         onChanged: (value) async {
                           await notifService.setEnabled(value);
 
+                          if (value) {
+                            await notifService.scheduleReminders(
+                              dutyDays: tempDays,
+                              timeIn: tempIn,
+                              timeOut: tempOut,
+                            );
+                          }
+
                           setModalState(() {
                             notifEnabled = value;
                           });
@@ -467,6 +499,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                                   : theme.dividerColor,
                             ),
                             padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
                               vertical: 15,
                             ),
                             shape: RoundedRectangleBorder(
@@ -556,6 +589,12 @@ class _DashboardScreenState extends State<DashboardScreen>
                           await _service.setDutyDays(tempDays);
                           await _service.setScheduledTimeIn(tempIn);
                           await _service.setScheduledTimeOut(tempOut);
+
+                          await notifService.scheduleReminders(
+                            dutyDays: tempDays,
+                            timeIn: tempIn,
+                            timeOut: tempOut,
+                          );
 
                           _loadData();
 
@@ -981,6 +1020,7 @@ Widget _buildTimePickerBox({
         if (!proceed) return;
       }
       final log = await _service.timeIn();
+      await NotificationService().cancelTodayTimeInReminders();
       if (!context.mounted) return;   // context.mounted
       _showFeedback("Local log saved (${log.status})");
 
@@ -1061,7 +1101,10 @@ Widget _buildTimePickerBox({
         final proceed = await _confirmRepeat("Clock Out");
         if (!proceed) return;
       }
-      final log = await _service.timeOut(accController.text.trim());
+      final log = await _service.timeOut(
+        accController.text.trim(),
+      );
+      await NotificationService().cancelTodayTimeOutReminders();
       if (!context.mounted) return;   // context.mounted
       _showFeedback("Local log saved (${log.status})");
 
@@ -1307,8 +1350,10 @@ Widget _buildTimePickerBox({
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(
                     parent: AlwaysScrollableScrollPhysics()),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 24.0, vertical: 20),
+                padding: EdgeInsets.symmetric(
+                  horizontal: MediaQuery.sizeOf(context).width < 380 ? 16 : 24,
+                  vertical: 20,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1363,15 +1408,7 @@ Widget _buildTimePickerBox({
                     const SizedBox(height: 16),
                     _buildScheduleCard().animate().fadeIn(duration: 400.ms),
                     const SizedBox(height: 24),
-                    if (state['countdown'].isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 16.0),
-                        child: Text(state['countdown'],
-                            style: TextStyle(
-                                color: state['color'],
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600)),
-                      ).animate().fadeIn(duration: 300.ms),
+                    
                     PremiumButton(
                       text: "CLOCK IN",
                       icon: Icons.login_rounded,
@@ -1478,66 +1515,125 @@ Widget _buildTimePickerBox({
     );
   }
 
-  Widget _buildConfirmationCard() {
-    // No unused pending variable
-    return GlassCard(
-      padding: const EdgeInsets.all(20),
-      borderColor: AppColors.orange.withValues(alpha: 0.5),
-      hasGlow: true,
-      child: Column(
-        children: [
-          const Text(
-            "Did you submit the Google Form?",
-            style: TextStyle(
-                color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+
+
+
+
+
+Widget _buildConfirmationCard() {
+  return GlassCard(
+    padding: const EdgeInsets.all(20),
+    borderColor: AppColors.orange.withValues(alpha: 0.5),
+    hasGlow: true,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Row(
+          children: [
+            Icon(
+              Icons.assignment_turned_in_outlined,
+              color: AppColors.orange,
+              size: 24,
+            ),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Did you submit the Google Form?',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () => _submitConfirmation('yes'),
+            icon: const Icon(
+              Icons.check_circle_outline_rounded,
+              size: 19,
+            ),
+            label: const Text('Yes, submitted'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.success,
+              side: const BorderSide(
+                color: AppColors.success,
+              ),
+              padding: const EdgeInsets.symmetric(
+                vertical: 14,
+                horizontal: 16,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
           ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.success,
-                    side: const BorderSide(color: AppColors.success),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                  onPressed: () => _submitConfirmation('yes'),
-                  child: const Text("Yes, submitted"),
-                ),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () => _submitConfirmation('retry'),
+            icon: const Icon(
+              Icons.refresh_rounded,
+              size: 19,
+            ),
+            label: const Text('Open form again'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              side: const BorderSide(
+                color: AppColors.primary,
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.primary,
-                    side: const BorderSide(color: AppColors.primary),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                  onPressed: () => _submitConfirmation('retry'),
-                  child: const Text("Retry"),
-                ),
+              padding: const EdgeInsets.symmetric(
+                vertical: 14,
+                horizontal: 16,
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.error,
-                    side: const BorderSide(color: AppColors.error),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                  onPressed: () => _submitConfirmation('cancel'),
-                  child: const Text("Cancel"),
-                ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
               ),
-            ],
+            ),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () => _submitConfirmation('cancel'),
+            icon: const Icon(
+              Icons.close_rounded,
+              size: 19,
+            ),
+            label: const Text('Not submitted'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.error,
+              side: const BorderSide(
+                color: AppColors.error,
+              ),
+              padding: const EdgeInsets.symmetric(
+                vertical: 14,
+                horizontal: 16,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+
+
+
+
+
+
 
   // ---------------- Helper Widgets (unchanged) ----------------
   Widget _buildGlowingOrbs(Color stateColor) {
@@ -1565,42 +1661,70 @@ Widget _buildTimePickerBox({
     );
   }
 
-  Widget _buildHeader(int totalDays) {
-    final greeting = AppFormatters.getGreeting();
-    final displayName = _userName ?? "User";
+ Widget _buildHeader(int totalDays) {
+  final greeting = AppFormatters.getGreeting();
+  final displayName = _userName?.trim().isNotEmpty == true
+      ? _userName!.trim()
+      : 'User';
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Column(
+  return Row(
+    crossAxisAlignment: CrossAxisAlignment.center,
+    children: [
+      Expanded(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("$greeting, $displayName ",
-                style: const TextStyle(
-                    color: AppColors.textBody,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500)),
+            Text(
+              '$greeting, $displayName',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppColors.textBody,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             const SizedBox(height: 4),
-            Text("Total days present: $totalDays",
-                style: const TextStyle(
-                    color: AppColors.textMuted, fontSize: 12)),
+            Text(
+              'Total days present: $totalDays',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppColors.textMuted,
+                fontSize: 12,
+              ),
+            ),
           ],
         ),
-        GestureDetector(
+      ),
+      const SizedBox(width: 12),
+      Material(
+        color: Colors.transparent,
+        child: InkWell(
           onTap: () => _showSettingsSheet(),
+          borderRadius: BorderRadius.circular(50),
           child: Container(
-            padding: const EdgeInsets.all(12),
+            width: 52,
+            height: 52,
             decoration: BoxDecoration(
-                color: AppColors.cardGlass,
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.cardBorder)),
-            child:
-                const Icon(Icons.tune_rounded, color: Colors.white, size: 24),
+              color: AppColors.cardGlass,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: AppColors.cardBorder,
+              ),
+            ),
+            child: const Icon(
+              Icons.tune_rounded,
+              color: Colors.white,
+              size: 24,
+            ),
           ),
         ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
+}
+
 
   Widget _buildHeroCard(Map<String, dynamic> state) {
     Color badgeColor = state['color'] as Color;
@@ -1679,108 +1803,236 @@ Widget _buildTimePickerBox({
     );
   }
 
-  Widget _buildScheduleCard() {
-    return GlassCard(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+Widget _buildScheduleCard() {
+  return GlassCard(
+    padding: const EdgeInsets.symmetric(
+      vertical: 18,
+      horizontal: 18,
+    ),
+    child: Row(
+      children: [
+        Expanded(
+          child: _buildScheduleItem(
+            label: 'SCHEDULED IN',
+            value: AppFormatters.formatTimeOfDay(_schedIn),
+            icon: Icons.login_rounded,
+            alignment: CrossAxisAlignment.start,
+          ),
+        ),
+        Container(
+          height: 44,
+          width: 1,
+          margin: const EdgeInsets.symmetric(horizontal: 14),
+          color: AppColors.cardBorder,
+        ),
+        Expanded(
+          child: _buildScheduleItem(
+            label: 'SCHEDULED OUT',
+            value: AppFormatters.formatTimeOfDay(_schedOut),
+            icon: Icons.logout_rounded,
+            alignment: CrossAxisAlignment.end,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+
+
+
+Widget _buildScheduleItem({
+  required String label,
+  required String value,
+  required IconData icon,
+  required CrossAxisAlignment alignment,
+}) {
+  return Column(
+    crossAxisAlignment: alignment,
+    children: [
+      Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text("SCHEDULED IN",
-                  style: TextStyle(
-                      color: AppColors.textMuted,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold)),
-              const SizedBox(height: 4),
-              Text(AppFormatters.formatTimeOfDay(_schedIn),
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600)),
-            ],
+          if (alignment == CrossAxisAlignment.start) ...[
+            Icon(
+              icon,
+              color: AppColors.primary,
+              size: 16,
+            ),
+            const SizedBox(width: 6),
+          ],
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppColors.textMuted,
+                fontSize: 9,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.7,
+              ),
+            ),
           ),
-          Container(height: 30, width: 1, color: AppColors.cardBorder),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              const Text("SCHEDULED OUT",
-                  style: TextStyle(
-                      color: AppColors.textMuted,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold)),
-              const SizedBox(height: 4),
-              Text(AppFormatters.formatTimeOfDay(_schedOut),
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600)),
-            ],
-          ),
+          if (alignment == CrossAxisAlignment.end) ...[
+            const SizedBox(width: 6),
+            Icon(
+              icon,
+              color: AppColors.primary,
+              size: 16,
+            ),
+          ],
         ],
+      ),
+      const SizedBox(height: 7),
+      FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: alignment == CrossAxisAlignment.start
+            ? Alignment.centerLeft
+            : Alignment.centerRight,
+        child: Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
+
+
+
+
+
+
+
+Widget _buildTodayLogs() {
+  if (_todayLogs.isEmpty) {
+    return GlassCard(
+      padding: const EdgeInsets.all(24),
+      child: Center(
+        child: Column(
+          children: [
+            Icon(
+              Icons.history_toggle_off_rounded,
+              color: AppColors.textMuted.withValues(alpha: 0.7),
+              size: 34,
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'No logs yet today.',
+              style: TextStyle(
+                color: AppColors.textBody,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildTodayLogs() {
-    if (_todayLogs.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Text("No logs yet today.",
-              style: TextStyle(
-                  color: AppColors.textBody.withValues(alpha: 0.6))),
-        ),
-      );
-    }
-    return Column(
-      children: _todayLogs.reversed.map((log) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: GlassCard(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Icon(
-                    log.type == 'in'
-                        ? Icons.login_rounded
-                        : Icons.logout_rounded,
-                    color: log.type == 'in'
-                        ? AppColors.success
-                        : AppColors.orange,
-                    size: 20),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(AppFormatters.formatTime(log.timestamp),
+  return Column(
+    children: _todayLogs.reversed.map((log) {
+      final bool isTimeIn = log.type == 'in';
+
+      final Color actionColor = isTimeIn
+          ? AppColors.success
+          : AppColors.orange;
+
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: GlassCard(
+          padding: const EdgeInsets.all(17),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: actionColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(
+                      isTimeIn
+                          ? Icons.login_rounded
+                          : Icons.logout_rounded,
+                      color: actionColor,
+                      size: 21,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isTimeIn ? 'Clock In' : 'Clock Out',
                           style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600)),
-                      if (log.accomplishment != null)
-                        Text(log.accomplishment!,
-                            style: const TextStyle(
-                                color: AppColors.textMuted, fontSize: 12)),
-                    ],
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          AppFormatters.formatTime(log.timestamp),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppColors.textBody,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              if (log.accomplishment?.trim().isNotEmpty == true) ...[
+                const SizedBox(height: 12),
+                Text(
+                  log.accomplishment!.trim(),
+                  style: const TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 12,
+                    height: 1.4,
                   ),
                 ),
-                // Form status chip
-                if (log.formStatus != null)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 8),
-                    child: _buildFormStatusChip(log.formStatus!),
-                  ),
-                const SizedBox(width: 8),
-                StatusChip(status: log.status),
               ],
-            ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  if (log.formStatus != null)
+                    _buildFormStatusChip(log.formStatus!),
+                  StatusChip(status: log.status),
+                ],
+              ),
+            ],
           ),
-        );
-      }).toList(),
-    );
-  }
+        ),
+      );
+    }).toList(),
+  );
+}
+
+
+
+
+
+
+
 
   Widget _buildFormStatusChip(String formStatus) {
     Color color;
@@ -1817,60 +2069,116 @@ Widget _buildTimePickerBox({
     );
   }
 
-  Widget _buildHistorySection() {
-    if (_history.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Text("No records found.",
-              style: TextStyle(
-                  color: AppColors.textBody.withValues(alpha: 0.5))),
-        ),
-      );
-    }
-    return Column(
-      children: _history.map((log) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 12.0),
-          child: GlassCard(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              children: [
-                Icon(
-                    log.type == 'in'
-                        ? Icons.login_rounded
-                        : Icons.logout_rounded,
-                    color: log.type == 'in'
-                        ? AppColors.success
-                        : AppColors.orange,
-                    size: 18),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(AppFormatters.formatDate(log.date),
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600)),
-                      Text(AppFormatters.formatTime(log.timestamp),
-                          style: const TextStyle(
-                              color: AppColors.textBody, fontSize: 13)),
-                      if (log.accomplishment != null)
-                        Text("“${log.accomplishment}”",
-                            style: const TextStyle(
-                                color: AppColors.textMuted,
-                                fontSize: 11,
-                                fontStyle: FontStyle.italic)),
-                    ],
-                  ),
-                ),
-                StatusChip(status: log.status),
-              ],
-            ),
+
+
+
+
+
+ Widget _buildHistorySection() {
+  if (_history.isEmpty) {
+    return GlassCard(
+      padding: const EdgeInsets.all(24),
+      child: const Center(
+        child: Text(
+          'No records found.',
+          style: TextStyle(
+            color: AppColors.textMuted,
+            fontSize: 14,
           ),
-        );
-      }).toList(),
+        ),
+      ),
     );
   }
+
+  return Column(
+    children: _history.map((log) {
+      final bool isTimeIn = log.type == 'in';
+
+      final Color actionColor = isTimeIn
+          ? AppColors.success
+          : AppColors.orange;
+
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: GlassCard(
+          padding: const EdgeInsets.all(17),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: actionColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(13),
+                    ),
+                    child: Icon(
+                      isTimeIn
+                          ? Icons.login_rounded
+                          : Icons.logout_rounded,
+                      color: actionColor,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          AppFormatters.formatDate(log.date),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          AppFormatters.formatTime(log.timestamp),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppColors.textBody,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              if (log.accomplishment?.trim().isNotEmpty == true) ...[
+                const SizedBox(height: 12),
+                Text(
+                  '“${log.accomplishment!.trim()}”',
+                  style: const TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 11,
+                    fontStyle: FontStyle.italic,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 13),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  if (log.formStatus != null)
+                    _buildFormStatusChip(log.formStatus!),
+                  StatusChip(status: log.status),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    }).toList(),
+  );
 }
+    }
