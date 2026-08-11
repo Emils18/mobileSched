@@ -15,39 +15,50 @@ Future<void> main() async {
   runApp(const MobileSchedApp());
 }
 
-class MobileSchedApp extends StatelessWidget {
+class MobileSchedApp extends StatefulWidget {
   const MobileSchedApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final ThemeService themeService = ThemeService();
+  State<MobileSchedApp> createState() => _MobileSchedAppState();
+}
 
+class _MobileSchedAppState extends State<MobileSchedApp> {
+  final ThemeService _themeService = ThemeService();
+
+  void _updateSystemUiOverlay(AppPalette palette) {
+    SystemChrome.setSystemUIOverlayStyle(
+      SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness:
+            palette.isDark ? Brightness.light : Brightness.dark,
+        statusBarBrightness:
+            palette.isDark ? Brightness.dark : Brightness.light,
+        systemNavigationBarColor: palette.background,
+        systemNavigationBarIconBrightness:
+            palette.isDark ? Brightness.light : Brightness.dark,
+        systemNavigationBarDividerColor: Colors.transparent,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: themeService,
+      animation: _themeService,
       builder: (context, child) {
         final AppPalette palette = MobileSchedTheme.palette(
-          themeService.preset,
+          _themeService.preset,
         );
 
-        SystemChrome.setSystemUIOverlayStyle(
-          SystemUiOverlayStyle(
-            statusBarColor: Colors.transparent,
-            statusBarIconBrightness:
-                palette.isDark ? Brightness.light : Brightness.dark,
-            statusBarBrightness:
-                palette.isDark ? Brightness.dark : Brightness.light,
-            systemNavigationBarColor: palette.background,
-            systemNavigationBarIconBrightness:
-                palette.isDark ? Brightness.light : Brightness.dark,
-            systemNavigationBarDividerColor: Colors.transparent,
-          ),
-        );
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _updateSystemUiOverlay(palette);
+        });
 
         return MaterialApp(
           title: 'MobileSched',
           debugShowCheckedModeBanner: false,
           theme: MobileSchedTheme.build(
-            themeService.preset,
+            _themeService.preset,
           ),
           home: const SplashScreen(),
         );

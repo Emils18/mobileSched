@@ -121,841 +121,31 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
   }
 
-  // ---------------- Settings Sheet (identical to before, no warnings) ----------------
   void _showSettingsSheet({bool isFirstTime = false}) {
-  final TextEditingController nameController =
-      TextEditingController(text: _userName);
-
-  List<int> tempDays = List<int>.from(_dutyDays);
-  TimeOfDay tempIn = _schedIn;
-  TimeOfDay tempOut = _schedOut;
-
-  final NotificationService notifService = NotificationService();
-
-  bool notifEnabled = notifService.isEnabled;
-  bool soundEnabled = notifService.isSoundEnabled;
-  bool vibrationEnabled = notifService.isVibrationEnabled;
-  bool persistentEnabled = notifService.isPersistentEnabled;
-
-  showModalBottomSheet<void>(
-    context: context,
-    isDismissible: !isFirstTime,
-    enableDrag: !isFirstTime,
-    backgroundColor: Colors.transparent,
-    isScrollControlled: true,
-    builder: (sheetContext) {
-      return StatefulBuilder(
-        builder: (context, setModalState) {
-          final theme = Theme.of(context);
-          final colorScheme = theme.colorScheme;
-
-          return Padding(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(context).viewInsets.bottom,
-            ),
-            child: GlassCard(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(32),
-              ),
-              padding: const EdgeInsets.fromLTRB(
-                24,
-                26,
-                24,
-                24,
-              ),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(context).size.height * 0.88,
-                ),
-                child: SingleChildScrollView(
-                  keyboardDismissBehavior:
-                      ScrollViewKeyboardDismissBehavior.onDrag,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Center(
-                        child: Container(
-                          width: 46,
-                          height: 5,
-                          decoration: BoxDecoration(
-                            color: theme.dividerColor,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 22),
-
-                      Row(
-                        children: [
-                          Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  colorScheme.primary,
-                                  colorScheme.secondary,
-                                ],
-                              ),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: const Icon(
-                              Icons.tune_rounded,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  isFirstTime
-                                      ? 'Welcome to MobileSched'
-                                      : 'Settings & Schedule',
-                                  style: TextStyle(
-                                    color: colorScheme.onSurface,
-                                    fontSize: 23,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: -0.4,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  isFirstTime
-                                      ? 'Set up your profile and regular duty schedule.'
-                                      : 'Update your profile, schedule, theme, and integrations.',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    height: 1.4,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 30),
-
-                      _buildSettingsLabel(
-                        context,
-                        'PREFERRED NAME',
-                      ),
-                      const SizedBox(height: 12),
-
-                      TextField(
-                        controller: nameController,
-                        textCapitalization: TextCapitalization.words,
-                        textInputAction: TextInputAction.done,
-                        style: TextStyle(
-                          color: colorScheme.onSurface,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        decoration: const InputDecoration(
-                          hintText: 'Enter your preferred name',
-                          prefixIcon: Icon(
-                            Icons.person_outline_rounded,
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 26),
-
-                      _buildSettingsLabel(
-                        context,
-                        'DUTY DAYS',
-                      ),
-                      const SizedBox(height: 12),
-
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: List<Widget>.generate(
-                          7,
-                          (index) {
-                            final int dayNumber = index + 1;
-                            final bool isSelected =
-                                tempDays.contains(dayNumber);
-
-                            return ChoiceChip(
-                              label: Text(
-                                AppFormatters.getDayName(dayNumber),
-                              ),
-                              selected: isSelected,
-                              onSelected: (selected) {
-                                setModalState(() {
-                                  if (selected) {
-                                    if (!tempDays.contains(dayNumber)) {
-                                      tempDays.add(dayNumber);
-                                      tempDays.sort();
-                                    }
-                                  } else {
-                                    tempDays.remove(dayNumber);
-                                  }
-                                });
-                              },
-                              selectedColor:
-                                  colorScheme.primary.withValues(alpha: 0.17),
-                              backgroundColor: colorScheme.surface,
-                              labelStyle: TextStyle(
-                                color: isSelected
-                                    ? colorScheme.primary
-                                    : colorScheme.onSurface
-                                        .withValues(alpha: 0.72),
-                                fontWeight: FontWeight.w700,
-                              ),
-                              side: BorderSide(
-                                color: isSelected
-                                    ? colorScheme.primary
-                                    : theme.dividerColor,
-                              ),
-                              showCheckmark: false,
-                            );
-                          },
-                        ),
-                      ),
-
-                      const SizedBox(height: 26),
-
-                      _buildSettingsLabel(
-                        context,
-                        'REGULAR SCHEDULE',
-                      ),
-                      const SizedBox(height: 12),
-
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildTimePickerBox(
-  context: context,
-  label: 'TIME IN',
-  time: tempIn,
-  icon: Icons.login_rounded,
-  onTap: () async {
-    final selectedTime = await showTimePicker(
+    showModalBottomSheet<void>(
       context: context,
-      initialTime: tempIn,
+      isDismissible: !isFirstTime,
+      enableDrag: false,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return _SettingsSheetContent(
+          service: _service,
+          userName: _userName,
+          dutyDays: _dutyDays,
+          schedIn: _schedIn,
+          schedOut: _schedOut,
+          isFirstTime: isFirstTime,
+          onSaved: () {
+            _loadData();
+          },
+        );
+      },
     );
-
-    if (selectedTime != null) {
-      setModalState(() {
-        tempIn = selectedTime;
-      });
-    }
-  },
-),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child:_buildTimePickerBox(
-                            context: context,
-                            label: 'TIME OUT',
-                            time: tempOut,
-                            icon: Icons.logout_rounded,
-                            onTap: () async {
-                              final selectedTime = await showTimePicker(
-                                context: context,
-                                initialTime: tempOut,
-                              );
-
-                              if (selectedTime != null) {
-                                setModalState(() {
-                                  tempOut = selectedTime;
-                                });
-                              }
-                            },
-                          ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 30),
-
-                      _buildThemeSelector(
-                        context,
-                        setModalState,
-                      ),
-
-                      const SizedBox(height: 32),
-
-                      _buildSettingsLabel(
-                        context,
-                        'NOTIFICATIONS',
-                      ),
-                      const SizedBox(height: 8),
-
-                      _buildSettingsSwitch(
-                        context: context,
-                        title: 'Enable notifications',
-                        subtitle: 'Turn all MobileSched alerts on or off.',
-                        icon: Icons.notifications_active_outlined,
-                        value: notifEnabled,
-                        onChanged: (value) async {
-                          await notifService.setEnabled(value);
-
-                          if (value) {
-                            await notifService.scheduleReminders(
-                              dutyDays: tempDays,
-                              timeIn: tempIn,
-                              timeOut: tempOut,
-                            );
-                          }
-
-                          setModalState(() {
-                            notifEnabled = value;
-                          });
-                        },
-                      ),
-
-                      _buildSettingsSwitch(
-                        context: context,
-                        title: 'Sound',
-                        subtitle: 'Play a sound when an alert is shown.',
-                        icon: Icons.volume_up_outlined,
-                        value: soundEnabled,
-                        enabled: notifEnabled,
-                        onChanged: (value) async {
-                          await notifService.setSound(value);
-
-                          setModalState(() {
-                            soundEnabled = value;
-                          });
-                        },
-                      ),
-
-                      _buildSettingsSwitch(
-                        context: context,
-                        title: 'Vibration',
-                        subtitle: 'Vibrate the phone for notifications.',
-                        icon: Icons.vibration_rounded,
-                        value: vibrationEnabled,
-                        enabled: notifEnabled,
-                        onChanged: (value) async {
-                          await notifService.setVibration(value);
-
-                          setModalState(() {
-                            vibrationEnabled = value;
-                          });
-                        },
-                      ),
-
-                      _buildSettingsSwitch(
-                        context: context,
-                        title: 'Persistent alert',
-                        subtitle:
-                            'Keep the notification visible until handled.',
-                        icon: Icons.push_pin_outlined,
-                        value: persistentEnabled,
-                        enabled: notifEnabled,
-                        onChanged: (value) async {
-                          await notifService.setPersistent(value);
-
-                          setModalState(() {
-                            persistentEnabled = value;
-                          });
-                        },
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: notifEnabled
-                              ? () async {
-                                  final sent = await notifService
-                                      .showTestNotification();
-
-                                  if (!context.mounted) {
-                                    return;
-                                  }
-
-                                  ScaffoldMessenger.of(context)
-                                    ..hideCurrentSnackBar()
-                                    ..showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          sent
-                                              ? 'Notification sent successfully.'
-                                              : 'Enable notifications first.',
-                                        ),
-                                      ),
-                                    );
-                                }
-                              : null,
-                          icon: const Icon(
-                            Icons.notifications_active_rounded,
-                          ),
-                          label: const Text(
-                            'Test Notification',
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: colorScheme.primary,
-                            side: BorderSide(
-                              color: notifEnabled
-                                  ? colorScheme.primary
-                                  : theme.dividerColor,
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 15,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 30),
-
-                      _buildSettingsLabel(
-                        context,
-                        'GOOGLE FORM',
-                      ),
-                      const SizedBox(height: 8),
-
-                      _buildSettingsSwitch(
-                        context: context,
-                        title: 'Submit to Google Form',
-                        subtitle:
-                            'Open a prefilled Google Form after attendance.',
-                        icon: Icons.description_outlined,
-                        value: GoogleFormService().isEnabled,
-                        onChanged: (value) async {
-                          await GoogleFormService().setEnabled(value);
-
-                          setModalState(() {});
-                        },
-                      ),
-
-                      const SizedBox(height: 30),
-
-                      PremiumButton(
-                        text: 'SAVE CONFIGURATION',
-                        icon: Icons.save_rounded,
-                        onTap: () async {
-                          final String name =
-                              nameController.text.trim();
-
-                          if (name.isEmpty) {
-                            ScaffoldMessenger.of(context)
-                              ..hideCurrentSnackBar()
-                              ..showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Please enter your preferred name.',
-                                  ),
-                                ),
-                              );
-
-                            return;
-                          }
-
-                          if (tempDays.isEmpty) {
-                            ScaffoldMessenger.of(context)
-                              ..hideCurrentSnackBar()
-                              ..showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Select at least one duty day.',
-                                  ),
-                                ),
-                              );
-
-                            return;
-                          }
-
-                          if (!_service.isScheduleValid(
-                            tempIn,
-                            tempOut,
-                          )) {
-                            ScaffoldMessenger.of(context)
-                              ..hideCurrentSnackBar()
-                              ..showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Time Out must be later than Time In.',
-                                  ),
-                                ),
-                              );
-
-                            return;
-                          }
-
-                          await _service.setUserName(name);
-                          await _service.setDutyDays(tempDays);
-                          await _service.setScheduledTimeIn(tempIn);
-                          await _service.setScheduledTimeOut(tempOut);
-
-                          await notifService.scheduleReminders(
-                            dutyDays: tempDays,
-                            timeIn: tempIn,
-                            timeOut: tempOut,
-                          );
-
-                          _loadData();
-
-                          if (context.mounted) {
-                            Navigator.pop(context);
-                          }
-                        },
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      if (!isFirstTime)
-                        SizedBox(
-                          width: double.infinity,
-                          child: TextButton(
-                            onPressed: () {
-                              Navigator.pop(context);
-                            },
-                            child: const Text(
-                              'Cancel',
-                            ),
-                          ),
-                        ),
-
-                      const SizedBox(height: 12),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
-      );
-    },
-  ).whenComplete(nameController.dispose);
-}
-
-Widget _buildThemeSelector(
-  BuildContext context,
-  StateSetter setModalState,
-) {
-  final ThemeService themeService = ThemeService();
-  final AppThemePreset currentTheme = themeService.preset;
-  final ThemeData theme = Theme.of(context);
-
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      _buildSettingsLabel(
-        context,
-        'APP THEME',
-      ),
-      const SizedBox(height: 7),
-      Text(
-        'Choose how MobileSched looks on your device.',
-        style: theme.textTheme.bodySmall?.copyWith(
-          height: 1.4,
-        ),
-      ),
-      const SizedBox(height: 14),
-      LayoutBuilder(
-        builder: (context, constraints) {
-          final bool useSingleColumn =
-              constraints.maxWidth < 360;
-
-          final double cardWidth = useSingleColumn
-              ? constraints.maxWidth
-              : (constraints.maxWidth - 10) / 2;
-
-          return Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: AppThemePreset.values.map((preset) {
-              final AppPalette palette =
-                  MobileSchedTheme.palette(preset);
-
-              final bool isSelected =
-                  currentTheme == preset;
-
-              return Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(18),
-                  onTap: () async {
-                    await themeService.setPreset(preset);
-
-                    if (!context.mounted) {
-                      return;
-                    }
-
-                    setModalState(() {});
-                  },
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 250),
-                    curve: Curves.easeOutCubic,
-                    width: cardWidth,
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? palette.primary.withValues(alpha: 0.14)
-                          : theme.colorScheme.surface
-                              .withValues(alpha: 0.75),
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(
-                        color: isSelected
-                            ? palette.primary
-                            : theme.dividerColor,
-                        width: isSelected ? 1.6 : 1,
-                      ),
-                      boxShadow: isSelected
-                          ? [
-                              BoxShadow(
-                                color: palette.primary
-                                    .withValues(alpha: 0.16),
-                                blurRadius: 18,
-                                spreadRadius: -4,
-                              ),
-                            ]
-                          : null,
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 39,
-                          height: 39,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                palette.primary,
-                                palette.secondary,
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(13),
-                          ),
-                          child: Icon(
-                            themeService.getIcon(preset),
-                            color: Colors.white,
-                            size: 19,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                themeService.getName(preset),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: theme.colorScheme.onSurface,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              const SizedBox(height: 3),
-                              Text(
-                                themeService.getDescription(preset),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style:
-                                    theme.textTheme.bodySmall?.copyWith(
-                                  fontSize: 9,
-                                  height: 1.2,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        if (isSelected) ...[
-                          const SizedBox(width: 5),
-                          Icon(
-                            Icons.check_circle_rounded,
-                            color: palette.primary,
-                            size: 19,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          );
-        },
-      ),
-    ],
-  );
-}
-
-Widget _buildSettingsLabel(
-  BuildContext context,
-  String text,
-) {
-  return Text(
-    text,
-    style: TextStyle(
-      color: Theme.of(context)
-          .textTheme
-          .bodyMedium
-          ?.color
-          ?.withValues(alpha: 0.68),
-      fontSize: 11,
-      fontWeight: FontWeight.w900,
-      letterSpacing: 1.2,
-    ),
-  );
-}
-
-Widget _buildSettingsSwitch({
-  required BuildContext context,
-  required String title,
-  required String subtitle,
-  required IconData icon,
-  required bool value,
-  required Future<void> Function(bool value) onChanged,
-  bool enabled = true,
-}) {
-  final theme = Theme.of(context);
-  final colorScheme = theme.colorScheme;
-
-  return Opacity(
-    opacity: enabled ? 1 : 0.45,
-    child: SwitchListTile(
-      contentPadding: EdgeInsets.zero,
-      value: value,
-      activeThumbColor: colorScheme.primary,
-      onChanged: enabled
-          ? (newValue) {
-              onChanged(newValue);
-            }
-          : null,
-      secondary: Container(
-        width: 42,
-        height: 42,
-        decoration: BoxDecoration(
-          color: colorScheme.primary.withValues(alpha: 0.10),
-          borderRadius: BorderRadius.circular(13),
-        ),
-        child: Icon(
-          icon,
-          color: colorScheme.primary,
-          size: 21,
-        ),
-      ),
-      title: Text(
-        title,
-        style: TextStyle(
-          color: colorScheme.onSurface,
-          fontSize: 14,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-      subtitle: Padding(
-        padding: const EdgeInsets.only(top: 3),
-        child: Text(
-          subtitle,
-          style: theme.textTheme.bodySmall?.copyWith(
-            fontSize: 11,
-            height: 1.35,
-          ),
-        ),
-      ),
-    ),
-  );
-}
-
-
-
-
-
-
-Widget _buildTimePickerBox({
-  required BuildContext context,
-  required String label,
-  required TimeOfDay time,
-  required IconData icon,
-  required VoidCallback onTap,
-}) {
-  final ThemeData theme = Theme.of(context);
-  final ColorScheme colors = theme.colorScheme;
-
-  return Material(
-    color: Colors.transparent,
-    child: InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        padding: const EdgeInsets.all(15),
-        decoration: BoxDecoration(
-          color: colors.surface.withValues(alpha: 0.75),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: theme.dividerColor,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: colors.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(11),
-                  ),
-                  child: Icon(
-                    icon,
-                    color: colors.primary,
-                    size: 18,
-                  ),
-                ),
-                const Spacer(),
-                Icon(
-                  Icons.edit_rounded,
-                  color: colors.onSurface.withValues(alpha: 0.45),
-                  size: 17,
-                ),
-              ],
-            ),
-            const SizedBox(height: 15),
-            Text(
-              label,
-              style: TextStyle(
-                color: colors.onSurface.withValues(alpha: 0.55),
-                fontSize: 10,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 1,
-              ),
-            ),
-            const SizedBox(height: 5),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(
-                AppFormatters.formatTimeOfDay(time),
-                style: TextStyle(
-                  color: colors.onSurface,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-
-
-  
+  }
 
   void _showFeedback(String message, {bool isError = false}) {
-    // Here we don't need a context.mounted check because this method is always called after a check or in a context that is guaranteed (but to be safe we can add one)
-    if (!context.mounted) return;   // extra safety
+    if (!context.mounted) return;
     HapticFeedback.lightImpact();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -1012,7 +202,6 @@ Widget _buildTimePickerBox({
     return result == true;
   }
 
-  // --------------- Clock In (with form instruction + pending) ---------------
   Future<void> _handleTimeIn() async {
     try {
       if (_service.hasLogOfTypeToday('in')) {
@@ -1021,7 +210,7 @@ Widget _buildTimePickerBox({
       }
       final log = await _service.timeIn();
       await NotificationService().cancelTodayTimeInReminders();
-      if (!context.mounted) return;   // context.mounted
+      if (!context.mounted) return;
       _showFeedback("Local log saved (${log.status})");
 
       if (GoogleFormService().isEnabled) {
@@ -1036,7 +225,6 @@ Widget _buildTimePickerBox({
     }
   }
 
-  // --------------- Clock Out (with form instruction + pending) ---------------
   Future<void> _handleTimeOut() async {
     final TextEditingController accController = TextEditingController();
 
@@ -1105,7 +293,7 @@ Widget _buildTimePickerBox({
         accController.text.trim(),
       );
       await NotificationService().cancelTodayTimeOutReminders();
-      if (!context.mounted) return;   // context.mounted
+      if (!context.mounted) return;
       _showFeedback("Local log saved (${log.status})");
 
       if (GoogleFormService().isEnabled) {
@@ -1121,10 +309,8 @@ Widget _buildTimePickerBox({
     }
   }
 
-  /// Shows instruction bottom sheet, then opens form, saves pending.
   Future<void> _showFormInstructionAndLaunch(
       String url, String logId, String type) async {
-    // Show instruction
     await showModalBottomSheet(
       context: context,
       isDismissible: true,
@@ -1156,14 +342,13 @@ Widget _buildTimePickerBox({
       ),
     );
 
-    // Save pending submission
     final pending = PendingSubmission(
       logId: logId,
       type: type,
       url: url,
     );
     await PendingSubmissionService().setPending(pending);
-    if (!context.mounted) return;   // after await
+    if (!context.mounted) return;
     setState(() => _pendingSubmission = pending);
   }
 
@@ -1177,7 +362,6 @@ Widget _buildTimePickerBox({
     }
   }
 
-  // ---------- Confirmation actions ----------
   Future<void> _submitConfirmation(String action) async {
     final pending = _pendingSubmission;
     if (pending == null) return;
@@ -1203,9 +387,7 @@ Widget _buildTimePickerBox({
     });
   }
 
-  // ---------------- Real-time Status Logic (unchanged) ----------------
   Map<String, dynamic> _getDashboardState() {
-    // ... identical ...
     final now = _currentTime;
     final weekday = now.weekday;
     final isDutyDay = _dutyDays.contains(weekday);
@@ -1331,7 +513,6 @@ Widget _buildTimePickerBox({
     };
   }
 
-  // ---------------- Build Method (with confirmation card) ----------------
   @override
   Widget build(BuildContext context) {
     final state = _getDashboardState();
@@ -1373,7 +554,6 @@ Widget _buildTimePickerBox({
                     ).animate().fadeIn(duration: 500.ms),
                     const SizedBox(height: 16),
 
-                    // Pending submission confirmation card
                     if (_pendingSubmission != null)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 16.0),
@@ -1515,127 +695,114 @@ Widget _buildTimePickerBox({
     );
   }
 
-
-
-
-
-
-Widget _buildConfirmationCard() {
-  return GlassCard(
-    padding: const EdgeInsets.all(20),
-    borderColor: AppColors.orange.withValues(alpha: 0.5),
-    hasGlow: true,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Row(
-          children: [
-            Icon(
-              Icons.assignment_turned_in_outlined,
-              color: AppColors.orange,
-              size: 24,
-            ),
-            SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Did you submit the Google Form?',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+  Widget _buildConfirmationCard() {
+    return GlassCard(
+      padding: const EdgeInsets.all(20),
+      borderColor: AppColors.orange.withValues(alpha: 0.5),
+      hasGlow: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(
+                Icons.assignment_turned_in_outlined,
+                color: AppColors.orange,
+                size: 24,
+              ),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Did you submit the Google Form?',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => _submitConfirmation('yes'),
+              icon: const Icon(
+                Icons.check_circle_outline_rounded,
+                size: 19,
+              ),
+              label: const Text('Yes, submitted'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.success,
+                side: const BorderSide(
+                  color: AppColors.success,
+                ),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 14,
+                  horizontal: 16,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
                 ),
               ),
             ),
-          ],
-        ),
-        const SizedBox(height: 18),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: () => _submitConfirmation('yes'),
-            icon: const Icon(
-              Icons.check_circle_outline_rounded,
-              size: 19,
-            ),
-            label: const Text('Yes, submitted'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.success,
-              side: const BorderSide(
-                color: AppColors.success,
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => _submitConfirmation('retry'),
+              icon: const Icon(
+                Icons.refresh_rounded,
+                size: 19,
               ),
-              padding: const EdgeInsets.symmetric(
-                vertical: 14,
-                horizontal: 16,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
+              label: const Text('Open form again'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(
+                  color: AppColors.primary,
+                ),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 14,
+                  horizontal: 16,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
             ),
           ),
-        ),
-        const SizedBox(height: 10),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: () => _submitConfirmation('retry'),
-            icon: const Icon(
-              Icons.refresh_rounded,
-              size: 19,
-            ),
-            label: const Text('Open form again'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.primary,
-              side: const BorderSide(
-                color: AppColors.primary,
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => _submitConfirmation('cancel'),
+              icon: const Icon(
+                Icons.close_rounded,
+                size: 19,
               ),
-              padding: const EdgeInsets.symmetric(
-                vertical: 14,
-                horizontal: 16,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 10),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: () => _submitConfirmation('cancel'),
-            icon: const Icon(
-              Icons.close_rounded,
-              size: 19,
-            ),
-            label: const Text('Not submitted'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.error,
-              side: const BorderSide(
-                color: AppColors.error,
-              ),
-              padding: const EdgeInsets.symmetric(
-                vertical: 14,
-                horizontal: 16,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
+              label: const Text('Not submitted'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.error,
+                side: const BorderSide(
+                  color: AppColors.error,
+                ),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 14,
+                  horizontal: 16,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
             ),
           ),
-        ),
-      ],
-    ),
-  );
-}
+        ],
+      ),
+    );
+  }
 
-
-
-
-
-
-
-
-  // ---------------- Helper Widgets (unchanged) ----------------
   Widget _buildGlowingOrbs(Color stateColor) {
     return Stack(
       children: [
@@ -1661,70 +828,69 @@ Widget _buildConfirmationCard() {
     );
   }
 
- Widget _buildHeader(int totalDays) {
-  final greeting = AppFormatters.getGreeting();
-  final displayName = _userName?.trim().isNotEmpty == true
-      ? _userName!.trim()
-      : 'User';
+  Widget _buildHeader(int totalDays) {
+    final greeting = AppFormatters.getGreeting();
+    final displayName = _userName?.trim().isNotEmpty == true
+        ? _userName!.trim()
+        : 'User';
 
-  return Row(
-    crossAxisAlignment: CrossAxisAlignment.center,
-    children: [
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '$greeting, $displayName',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: AppColors.textBody,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '$greeting, $displayName',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: AppColors.textBody,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Total days present: $totalDays',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: AppColors.textMuted,
-                fontSize: 12,
+              const SizedBox(height: 4),
+              Text(
+                'Total days present: $totalDays',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 12,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-      const SizedBox(width: 12),
-      Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _showSettingsSheet(),
-          borderRadius: BorderRadius.circular(50),
-          child: Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: AppColors.cardGlass,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: AppColors.cardBorder,
+        const SizedBox(width: 12),
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => _showSettingsSheet(),
+            borderRadius: BorderRadius.circular(50),
+            child: Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: AppColors.cardGlass,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: AppColors.cardBorder,
+                ),
               ),
-            ),
-            child: const Icon(
-              Icons.tune_rounded,
-              color: Colors.white,
-              size: 24,
+              child: const Icon(
+                Icons.tune_rounded,
+                color: Colors.white,
+                size: 24,
+              ),
             ),
           ),
         ),
-      ),
-    ],
-  );
-}
-
+      ],
+    );
+  }
 
   Widget _buildHeroCard(Map<String, dynamic> state) {
     Color badgeColor = state['color'] as Color;
@@ -1803,236 +969,219 @@ Widget _buildConfirmationCard() {
     );
   }
 
-Widget _buildScheduleCard() {
-  return GlassCard(
-    padding: const EdgeInsets.symmetric(
-      vertical: 18,
-      horizontal: 18,
-    ),
-    child: Row(
-      children: [
-        Expanded(
-          child: _buildScheduleItem(
-            label: 'SCHEDULED IN',
-            value: AppFormatters.formatTimeOfDay(_schedIn),
-            icon: Icons.login_rounded,
-            alignment: CrossAxisAlignment.start,
-          ),
-        ),
-        Container(
-          height: 44,
-          width: 1,
-          margin: const EdgeInsets.symmetric(horizontal: 14),
-          color: AppColors.cardBorder,
-        ),
-        Expanded(
-          child: _buildScheduleItem(
-            label: 'SCHEDULED OUT',
-            value: AppFormatters.formatTimeOfDay(_schedOut),
-            icon: Icons.logout_rounded,
-            alignment: CrossAxisAlignment.end,
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-
-
-
-Widget _buildScheduleItem({
-  required String label,
-  required String value,
-  required IconData icon,
-  required CrossAxisAlignment alignment,
-}) {
-  return Column(
-    crossAxisAlignment: alignment,
-    children: [
-      Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (alignment == CrossAxisAlignment.start) ...[
-            Icon(
-              icon,
-              color: AppColors.primary,
-              size: 16,
-            ),
-            const SizedBox(width: 6),
-          ],
-          Flexible(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: AppColors.textMuted,
-                fontSize: 9,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.7,
-              ),
-            ),
-          ),
-          if (alignment == CrossAxisAlignment.end) ...[
-            const SizedBox(width: 6),
-            Icon(
-              icon,
-              color: AppColors.primary,
-              size: 16,
-            ),
-          ],
-        ],
-      ),
-      const SizedBox(height: 7),
-      FittedBox(
-        fit: BoxFit.scaleDown,
-        alignment: alignment == CrossAxisAlignment.start
-            ? Alignment.centerLeft
-            : Alignment.centerRight,
-        child: Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 17,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
-    ],
-  );
-}
-
-
-
-
-
-
-
-
-Widget _buildTodayLogs() {
-  if (_todayLogs.isEmpty) {
+  Widget _buildScheduleCard() {
     return GlassCard(
-      padding: const EdgeInsets.all(24),
-      child: Center(
-        child: Column(
-          children: [
-            Icon(
-              Icons.history_toggle_off_rounded,
-              color: AppColors.textMuted.withValues(alpha: 0.7),
-              size: 34,
+      padding: const EdgeInsets.symmetric(
+        vertical: 18,
+        horizontal: 18,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildScheduleItem(
+              label: 'SCHEDULED IN',
+              value: AppFormatters.formatTimeOfDay(_schedIn),
+              icon: Icons.login_rounded,
+              alignment: CrossAxisAlignment.start,
             ),
-            const SizedBox(height: 10),
-            const Text(
-              'No logs yet today.',
-              style: TextStyle(
-                color: AppColors.textBody,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
+          ),
+          Container(
+            height: 44,
+            width: 1,
+            margin: const EdgeInsets.symmetric(horizontal: 14),
+            color: AppColors.cardBorder,
+          ),
+          Expanded(
+            child: _buildScheduleItem(
+              label: 'SCHEDULED OUT',
+              value: AppFormatters.formatTimeOfDay(_schedOut),
+              icon: Icons.logout_rounded,
+              alignment: CrossAxisAlignment.end,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  return Column(
-    children: _todayLogs.reversed.map((log) {
-      final bool isTimeIn = log.type == 'in';
-
-      final Color actionColor = isTimeIn
-          ? AppColors.success
-          : AppColors.orange;
-
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: GlassCard(
-          padding: const EdgeInsets.all(17),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: actionColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Icon(
-                      isTimeIn
-                          ? Icons.login_rounded
-                          : Icons.logout_rounded,
-                      color: actionColor,
-                      size: 21,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          isTimeIn ? 'Clock In' : 'Clock Out',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          AppFormatters.formatTime(log.timestamp),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: AppColors.textBody,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+  Widget _buildScheduleItem({
+    required String label,
+    required String value,
+    required IconData icon,
+    required CrossAxisAlignment alignment,
+  }) {
+    return Column(
+      crossAxisAlignment: alignment,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (alignment == CrossAxisAlignment.start) ...[
+              Icon(
+                icon,
+                color: AppColors.primary,
+                size: 16,
               ),
-              if (log.accomplishment?.trim().isNotEmpty == true) ...[
-                const SizedBox(height: 12),
-                Text(
-                  log.accomplishment!.trim(),
-                  style: const TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 12,
-                    height: 1.4,
-                  ),
+              const SizedBox(width: 6),
+            ],
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 9,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.7,
                 ),
-              ],
-              const SizedBox(height: 14),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  if (log.formStatus != null)
-                    _buildFormStatusChip(log.formStatus!),
-                  StatusChip(status: log.status),
-                ],
+              ),
+            ),
+            if (alignment == CrossAxisAlignment.end) ...[
+              const SizedBox(width: 6),
+              Icon(
+                icon,
+                color: AppColors.primary,
+                size: 16,
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 7),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: alignment == CrossAxisAlignment.start
+              ? Alignment.centerLeft
+              : Alignment.centerRight,
+          child: Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTodayLogs() {
+    if (_todayLogs.isEmpty) {
+      return const GlassCard(
+        padding: EdgeInsets.all(24),
+        child: Center(
+          child: Column(
+            children: [
+              Icon(
+                Icons.history_toggle_off_rounded,
+                color: AppColors.textMuted,
+                size: 34,
+              ),
+              SizedBox(height: 10),
+              Text(
+                'No logs yet today.',
+                style: TextStyle(
+                  color: AppColors.textBody,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
         ),
       );
-    }).toList(),
-  );
-}
+    }
 
+    return Column(
+      children: _todayLogs.reversed.map((log) {
+        final bool isTimeIn = log.type == 'in';
 
+        final Color actionColor = isTimeIn
+            ? AppColors.success
+            : AppColors.orange;
 
-
-
-
-
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: GlassCard(
+            padding: const EdgeInsets.all(17),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: actionColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Icon(
+                        isTimeIn
+                            ? Icons.login_rounded
+                            : Icons.logout_rounded,
+                        color: actionColor,
+                        size: 21,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            isTimeIn ? 'Clock In' : 'Clock Out',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            AppFormatters.formatTime(log.timestamp),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: AppColors.textBody,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                if (log.accomplishment?.trim().isNotEmpty == true) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    log.accomplishment!.trim(),
+                    style: const TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 12,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    if (log.formStatus != null)
+                      _buildFormStatusChip(log.formStatus!),
+                    StatusChip(status: log.status),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
 
   Widget _buildFormStatusChip(String formStatus) {
     Color color;
@@ -2069,116 +1218,863 @@ Widget _buildTodayLogs() {
     );
   }
 
+  Widget _buildHistorySection() {
+    if (_history.isEmpty) {
+      return const GlassCard(
+        padding: EdgeInsets.all(24),
+        child: Center(
+          child: Text(
+            'No records found.',
+            style: TextStyle(
+              color: AppColors.textMuted,
+              fontSize: 14,
+            ),
+          ),
+        ),
+      );
+    }
 
+    return Column(
+      children: _history.map((log) {
+        final bool isTimeIn = log.type == 'in';
 
+        final Color actionColor = isTimeIn
+            ? AppColors.success
+            : AppColors.orange;
 
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: GlassCard(
+            padding: const EdgeInsets.all(17),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: actionColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(13),
+                      ),
+                      child: Icon(
+                        isTimeIn
+                            ? Icons.login_rounded
+                            : Icons.logout_rounded,
+                        color: actionColor,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            AppFormatters.formatDate(log.date),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            AppFormatters.formatTime(log.timestamp),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: AppColors.textBody,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                if (log.accomplishment?.trim().isNotEmpty == true) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    '“${log.accomplishment!.trim()}”',
+                    style: const TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 11,
+                      fontStyle: FontStyle.italic,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 13),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    if (log.formStatus != null)
+                      _buildFormStatusChip(log.formStatus!),
+                    StatusChip(status: log.status),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
 
+class _SettingsSheetContent extends StatefulWidget {
+  final AttendanceService service;
+  final String? userName;
+  final List<int> dutyDays;
+  final TimeOfDay schedIn;
+  final TimeOfDay schedOut;
+  final bool isFirstTime;
+  final VoidCallback onSaved;
 
- Widget _buildHistorySection() {
-  if (_history.isEmpty) {
-    return GlassCard(
-      padding: const EdgeInsets.all(24),
-      child: const Center(
-        child: Text(
-          'No records found.',
+  const _SettingsSheetContent({
+    required this.service,
+    required this.userName,
+    required this.dutyDays,
+    required this.schedIn,
+    required this.schedOut,
+    required this.isFirstTime,
+    required this.onSaved,
+  });
+
+  @override
+  State<_SettingsSheetContent> createState() => _SettingsSheetContentState();
+}
+
+class _SettingsSheetContentState extends State<_SettingsSheetContent> {
+  late final TextEditingController _nameController;
+  late List<int> _tempDays;
+  late TimeOfDay _tempIn;
+  late TimeOfDay _tempOut;
+
+  final NotificationService _notifService = NotificationService();
+  late bool _notifEnabled;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.userName);
+    _tempDays = List<int>.from(widget.dutyDays);
+    _tempIn = widget.schedIn;
+    _tempOut = widget.schedOut;
+    _notifEnabled = _notifService.isEnabled;
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  Widget _buildThemeSelector(
+    BuildContext context,
+    StateSetter setModalState,
+  ) {
+    final ThemeService themeService = ThemeService();
+    final AppThemePreset currentTheme = themeService.preset;
+    final ThemeData theme = Theme.of(context);
+
+    final double modalWidth = MediaQuery.sizeOf(context).width - 48;
+    final bool useSingleColumn = modalWidth < 320;
+    final double cardWidth =
+        useSingleColumn ? modalWidth : (modalWidth - 10) / 2;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSettingsLabel(
+          context,
+          'APP THEME',
+        ),
+        const SizedBox(height: 7),
+        Text(
+          'Choose how MobileSched looks on your device.',
+          style: theme.textTheme.bodySmall?.copyWith(
+            height: 1.4,
+          ),
+        ),
+        const SizedBox(height: 14),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: AppThemePreset.values.map((preset) {
+            final AppPalette palette = MobileSchedTheme.palette(preset);
+            final bool isSelected = currentTheme == preset;
+
+            return Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(18),
+                onTap: () async {
+                  await themeService.setPreset(preset);
+
+                  if (!context.mounted) {
+                    return;
+                  }
+
+                  setModalState(() {});
+                },
+                child: Container(
+                  width: cardWidth,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? palette.primary.withValues(alpha: 0.14)
+                        : theme.colorScheme.surface.withValues(alpha: 0.75),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: isSelected
+                          ? palette.primary
+                          : theme.dividerColor,
+                      width: isSelected ? 1.6 : 1,
+                    ),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: palette.primary.withValues(alpha: 0.16),
+                              blurRadius: 18,
+                              spreadRadius: -4,
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 39,
+                        height: 39,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              palette.primary,
+                              palette.secondary,
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(13),
+                        ),
+                        child: Icon(
+                          themeService.getIcon(preset),
+                          color: Colors.white,
+                          size: 19,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              themeService.getName(preset),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: theme.colorScheme.onSurface,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              themeService.getDescription(preset),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                fontSize: 9,
+                                height: 1.2,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (isSelected) ...[
+                        const SizedBox(width: 5),
+                        Icon(
+                          Icons.check_circle_rounded,
+                          color: palette.primary,
+                          size: 19,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSettingsLabel(
+    BuildContext context,
+    String text,
+  ) {
+    return Text(
+      text,
+      style: TextStyle(
+        color: Theme.of(context)
+            .textTheme
+            .bodyMedium
+            ?.color
+            ?.withValues(alpha: 0.68),
+        fontSize: 11,
+        fontWeight: FontWeight.w900,
+        letterSpacing: 1.2,
+      ),
+    );
+  }
+
+  Widget _buildSettingsSwitch({
+    required BuildContext context,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required bool value,
+    required Future<void> Function(bool value) onChanged,
+    bool enabled = true,
+  }) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Opacity(
+      opacity: enabled ? 1 : 0.45,
+      child: SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        value: value,
+        activeThumbColor: colorScheme.primary,
+        onChanged: enabled
+            ? (newValue) {
+                onChanged(newValue);
+              }
+            : null,
+        secondary: Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: colorScheme.primary.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(13),
+          ),
+          child: Icon(
+            icon,
+            color: colorScheme.primary,
+            size: 21,
+          ),
+        ),
+        title: Text(
+          title,
           style: TextStyle(
-            color: AppColors.textMuted,
+            color: colorScheme.onSurface,
             fontSize: 14,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 3),
+          child: Text(
+            subtitle,
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontSize: 11,
+              height: 1.35,
+            ),
           ),
         ),
       ),
     );
   }
 
-  return Column(
-    children: _history.map((log) {
-      final bool isTimeIn = log.type == 'in';
+  Widget _buildTimePickerBox({
+    required BuildContext context,
+    required String label,
+    required TimeOfDay time,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme colors = theme.colorScheme;
 
-      final Color actionColor = isTimeIn
-          ? AppColors.success
-          : AppColors.orange;
-
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: GlassCard(
-          padding: const EdgeInsets.all(17),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.all(15),
+          decoration: BoxDecoration(
+            color: colors.surface.withValues(alpha: 0.75),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: theme.dividerColor,
+            ),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
                   Container(
-                    width: 40,
-                    height: 40,
+                    width: 34,
+                    height: 34,
                     decoration: BoxDecoration(
-                      color: actionColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(13),
+                      color: colors.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(11),
                     ),
                     child: Icon(
-                      isTimeIn
-                          ? Icons.login_rounded
-                          : Icons.logout_rounded,
-                      color: actionColor,
-                      size: 20,
+                      icon,
+                      color: colors.primary,
+                      size: 18,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          AppFormatters.formatDate(log.date),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          AppFormatters.formatTime(log.timestamp),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: AppColors.textBody,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
+                  const Spacer(),
+                  Icon(
+                    Icons.edit_rounded,
+                    color: colors.onSurface.withValues(alpha: 0.45),
+                    size: 17,
                   ),
                 ],
               ),
-              if (log.accomplishment?.trim().isNotEmpty == true) ...[
-                const SizedBox(height: 12),
-                Text(
-                  '“${log.accomplishment!.trim()}”',
-                  style: const TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 11,
-                    fontStyle: FontStyle.italic,
-                    height: 1.4,
+              const SizedBox(height: 15),
+              Text(
+                label,
+                style: TextStyle(
+                  color: colors.onSurface.withValues(alpha: 0.55),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1,
+                ),
+              ),
+              const SizedBox(height: 5),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  AppFormatters.formatTimeOfDay(time),
+                  style: TextStyle(
+                    color: colors.onSurface,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
-              ],
-              const SizedBox(height: 13),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  if (log.formStatus != null)
-                    _buildFormStatusChip(log.formStatus!),
-                  StatusChip(status: log.status),
-                ],
               ),
             ],
           ),
         ),
-      );
-    }).toList(),
-  );
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final mediaQuery = MediaQuery.of(context);
+
+    return DefaultTabController(
+      length: 3,
+      child: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Padding(
+          padding: EdgeInsets.only(
+            bottom: mediaQuery.viewInsets.bottom,
+          ),
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppColors.bgDark,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(32),
+              ),
+              border: Border.all(
+                color: AppColors.cardBorder,
+                width: 1.4,
+              ),
+            ),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: theme.dividerColor,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Header
+                Row(
+                  children: [
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            colorScheme.primary,
+                            colorScheme.secondary,
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.tune_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.isFirstTime
+                                ? 'Welcome to MobileSched'
+                                : 'Settings & Schedule',
+                            style: TextStyle(
+                              color: colorScheme.onSurface,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          Text(
+                            widget.isFirstTime
+                                ? 'Set up profile & duty schedule.'
+                                : 'Configure schedule, theme, & alerts.',
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (!widget.isFirstTime)
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          color: Colors.white70,
+                          size: 22,
+                        ),
+                        tooltip: 'Close',
+                      ),
+                  ],
+                ),
+
+                const SizedBox(height: 12),
+
+                // Navigation Tabs
+                TabBar(
+                  indicatorColor: colorScheme.primary,
+                  labelColor: colorScheme.primary,
+                  unselectedLabelColor:
+                      colorScheme.onSurface.withValues(alpha: 0.6),
+                  labelStyle: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  tabs: const [
+                    Tab(text: 'Schedule'),
+                    Tab(text: 'Theme & Alerts'),
+                    Tab(text: 'Form'),
+                  ],
+                ),
+
+                const SizedBox(height: 12),
+
+                SizedBox(
+                  height: 380,
+                  child: TabBarView(
+                    physics: const ClampingScrollPhysics(),
+                    children: [
+                      // TAB 1: Schedule
+                      SingleChildScrollView(
+                        physics: const ClampingScrollPhysics(),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildSettingsLabel(context, 'PREFERRED NAME'),
+                            const SizedBox(height: 6),
+                            TextField(
+                              controller: _nameController,
+                              textCapitalization: TextCapitalization.words,
+                              style: TextStyle(
+                                color: colorScheme.onSurface,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              decoration: const InputDecoration(
+                                hintText: 'Enter your preferred name',
+                                prefixIcon: Icon(Icons.person_outline_rounded),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            _buildSettingsLabel(context, 'DUTY DAYS'),
+                            const SizedBox(height: 6),
+                            Wrap(
+                              spacing: 5,
+                              runSpacing: 5,
+                              children: List<Widget>.generate(7, (index) {
+                                final int dayNumber = index + 1;
+                                final bool isSelected =
+                                    _tempDays.contains(dayNumber);
+                                return ChoiceChip(
+                                  label: Text(
+                                      AppFormatters.getDayName(dayNumber)),
+                                  selected: isSelected,
+                                  onSelected: (selected) {
+                                    setState(() {
+                                      if (selected) {
+                                        if (!_tempDays.contains(dayNumber)) {
+                                          _tempDays.add(dayNumber);
+                                          _tempDays.sort();
+                                        }
+                                      } else {
+                                        _tempDays.remove(dayNumber);
+                                      }
+                                    });
+                                  },
+                                  selectedColor: colorScheme.primary
+                                      .withValues(alpha: 0.17),
+                                  backgroundColor: colorScheme.surface,
+                                  labelStyle: TextStyle(
+                                    color: isSelected
+                                        ? colorScheme.primary
+                                        : colorScheme.onSurface
+                                            .withValues(alpha: 0.72),
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 11,
+                                  ),
+                                  showCheckmark: false,
+                                );
+                              }),
+                            ),
+                            const SizedBox(height: 10),
+                            _buildSettingsLabel(context, 'REGULAR SCHEDULE'),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildTimePickerBox(
+                                    context: context,
+                                    label: 'TIME IN',
+                                    time: _tempIn,
+                                    icon: Icons.login_rounded,
+                                    onTap: () async {
+                                      final time = await showTimePicker(
+                                        context: context,
+                                        initialTime: _tempIn,
+                                      );
+                                      if (time != null) {
+                                        setState(() => _tempIn = time);
+                                      }
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: _buildTimePickerBox(
+                                    context: context,
+                                    label: 'TIME OUT',
+                                    time: _tempOut,
+                                    icon: Icons.logout_rounded,
+                                    onTap: () async {
+                                      final time = await showTimePicker(
+                                        context: context,
+                                        initialTime: _tempOut,
+                                      );
+                                      if (time != null) {
+                                        setState(() => _tempOut = time);
+                                      }
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // TAB 2: Theme & Alerts
+                      SingleChildScrollView(
+                        physics: const ClampingScrollPhysics(),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildThemeSelector(
+                              context,
+                              (fn) => setState(fn),
+                            ),
+                            const SizedBox(height: 12),
+                            _buildSettingsLabel(context, 'NOTIFICATIONS'),
+                            _buildSettingsSwitch(
+                              context: context,
+                              title: 'Enable notifications',
+                              subtitle: 'Turn all MobileSched alerts on/off.',
+                              icon: Icons.notifications_active_outlined,
+                              value: _notifEnabled,
+                              onChanged: (val) async {
+                                await _notifService.setEnabled(val);
+                                if (val) {
+                                  await _notifService.scheduleReminders(
+                                    dutyDays: _tempDays,
+                                    timeIn: _tempIn,
+                                    timeOut: _tempOut,
+                                  );
+                                }
+                                setState(() => _notifEnabled = val);
+                              },
+                            ),
+                            const SizedBox(height: 8),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: _notifEnabled
+                                    ? () async {
+                                        final sent = await _notifService
+                                            .showTestNotification();
+                                        if (!context.mounted) return;
+                                        ScaffoldMessenger.of(context)
+                                          ..hideCurrentSnackBar()
+                                          ..showSnackBar(
+                                            SnackBar(
+                                              content: Text(sent
+                                                  ? 'Notification sent successfully.'
+                                                  : 'Enable notifications first.'),
+                                            ),
+                                          );
+                                      }
+                                    : null,
+                                icon: const Icon(
+                                    Icons.notifications_active_rounded,
+                                    size: 18),
+                                label: const Text('Test Notification'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: colorScheme.primary,
+                                  side: BorderSide(
+                                    color: _notifEnabled
+                                        ? colorScheme.primary
+                                        : theme.dividerColor,
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 12,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // TAB 3: Google Form Integration
+                      SingleChildScrollView(
+                        physics: const ClampingScrollPhysics(),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildSettingsLabel(
+                                context, 'GOOGLE FORM INTEGRATION'),
+                            const SizedBox(height: 10),
+                            _buildSettingsSwitch(
+                              context: context,
+                              title: 'Submit to Google Form',
+                              subtitle:
+                                  'Automatically open prefilled Google Form when clocking attendance.',
+                              icon: Icons.description_outlined,
+                              value: GoogleFormService().isEnabled,
+                              onChanged: (val) async {
+                                await GoogleFormService().setEnabled(val);
+                                setState(() {});
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                // Save Action Button
+                PremiumButton(
+                  text: 'SAVE CONFIGURATION',
+                  icon: Icons.save_rounded,
+                  onTap: () async {
+                    final String name = _nameController.text.trim();
+
+                    if (name.isEmpty) {
+                      ScaffoldMessenger.of(context)
+                        ..hideCurrentSnackBar()
+                        ..showSnackBar(
+                          const SnackBar(
+                            content: Text('Please enter your preferred name.'),
+                          ),
+                        );
+                      return;
+                    }
+
+                    if (_tempDays.isEmpty) {
+                      ScaffoldMessenger.of(context)
+                        ..hideCurrentSnackBar()
+                        ..showSnackBar(
+                          const SnackBar(
+                            content: Text('Select at least one duty day.'),
+                          ),
+                        );
+                      return;
+                    }
+
+                    if (!widget.service.isScheduleValid(_tempIn, _tempOut)) {
+                      ScaffoldMessenger.of(context)
+                        ..hideCurrentSnackBar()
+                        ..showSnackBar(
+                          const SnackBar(
+                            content: Text('Time Out must be later than Time In.'),
+                          ),
+                        );
+                      return;
+                    }
+
+                    await widget.service.setUserName(name);
+                    await widget.service.setDutyDays(_tempDays);
+                    await widget.service.setScheduledTimeIn(_tempIn);
+                    await widget.service.setScheduledTimeOut(_tempOut);
+
+                    await _notifService.scheduleReminders(
+                      dutyDays: _tempDays,
+                      timeIn: _tempIn,
+                      timeOut: _tempOut,
+                    );
+
+                    widget.onSaved();
+
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
-    }
