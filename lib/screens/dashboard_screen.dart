@@ -1552,7 +1552,7 @@ class _SettingsSheetContentState extends State<_SettingsSheetContent> {
       child: SwitchListTile(
         contentPadding: EdgeInsets.zero,
         value: value,
-        activeThumbColor: colorScheme.primary,
+        activeColor: colorScheme.primary,
         onChanged: enabled
             ? (newValue) {
                 onChanged(newValue);
