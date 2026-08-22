@@ -1,4 +1,4 @@
-name: iOS Build
+name: iOS Simulator Build
 
 on:
   push:
@@ -9,8 +9,8 @@ on:
       - main
 
 jobs:
-  build-ios:
-    name: Build iOS Application
+  build-ios-simulator:
+    name: Build iOS Simulator App for Appetize
     runs-on: macos-latest
 
     steps:
@@ -30,18 +30,16 @@ jobs:
       - name: Analyze code
         run: flutter analyze
 
-      - name: Build iOS App (No Codesign)
-        run: flutter build ios --release --no-codesign
+      - name: Build iOS Simulator App
+        run: flutter build ios --simulator
 
-      - name: Compress iOS App
+      - name: Compress iOS App for Appetize
         run: |
-          cd build/ios/iphoneos
-          mkdir Payload
-          mv Runner.app Payload/
-          zip -r MobileSched-iOS.ipa Payload
+          cd build/ios/iphonesimulator
+          zip -r MobileSched-iOS-Simulator.zip Runner.app
 
-      - name: Upload iOS IPA Artifact
+      - name: Upload iOS Simulator Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: MobileSched-iOS-Package
-          path: build/ios/iphoneos/MobileSched-iOS.ipa
+          name: MobileSched-iOS-Simulator
+          path: build/ios/iphonesimulator/MobileSched-iOS-Simulator.zip
