@@ -35,6 +35,10 @@ class _DashboardScreenState extends State<DashboardScreen>
   TimeOfDay _schedOut = const TimeOfDay(hour: 21, minute: 30);
   int _totalDays = 0;
 
+  double _monthlyHours = 0.0;
+  double _monthlyAllowance = 0.0;
+  double _hourlyRate = 12.0;
+
   DateTime _currentTime = DateTime.now();
   Timer? _timer;
 
@@ -104,8 +108,11 @@ class _DashboardScreenState extends State<DashboardScreen>
       _schedIn = _service.getScheduledTimeIn();
       _schedOut = _service.getScheduledTimeOut();
       _todayLogs = _service.getTodayLogs();
-      _history = _service.getHistory().take(3).toList();
+      _history = _service.getHistory().take(5).toList();
       _totalDays = _service.getTotalDaysPresent();
+      _monthlyHours = _service.getMonthlyHours();
+      _monthlyAllowance = _service.getEstimatedMonthlyAllowance();
+      _hourlyRate = _service.getHourlyRate();
     });
   }
 
@@ -135,6 +142,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           dutyDays: _dutyDays,
           schedIn: _schedIn,
           schedOut: _schedOut,
+          hourlyRate: _hourlyRate,
           isFirstTime: isFirstTime,
           onSaved: () {
             _loadData();
@@ -143,6 +151,197 @@ class _DashboardScreenState extends State<DashboardScreen>
       },
     );
   }
+
+ 
+
+void _showAllowanceBreakdownDialog() {
+    final logs = _service.getHistory();
+    final now = DateTime.now();
+    final totalDaysInMonth = DateTime(now.year, now.month + 1, 0).day;
+    final currentDay = now.day;
+
+    final monthLogs = logs.where((log) {
+      return log.timestamp.year == now.year &&
+          log.timestamp.month == now.month;
+    }).toList();
+
+    final dayMap = <String, List<AttendanceModel>>{};
+    for (final log in monthLogs) {
+      dayMap.putIfAbsent(log.date, () => []).add(log);
+    }
+
+    final dailyItems = <Map<String, dynamic>>[];
+    double calculatedTotalHours = 0.0;
+
+    for (int day = 1; day <= currentDay; day++) {
+      final dateObj = DateTime(now.year, now.month, day);
+      final monthStr = now.month.toString().padLeft(2, '0');
+      final dayStr = day.toString().padLeft(2, '0');
+      final dateKey = "${now.year}-$monthStr-$dayStr";
+
+      final isDuty = _dutyDays.contains(dateObj.weekday);
+      final dayLogs = dayMap[dateKey] ?? [];
+      dayLogs.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+      AttendanceModel? inLog;
+      double dayHours = 0.0;
+
+      for (final log in dayLogs) {
+        if (log.isClockIn) {
+          inLog = log;
+        } else if (log.isClockOut && inLog != null) {
+          final duration = log.timestamp.difference(inLog.timestamp);
+          if (!duration.isNegative) {
+            dayHours += duration.inMinutes / 60.0;
+          }
+          inLog = null;
+        }
+      }
+
+      calculatedTotalHours += dayHours;
+      final earnings = dayHours * _hourlyRate;
+
+      String statusText;
+      if (dayHours > 0) {
+        statusText = "${dayHours.toStringAsFixed(1)}h • ₱${earnings.toStringAsFixed(2)}";
+      } else if (isDuty) {
+        statusText = "Missed (₱0.00)";
+      } else {
+        statusText = "Day Off";
+      }
+
+      dailyItems.add({
+        'day': AppFormatters.formatDate(dateKey),
+        'hours': dayHours,
+        'earnings': earnings,
+        'statusText': statusText,
+        'hasLog': dayHours > 0,
+        'isDuty': isDuty,
+      });
+    }
+
+    final totalEarnings = calculatedTotalHours * _hourlyRate;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.bgDeep,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: const BorderSide(color: AppColors.cardBorder)),
+        title: Row(
+          children: [
+            const Icon(Icons.payments_rounded, color: AppColors.success),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                "Allowance Tracker (Day 1-$currentDay/$totalDaysInMonth)",
+                style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 360,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("Rate: ₱${_hourlyRate.toStringAsFixed(2)}/hr • Month Total: ${calculatedTotalHours.toStringAsFixed(1)} hrs",
+                  style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+              const SizedBox(height: 12),
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Column(
+                    children: dailyItems.reversed.map((item) {
+                      final bool hasLog = item['hasLog'] as bool;
+                      final bool isDuty = item['isDuty'] as bool;
+
+                      Color borderColor = AppColors.cardBorder;
+                      Color textColor = AppColors.textMuted;
+                      if (hasLog) {
+                        borderColor = AppColors.success.withValues(alpha: 0.5);
+                        textColor = AppColors.success;
+                      } else if (isDuty) {
+                        borderColor = AppColors.error.withValues(alpha: 0.4);
+                        textColor = AppColors.error;
+                      }
+
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8.0),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: AppColors.cardGlass,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: borderColor),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  item['day'] as String,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  item['statusText'] as String,
+                                  textAlign: TextAlign.end,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: textColor,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.success.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text("ACCUMULATED ALLOWANCE",
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11)),
+                    Text("₱${totalEarnings.toStringAsFixed(2)}",
+                        style: const TextStyle(color: AppColors.success, fontWeight: FontWeight.w900, fontSize: 16)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Close", style: TextStyle(color: AppColors.primary)),
+          ),
+        ],
+      ),
+    );
+  }
+
+
 
   void _showFeedback(String message, {bool isError = false}) {
     if (!context.mounted) return;
@@ -309,6 +508,221 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
   }
 
+  void _showAbsenceDialog() {
+    final reasonController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.bgDeep,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: const BorderSide(color: AppColors.cardBorder)),
+        title: const Row(
+          children: [
+            Icon(Icons.event_busy_rounded, color: AppColors.orange),
+            SizedBox(width: 10),
+            Text("Absence Request",
+                style: TextStyle(color: Colors.white, fontSize: 18)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("Reason for absence:",
+                style: TextStyle(color: AppColors.textBody, fontSize: 13)),
+            const SizedBox(height: 10),
+            TextField(
+              controller: reasonController,
+              style: const TextStyle(color: Colors.white),
+              maxLines: 3,
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: Colors.black.withValues(alpha: 0.3),
+                hintText: "Enter reason...",
+                hintStyle: const TextStyle(color: AppColors.textMuted),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text("Cancel",
+                  style: TextStyle(color: AppColors.textBody))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.orange,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12))),
+            onPressed: () {
+              if (reasonController.text.trim().isEmpty) return;
+              Navigator.pop(ctx);
+              _showFeedback("Absence Request submitted.");
+            },
+            child: const Text("Submit",
+                style:
+                    TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showOvertimeDialog() {
+    final hoursController = TextEditingController();
+    final reasonController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.bgDeep,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: const BorderSide(color: AppColors.cardBorder)),
+        title: const Row(
+          children: [
+            Icon(Icons.more_time_rounded, color: AppColors.primary),
+            SizedBox(width: 10),
+            Text("Overtime Request",
+                style: TextStyle(color: Colors.white, fontSize: 18)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("Overtime Hours rendered:",
+                style: TextStyle(color: AppColors.textBody, fontSize: 13)),
+            const SizedBox(height: 6),
+            TextField(
+              controller: hoursController,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: Colors.black.withValues(alpha: 0.3),
+                hintText: "e.g., 2.5",
+                hintStyle: const TextStyle(color: AppColors.textMuted),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none),
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text("Reason/Tasks performed:",
+                style: TextStyle(color: AppColors.textBody, fontSize: 13)),
+            const SizedBox(height: 6),
+            TextField(
+              controller: reasonController,
+              style: const TextStyle(color: Colors.white),
+              maxLines: 2,
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: Colors.black.withValues(alpha: 0.3),
+                hintText: "Enter tasks...",
+                hintStyle: const TextStyle(color: AppColors.textMuted),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text("Cancel",
+                  style: TextStyle(color: AppColors.textBody))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12))),
+            onPressed: () {
+              final hours = double.tryParse(hoursController.text.trim());
+              if (hours == null || hours <= 0) return;
+              Navigator.pop(ctx);
+              _showFeedback("Overtime Request recorded ($hours hrs).");
+              _loadData();
+            },
+            child: const Text("Submit",
+                style:
+                    TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showWorkAuthDialog() {
+    final detailsController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.bgDeep,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: const BorderSide(color: AppColors.cardBorder)),
+        title: const Row(
+          children: [
+            Icon(Icons.badge_rounded, color: AppColors.secondary),
+            SizedBox(width: 10),
+            Text("Work Authorization",
+                style: TextStyle(color: Colors.white, fontSize: 18)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("Authorization details / Shift info:",
+                style: TextStyle(color: AppColors.textBody, fontSize: 13)),
+            const SizedBox(height: 10),
+            TextField(
+              controller: detailsController,
+              style: const TextStyle(color: Colors.white),
+              maxLines: 3,
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: Colors.black.withValues(alpha: 0.3),
+                hintText: "Enter details...",
+                hintStyle: const TextStyle(color: AppColors.textMuted),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text("Cancel",
+                  style: TextStyle(color: AppColors.textBody))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.secondary,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12))),
+            onPressed: () {
+              if (detailsController.text.trim().isEmpty) return;
+              Navigator.pop(ctx);
+              _showFeedback("Work Authorization Request submitted.");
+            },
+            child: const Text("Submit",
+                style:
+                    TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _showFormInstructionAndLaunch(
       String url, String logId, String type) async {
     await showModalBottomSheet(
@@ -321,7 +735,8 @@ class _DashboardScreenState extends State<DashboardScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.open_in_browser, size: 40, color: AppColors.primary),
+            const Icon(Icons.open_in_browser,
+                size: 40, color: AppColors.primary),
             const SizedBox(height: 16),
             const Text(
               "After submitting the form, return to MobileSched to confirm.",
@@ -403,10 +818,13 @@ class _DashboardScreenState extends State<DashboardScreen>
       };
     }
 
+    final schedIn = _service.getScheduledTimeInForDay(weekday);
+    final schedOut = _service.getScheduledTimeOutForDay(weekday);
+
     final schedInDT = DateTime(
-        now.year, now.month, now.day, _schedIn.hour, _schedIn.minute);
+        now.year, now.month, now.day, schedIn.hour, schedIn.minute);
     final schedOutDT = DateTime(
-        now.year, now.month, now.day, _schedOut.hour, _schedOut.minute);
+        now.year, now.month, now.day, schedOut.hour, schedOut.minute);
 
     final hasIn = _todayLogs.any((l) => l.type == 'in');
     final hasOut = _todayLogs.any((l) => l.type == 'out');
@@ -417,7 +835,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         final minutes = diff.inMinutes;
         return {
           "title": "Late / Missing Time In",
-          "sub": "Shift started at ${AppFormatters.formatTimeOfDay(_schedIn)}.",
+          "sub": "Shift started at ${AppFormatters.formatTimeOfDay(schedIn)}.",
           "color": AppColors.error,
           "icon": Icons.warning_amber_rounded,
           "warn": true,
@@ -430,7 +848,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           return {
             "title": "Almost Time In",
             "sub":
-                "Shift starts at ${AppFormatters.formatTimeOfDay(_schedIn)}.",
+                "Shift starts at ${AppFormatters.formatTimeOfDay(schedIn)}.",
             "color": AppColors.orange,
             "icon": Icons.alarm,
             "warn": false,
@@ -440,7 +858,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           return {
             "title": "Duty Later",
             "sub":
-                "Shift starts at ${AppFormatters.formatTimeOfDay(_schedIn)}.",
+                "Shift starts at ${AppFormatters.formatTimeOfDay(schedIn)}.",
             "color": AppColors.primary,
             "icon": Icons.schedule,
             "warn": false,
@@ -458,7 +876,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         return {
           "title": "Missing Time Out",
           "sub":
-              "Shift ended at ${AppFormatters.formatTimeOfDay(_schedOut)}.",
+              "Shift ended at ${AppFormatters.formatTimeOfDay(schedOut)}.",
           "color": AppColors.error,
           "icon": Icons.timer_off,
           "warn": true,
@@ -471,7 +889,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           return {
             "title": "Time Out Now",
             "sub":
-                "Shift ends at ${AppFormatters.formatTimeOfDay(_schedOut)}.",
+                "Shift ends at ${AppFormatters.formatTimeOfDay(schedOut)}.",
             "color": AppColors.orange,
             "icon": Icons.alarm,
             "warn": false,
@@ -481,7 +899,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           return {
             "title": "Currently On Duty",
             "sub":
-                "Time out at ${AppFormatters.formatTimeOfDay(_schedOut)}.",
+                "Time out at ${AppFormatters.formatTimeOfDay(schedOut)}.",
             "color": AppColors.secondary,
             "icon": Icons.work_outline,
             "warn": false,
@@ -541,7 +959,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     _buildHeader(_totalDays)
                         .animate()
                         .fadeIn(duration: 300.ms),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 28),
                     Center(
                       child: Text(
                         liveTimeStr,
@@ -586,9 +1004,41 @@ class _DashboardScreenState extends State<DashboardScreen>
                       ),
                     _buildHeroCard(state).animate().fadeIn(duration: 400.ms),
                     const SizedBox(height: 16),
+
+                    // TOTAL MONTHLY HOURS & ALLOWANCE CARD
+                    _buildAllowanceCard().animate().fadeIn(duration: 400.ms),
+                    const SizedBox(height: 10),
+
+                    // DEDICATED CALENDAR & ALLOWANCE TRACKER BUTTON
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: _showAllowanceBreakdownDialog,
+                        icon: const Icon(Icons.calendar_month_rounded,
+                            color: AppColors.primary, size: 20),
+                        label: const Text(
+                          "Open Monthly Calendar & Allowance Tracker",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: AppColors.cardGlass,
+                          side: const BorderSide(color: AppColors.cardBorder),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                      ),
+                    ).animate().fadeIn(duration: 400.ms),
+                    const SizedBox(height: 16),
+
                     _buildScheduleCard().animate().fadeIn(duration: 400.ms),
                     const SizedBox(height: 24),
-                    
+
                     PremiumButton(
                       text: "CLOCK IN",
                       icon: Icons.login_rounded,
@@ -601,6 +1051,17 @@ class _DashboardScreenState extends State<DashboardScreen>
                       onTap: _handleTimeOut,
                     ).animate().fadeIn(duration: 400.ms, delay: 400.ms),
                     const SizedBox(height: 24),
+
+                    // EXCUSE SLIPS & REQUESTS SECTION
+                    const Text("Excuse Slips & Requests",
+                        style: TextStyle(
+                            color: AppColors.textTitle,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 12),
+                    _buildRequestsSection(),
+                    const SizedBox(height: 28),
+
                     const Text("Today Logs",
                         style: TextStyle(
                             color: AppColors.textTitle,
@@ -677,12 +1138,32 @@ class _DashboardScreenState extends State<DashboardScreen>
                       ),
                     ],
                     const SizedBox(height: 32),
-                    const Text("Recent History",
-                        style: TextStyle(
-                            color: AppColors.textTitle,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text("Recent History",
+                            style: TextStyle(
+                                color: AppColors.textTitle,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700)),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                                color: AppColors.primary.withValues(alpha: 0.3)),
+                          ),
+                          child: const Text("🗓️ 1-Month Retention",
+                              style: TextStyle(
+                                  color: AppColors.primary,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
                     _buildHistorySection(),
                     const SizedBox(height: 40),
                   ],
@@ -692,6 +1173,164 @@ class _DashboardScreenState extends State<DashboardScreen>
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildAllowanceCard() {
+    return GlassCard(
+      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 18),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text("MONTHLY HOURS",
+                        style: TextStyle(
+                            color: AppColors.textMuted,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.7)),
+                    const SizedBox(height: 6),
+                    Text("${_monthlyHours.toStringAsFixed(1)} hrs",
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800)),
+                  ],
+                ),
+              ),
+              Container(height: 36, width: 1, color: AppColors.cardBorder),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                        "ESTIMATED ALLOWANCE (@₱${_hourlyRate.toStringAsFixed(0)}/hr)",
+                        style: const TextStyle(
+                            color: AppColors.textMuted,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.7)),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Text("₱${_monthlyAllowance.toStringAsFixed(2)}",
+                            style: const TextStyle(
+                                color: AppColors.success,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800)),
+                        const SizedBox(width: 6),
+                        const Icon(Icons.info_outline_rounded,
+                            color: AppColors.textMuted, size: 16),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRequestsSection() {
+    return Row(
+      children: [
+        Expanded(
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: _showAbsenceDialog,
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.cardGlass,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.cardBorder),
+                ),
+                child: const Column(
+                  children: [
+                    Icon(Icons.event_busy_rounded,
+                        color: AppColors.orange, size: 24),
+                    SizedBox(height: 6),
+                    Text("Absence",
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: _showOvertimeDialog,
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.cardGlass,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.cardBorder),
+                ),
+                child: const Column(
+                  children: [
+                    Icon(Icons.more_time_rounded,
+                        color: AppColors.primary, size: 24),
+                    SizedBox(height: 6),
+                    Text("Overtime",
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: _showWorkAuthDialog,
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.cardGlass,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.cardBorder),
+                ),
+                child: const Column(
+                  children: [
+                    Icon(Icons.badge_rounded,
+                        color: AppColors.secondary, size: 24),
+                    SizedBox(height: 6),
+                    Text("Work Auth",
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -970,6 +1609,11 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   Widget _buildScheduleCard() {
+    final now = DateTime.now();
+    final weekday = now.weekday;
+    final schedIn = _service.getScheduledTimeInForDay(weekday);
+    final schedOut = _service.getScheduledTimeOutForDay(weekday);
+
     return GlassCard(
       padding: const EdgeInsets.symmetric(
         vertical: 18,
@@ -980,7 +1624,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           Expanded(
             child: _buildScheduleItem(
               label: 'SCHEDULED IN',
-              value: AppFormatters.formatTimeOfDay(_schedIn),
+              value: AppFormatters.formatTimeOfDay(schedIn),
               icon: Icons.login_rounded,
               alignment: CrossAxisAlignment.start,
             ),
@@ -994,7 +1638,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           Expanded(
             child: _buildScheduleItem(
               label: 'SCHEDULED OUT',
-              value: AppFormatters.formatTimeOfDay(_schedOut),
+              value: AppFormatters.formatTimeOfDay(schedOut),
               icon: Icons.logout_rounded,
               alignment: CrossAxisAlignment.end,
             ),
@@ -1333,6 +1977,7 @@ class _SettingsSheetContent extends StatefulWidget {
   final List<int> dutyDays;
   final TimeOfDay schedIn;
   final TimeOfDay schedOut;
+  final double hourlyRate;
   final bool isFirstTime;
   final VoidCallback onSaved;
 
@@ -1342,6 +1987,7 @@ class _SettingsSheetContent extends StatefulWidget {
     required this.dutyDays,
     required this.schedIn,
     required this.schedOut,
+    required this.hourlyRate,
     required this.isFirstTime,
     required this.onSaved,
   });
@@ -1352,9 +1998,11 @@ class _SettingsSheetContent extends StatefulWidget {
 
 class _SettingsSheetContentState extends State<_SettingsSheetContent> {
   late final TextEditingController _nameController;
+  late final TextEditingController _hourlyRateController;
   late List<int> _tempDays;
   late TimeOfDay _tempIn;
   late TimeOfDay _tempOut;
+  late bool _isBrokenSchedule;
 
   final NotificationService _notifService = NotificationService();
   late bool _notifEnabled;
@@ -1363,16 +2011,44 @@ class _SettingsSheetContentState extends State<_SettingsSheetContent> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.userName);
+    _hourlyRateController =
+        TextEditingController(text: widget.hourlyRate.toStringAsFixed(0));
     _tempDays = List<int>.from(widget.dutyDays);
     _tempIn = widget.schedIn;
     _tempOut = widget.schedOut;
     _notifEnabled = _notifService.isEnabled;
+    _isBrokenSchedule = widget.service.isBrokenScheduleEnabled();
   }
 
   @override
   void dispose() {
     _nameController.dispose();
+    _hourlyRateController.dispose();
     super.dispose();
+  }
+
+  Future<void> _customizeDaySchedule(int dayNumber) async {
+    final currentIn = widget.service.getScheduledTimeInForDay(dayNumber);
+    final currentOut = widget.service.getScheduledTimeOutForDay(dayNumber);
+
+    final TimeOfDay? timeIn = await showTimePicker(
+      context: context,
+      initialTime: currentIn,
+      helpText: "Select Time In for ${AppFormatters.getDayName(dayNumber)}",
+    );
+
+    if (timeIn == null || !mounted) return;
+
+    final TimeOfDay? timeOut = await showTimePicker(
+      context: context,
+      initialTime: currentOut,
+      helpText: "Select Time Out for ${AppFormatters.getDayName(dayNumber)}",
+    );
+
+    if (timeOut == null || !mounted) return;
+
+    await widget.service.setCustomScheduleForDay(dayNumber, timeIn, timeOut);
+    setState(() {});
   }
 
   Widget _buildThemeSelector(
@@ -1552,7 +2228,7 @@ class _SettingsSheetContentState extends State<_SettingsSheetContent> {
       child: SwitchListTile(
         contentPadding: EdgeInsets.zero,
         value: value,
-        activeColor: colorScheme.primary,
+        activeThumbColor: colorScheme.primary,
         onChanged: enabled
             ? (newValue) {
                 onChanged(newValue);
@@ -1753,7 +2429,7 @@ class _SettingsSheetContentState extends State<_SettingsSheetContent> {
                           Text(
                             widget.isFirstTime
                                 ? 'Set up profile & duty schedule.'
-                                : 'Configure schedule, theme, & alerts.',
+                                : 'Configure schedule, rate, & alerts.',
                             style: theme.textTheme.bodySmall,
                           ),
                         ],
@@ -1787,7 +2463,7 @@ class _SettingsSheetContentState extends State<_SettingsSheetContent> {
                   indicatorSize: TabBarIndicatorSize.tab,
                   tabs: const [
                     Tab(text: 'Schedule'),
-                    Tab(text: 'Theme & Alerts'),
+                    Tab(text: 'Allowance & Theme'),
                     Tab(text: 'Form'),
                   ],
                 ),
@@ -1821,7 +2497,14 @@ class _SettingsSheetContentState extends State<_SettingsSheetContent> {
                               ),
                             ),
                             const SizedBox(height: 10),
-                            _buildSettingsLabel(context, 'DUTY DAYS'),
+                            _buildSettingsLabel(context, 'DUTY DAYS & SHIFTS'),
+                            const SizedBox(height: 4),
+                            Text(
+                              _isBrokenSchedule
+                                  ? 'Tap a day chip to customize its shift time.'
+                                  : 'Select active duty days.',
+                              style: theme.textTheme.bodySmall?.copyWith(fontSize: 10),
+                            ),
                             const SizedBox(height: 6),
                             Wrap(
                               spacing: 5,
@@ -1830,21 +2513,52 @@ class _SettingsSheetContentState extends State<_SettingsSheetContent> {
                                 final int dayNumber = index + 1;
                                 final bool isSelected =
                                     _tempDays.contains(dayNumber);
+
+                                final dayIn = widget.service
+                                    .getScheduledTimeInForDay(dayNumber);
+                                final dayOut = widget.service
+                                    .getScheduledTimeOutForDay(dayNumber);
+                                final shiftLabel =
+                                    _isBrokenSchedule && isSelected
+                                        ? "${AppFormatters.getDayName(dayNumber)} (${AppFormatters.formatTimeOfDay(dayIn)}-${AppFormatters.formatTimeOfDay(dayOut)})"
+                                        : AppFormatters.getDayName(dayNumber);
+
                                 return ChoiceChip(
-                                  label: Text(
-                                      AppFormatters.getDayName(dayNumber)),
+                                  label: Text(shiftLabel),
                                   selected: isSelected,
-                                  onSelected: (selected) {
-                                    setState(() {
-                                      if (selected) {
-                                        if (!_tempDays.contains(dayNumber)) {
-                                          _tempDays.add(dayNumber);
-                                          _tempDays.sort();
-                                        }
-                                      } else {
-                                        _tempDays.remove(dayNumber);
+                                  onSelected: (selected) async {
+                                    if (_isBrokenSchedule) {
+                                      if (isSelected && selected) {
+                                        await _customizeDaySchedule(dayNumber);
+                                        return;
                                       }
-                                    });
+
+                                      setState(() {
+                                        if (selected) {
+                                          if (!_tempDays.contains(dayNumber)) {
+                                            _tempDays.add(dayNumber);
+                                            _tempDays.sort();
+                                          }
+                                        } else {
+                                          _tempDays.remove(dayNumber);
+                                        }
+                                      });
+
+                                      if (selected) {
+                                        await _customizeDaySchedule(dayNumber);
+                                      }
+                                    } else {
+                                      setState(() {
+                                        if (selected) {
+                                          if (!_tempDays.contains(dayNumber)) {
+                                            _tempDays.add(dayNumber);
+                                            _tempDays.sort();
+                                          }
+                                        } else {
+                                          _tempDays.remove(dayNumber);
+                                        }
+                                      });
+                                    }
                                   },
                                   selectedColor: colorScheme.primary
                                       .withValues(alpha: 0.17),
@@ -1862,7 +2576,22 @@ class _SettingsSheetContentState extends State<_SettingsSheetContent> {
                               }),
                             ),
                             const SizedBox(height: 10),
-                            _buildSettingsLabel(context, 'REGULAR SCHEDULE'),
+                            _buildSettingsSwitch(
+                              context: context,
+                              title: 'Custom / Broken Schedule',
+                              subtitle:
+                                  'Turn ON to customize daily shift times per day.',
+                              icon: Icons.splitscreen_rounded,
+                              value: _isBrokenSchedule,
+                              onChanged: (val) async {
+                                await widget.service
+                                    .setBrokenScheduleEnabled(val);
+                                setState(() => _isBrokenSchedule = val);
+                              },
+                            ),
+                            const SizedBox(height: 8),
+                            _buildSettingsLabel(
+                                context, 'DEFAULT FALLBACK SCHEDULE'),
                             const SizedBox(height: 6),
                             Row(
                               children: [
@@ -1907,12 +2636,31 @@ class _SettingsSheetContentState extends State<_SettingsSheetContent> {
                         ),
                       ),
 
-                      // TAB 2: Theme & Alerts
+                      // TAB 2: Allowance & Theme
                       SingleChildScrollView(
                         physics: const ClampingScrollPhysics(),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            _buildSettingsLabel(
+                                context, 'HOURLY ALLOWANCE RATE (₱/hr)'),
+                            const SizedBox(height: 6),
+                            TextField(
+                              controller: _hourlyRateController,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                      decimal: true),
+                              style: TextStyle(
+                                color: colorScheme.onSurface,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              decoration: const InputDecoration(
+                                hintText: 'Default ₱12.00/hr',
+                                prefixIcon: Icon(Icons.payments_outlined),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
                             _buildThemeSelector(
                               context,
                               (fn) => setState(fn),
@@ -2018,6 +2766,8 @@ class _SettingsSheetContentState extends State<_SettingsSheetContent> {
                   icon: Icons.save_rounded,
                   onTap: () async {
                     final String name = _nameController.text.trim();
+                    final double? rate =
+                        double.tryParse(_hourlyRateController.text.trim());
 
                     if (name.isEmpty) {
                       ScaffoldMessenger.of(context)
@@ -2046,10 +2796,15 @@ class _SettingsSheetContentState extends State<_SettingsSheetContent> {
                         ..hideCurrentSnackBar()
                         ..showSnackBar(
                           const SnackBar(
-                            content: Text('Time Out must be later than Time In.'),
+                            content:
+                                Text('Time Out must be later than Time In.'),
                           ),
                         );
                       return;
+                    }
+
+                    if (rate != null && rate >= 0) {
+                      await widget.service.setHourlyRate(rate);
                     }
 
                     await widget.service.setUserName(name);

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
@@ -17,6 +18,11 @@ class AttendanceService {
   static const String _timeInKey = 'mobilesched_time_in';
   static const String _timeOutKey = 'mobilesched_time_out';
 
+  // New keys for Broken Schedule, Hourly Rate, and Custom Daily Schedules
+  static const String _isBrokenScheduleKey = 'mobilesched_is_broken_schedule';
+  static const String _customSchedulesKey = 'mobilesched_custom_schedules';
+  static const String _hourlyRateKey = 'mobilesched_hourly_rate';
+
   static const TimeOfDay _defaultTimeIn = TimeOfDay(
     hour: 16,
     minute: 30,
@@ -33,8 +39,10 @@ class AttendanceService {
 
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
+    await checkAndCleanExpiredHistory();
   }
 
+  // ---------------- USER NAME ----------------
   String? getUserName() {
     final name = _prefs.getString(_nameKey)?.trim();
 
@@ -52,6 +60,7 @@ class AttendanceService {
     );
   }
 
+  // ---------------- DUTY DAYS ----------------
   List<int> getDutyDays() {
     final storedDays = _prefs.getStringList(_dutyDaysKey);
 
@@ -87,11 +96,35 @@ class AttendanceService {
     );
   }
 
+  // ---------------- BROKEN / CUSTOM SCHEDULE SUPPORT ----------------
+  bool isBrokenScheduleEnabled() {
+    return _prefs.getBool(_isBrokenScheduleKey) ?? false;
+  }
+
+  Future<void> setBrokenScheduleEnabled(bool enabled) async {
+    await _prefs.setBool(_isBrokenScheduleKey, enabled);
+  }
+
   TimeOfDay getScheduledTimeIn() {
     return _parseStoredTime(
       _prefs.getString(_timeInKey),
       _defaultTimeIn,
     );
+  }
+
+  TimeOfDay getScheduledTimeInForDay(int weekday) {
+    if (!isBrokenScheduleEnabled()) {
+      return getScheduledTimeIn();
+    }
+
+    final customSchedules = _getCustomSchedulesMap();
+    final dayData = customSchedules[weekday.toString()];
+
+    if (dayData != null && dayData['in'] != null) {
+      return _parseStoredTime(dayData['in'], getScheduledTimeIn());
+    }
+
+    return getScheduledTimeIn();
   }
 
   Future<void> setScheduledTimeIn(TimeOfDay time) async {
@@ -108,6 +141,21 @@ class AttendanceService {
     );
   }
 
+  TimeOfDay getScheduledTimeOutForDay(int weekday) {
+    if (!isBrokenScheduleEnabled()) {
+      return getScheduledTimeOut();
+    }
+
+    final customSchedules = _getCustomSchedulesMap();
+    final dayData = customSchedules[weekday.toString()];
+
+    if (dayData != null && dayData['out'] != null) {
+      return _parseStoredTime(dayData['out'], getScheduledTimeOut());
+    }
+
+    return getScheduledTimeOut();
+  }
+
   Future<void> setScheduledTimeOut(TimeOfDay time) async {
     await _prefs.setString(
       _timeOutKey,
@@ -115,10 +163,109 @@ class AttendanceService {
     );
   }
 
+  Future<void> setCustomScheduleForDay(
+    int weekday,
+    TimeOfDay timeIn,
+    TimeOfDay timeOut,
+  ) async {
+    final customSchedules = _getCustomSchedulesMap();
+
+    customSchedules[weekday.toString()] = {
+      'in': '${timeIn.hour}:${timeIn.minute}',
+      'out': '${timeOut.hour}:${timeOut.minute}',
+    };
+
+    await _prefs.setString(_customSchedulesKey, jsonEncode(customSchedules));
+  }
+
+  Map<String, dynamic> _getCustomSchedulesMap() {
+    final jsonString = _prefs.getString(_customSchedulesKey);
+    if (jsonString == null || jsonString.isEmpty) {
+      return {};
+    }
+
+    try {
+      final decoded = jsonDecode(jsonString);
+      if (decoded is Map<String, dynamic>) {
+        return decoded;
+      }
+    } catch (_) {}
+
+    return {};
+  }
+
   bool isScheduleValid(TimeOfDay timeIn, TimeOfDay timeOut) {
     return _minutesOfDay(timeOut) > _minutesOfDay(timeIn);
   }
 
+  // ---------------- HOURLY RATE & ALLOWANCE CALCULATOR ----------------
+  double getHourlyRate() {
+    return _prefs.getDouble(_hourlyRateKey) ?? 12.0;
+  }
+
+  Future<void> setHourlyRate(double rate) async {
+    await _prefs.setDouble(_hourlyRateKey, rate);
+  }
+
+  double getMonthlyHours([DateTime? month]) {
+    final target = month ?? DateTime.now();
+    final logs = _getRawLogs();
+
+    final targetLogs = logs.where((log) {
+      return log.timestamp.year == target.year &&
+          log.timestamp.month == target.month;
+    }).toList();
+
+    // Group logs by day to pair Clock In and Clock Out
+    final dayMap = <String, List<AttendanceModel>>{};
+    for (final log in targetLogs) {
+      dayMap.putIfAbsent(log.date, () => []).add(log);
+    }
+
+    double totalMinutes = 0;
+
+    for (final dayLogs in dayMap.values) {
+      dayLogs.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+      AttendanceModel? clockInLog;
+
+      for (final log in dayLogs) {
+        if (log.isClockIn) {
+          clockInLog = log;
+        } else if (log.isClockOut && clockInLog != null) {
+          final duration = log.timestamp.difference(clockInLog.timestamp);
+          if (!duration.isNegative) {
+            totalMinutes += duration.inMinutes;
+          }
+          clockInLog = null; // Reset for next pair
+        }
+      }
+    }
+
+    return totalMinutes / 60.0;
+  }
+
+  double getEstimatedMonthlyAllowance([DateTime? month]) {
+    return getMonthlyHours(month) * getHourlyRate();
+  }
+
+  // ---------------- 1-MONTH DATA EXPIRATION & CLEANUP ----------------
+  Future<void> checkAndCleanExpiredHistory() async {
+    final now = DateTime.now();
+    final cutoffDate = DateTime(now.year, now.month - 1, 1);
+
+    final logs = _getRawLogs();
+    final activeLogs = logs.where((log) {
+      return log.timestamp.isAfter(cutoffDate) ||
+          log.timestamp.isAtSameMomentAs(cutoffDate);
+    }).toList();
+
+    if (activeLogs.length != logs.length) {
+      await _saveLogs(activeLogs);
+    }
+  }
+
+  // ---------------- ATTENDANCE LOGS & HISTORY ----------------
   List<AttendanceModel> getHistory() {
     final logs = _getRawLogs()
       ..sort(
@@ -281,7 +428,7 @@ class AttendanceService {
           validLogs.add(log);
         }
       } catch (_) {
-        // Ignore an invalid old entry instead of crashing the entire app.
+        // Ignore invalid entry instead of crashing
       }
     }
 
@@ -304,8 +451,8 @@ class AttendanceService {
       return 'NO DUTY DAY';
     }
 
-    final scheduledIn = getScheduledTimeIn();
-    final scheduledOut = getScheduledTimeOut();
+    final scheduledIn = getScheduledTimeInForDay(timestamp.weekday);
+    final scheduledOut = getScheduledTimeOutForDay(timestamp.weekday);
 
     final scheduledInDate = _combineDateAndTime(
       timestamp,
@@ -338,8 +485,8 @@ class AttendanceService {
       return 'NO DUTY DAY';
     }
 
-    final scheduledIn = getScheduledTimeIn();
-    final scheduledOut = getScheduledTimeOut();
+    final scheduledIn = getScheduledTimeInForDay(timestamp.weekday);
+    final scheduledOut = getScheduledTimeOutForDay(timestamp.weekday);
 
     final scheduledInDate = _combineDateAndTime(
       timestamp,
