@@ -508,220 +508,581 @@ void _showAllowanceBreakdownDialog() {
     }
   }
 
-  void _showAbsenceDialog() {
+ 
+
+
+void _showAbsenceDialog() {
     final reasonController = TextEditingController();
+   String selectedLeaveType = 'Sick';
+
+    DateTime startDate = DateTime.now();
+    DateTime endDate = DateTime.now();
+
+    final leaveOptions = ['Sick', 'Academic', 'Emergency'];
+
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.bgDeep,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-            side: const BorderSide(color: AppColors.cardBorder)),
-        title: const Row(
-          children: [
-            Icon(Icons.event_busy_rounded, color: AppColors.orange),
-            SizedBox(width: 10),
-            Text("Absence Request",
-                style: TextStyle(color: Colors.white, fontSize: 18)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("Reason for absence:",
-                style: TextStyle(color: AppColors.textBody, fontSize: 13)),
-            const SizedBox(height: 10),
-            TextField(
-              controller: reasonController,
-              style: const TextStyle(color: Colors.white),
-              maxLines: 3,
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: Colors.black.withValues(alpha: 0.3),
-                hintText: "Enter reason...",
-                hintStyle: const TextStyle(color: AppColors.textMuted),
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none),
+      builder: (ctx) => StatefulBuilder(
+        builder: (dialogCtx, setDialogState) {
+          final now = DateTime.now();
+          final startStr = "${startDate.year}-${startDate.month.toString().padLeft(2, '0')}-${startDate.day.toString().padLeft(2, '0')}";
+          final endStr = "${endDate.year}-${endDate.month.toString().padLeft(2, '0')}-${endDate.day.toString().padLeft(2, '0')}";
+
+          return AlertDialog(
+            backgroundColor: AppColors.bgDeep,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+                side: const BorderSide(color: AppColors.cardBorder)),
+            title: const Row(
+              children: [
+                Icon(Icons.event_busy_rounded, color: AppColors.orange),
+                SizedBox(width: 10),
+                Text("Absence Request", style: TextStyle(color: Colors.white, fontSize: 18)),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text("TYPE OF LEAVE:", style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: leaveOptions.map((type) {
+                      final isSelected = selectedLeaveType == type;
+                      return ChoiceChip(
+                        label: Text(type),
+                        selected: isSelected,
+                        onSelected: (selected) {
+                          if (selected) {
+                            setDialogState(() => selectedLeaveType = type);
+                          }
+                        },
+                        selectedColor: AppColors.orange.withValues(alpha: 0.2),
+                        backgroundColor: AppColors.cardGlass,
+                        labelStyle: TextStyle(
+                          color: isSelected ? AppColors.orange : Colors.white70,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11,
+                        ),
+                        showCheckmark: false,
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 14),
+                  const Text("DATES OF ABSENCE:", style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () async {
+                            final picked = await showDatePicker(
+                              context: dialogCtx,
+                              initialDate: startDate,
+                              firstDate: DateTime(now.year, now.month - 1),
+                              lastDate: DateTime(now.year, now.month + 2),
+                            );
+                            if (picked != null) {
+                              setDialogState(() {
+                                startDate = picked;
+                                if (endDate.isBefore(startDate)) endDate = startDate;
+                              });
+                            }
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: AppColors.cardBorder),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                          ),
+                          child: Text("Start: $startStr", style: const TextStyle(fontSize: 11)),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () async {
+                            final picked = await showDatePicker(
+                              context: dialogCtx,
+                              initialDate: endDate,
+                              firstDate: startDate,
+                              lastDate: DateTime(now.year, now.month + 2),
+                            );
+                            if (picked != null) {
+                              setDialogState(() => endDate = picked);
+                            }
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: AppColors.cardBorder),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                          ),
+                          child: Text("End: $endStr", style: const TextStyle(fontSize: 11)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  const Text("REASON FOR ABSENCE:", style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: reasonController,
+                    style: const TextStyle(color: Colors.white),
+                    maxLines: 2,
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: Colors.black.withValues(alpha: 0.3),
+                      hintText: "Enter detailed reason...",
+                      hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text("Cancel",
-                  style: TextStyle(color: AppColors.textBody))),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.orange,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12))),
-            onPressed: () {
-              if (reasonController.text.trim().isEmpty) return;
-              Navigator.pop(ctx);
-              _showFeedback("Absence Request submitted.");
-            },
-            child: const Text("Submit",
-                style:
-                    TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-          ),
-        ],
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text("Cancel", style: TextStyle(color: AppColors.textBody))),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.orange,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                onPressed: () async {
+                  final reason = reasonController.text.trim();
+                  if (reason.isEmpty) return;
+                  Navigator.pop(ctx);
+
+                  _showFeedback("Absence Request ($selectedLeaveType) saved.");
+
+                  if (GoogleFormService().isEnabled) {
+                    final url = PrefilledFormService().buildAbsenceUrl(
+                      leaveType: selectedLeaveType,
+                      startDate: startStr,
+                      endDate: endStr,
+                      reason: reason,
+                    );
+                    await _launchFormUrl(url);
+                  }
+                },
+                child: const Text("Submit & Open Form",
+                    style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
-  void _showOvertimeDialog() {
-    final hoursController = TextEditingController();
+
+
+void _showOvertimeDialog() {
     final reasonController = TextEditingController();
+    final supervisorController = TextEditingController();
+    final now = DateTime.now();
+
+    DateTime startDate = DateTime.now();
+    DateTime endDate = DateTime.now();
+    TimeOfDay timeStart = const TimeOfDay(hour: 17, minute: 0);
+    TimeOfDay timeEnd = const TimeOfDay(hour: 19, minute: 0);
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.bgDeep,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-            side: const BorderSide(color: AppColors.cardBorder)),
-        title: const Row(
-          children: [
-            Icon(Icons.more_time_rounded, color: AppColors.primary),
-            SizedBox(width: 10),
-            Text("Overtime Request",
-                style: TextStyle(color: Colors.white, fontSize: 18)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("Overtime Hours rendered:",
-                style: TextStyle(color: AppColors.textBody, fontSize: 13)),
-            const SizedBox(height: 6),
-            TextField(
-              controller: hoursController,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: Colors.black.withValues(alpha: 0.3),
-                hintText: "e.g., 2.5",
-                hintStyle: const TextStyle(color: AppColors.textMuted),
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none),
+      builder: (ctx) => StatefulBuilder(
+        builder: (dialogCtx, setDialogState) {
+          final startStr = AppFormatters.formatTimeOfDay(timeStart);
+          final endStr = AppFormatters.formatTimeOfDay(timeEnd);
+          final startDateStr = "${startDate.year}-${startDate.month.toString().padLeft(2, '0')}-${startDate.day.toString().padLeft(2, '0')}";
+          final endDateStr = "${endDate.year}-${endDate.month.toString().padLeft(2, '0')}-${endDate.day.toString().padLeft(2, '0')}";
+
+          return AlertDialog(
+            backgroundColor: AppColors.bgDeep,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+                side: const BorderSide(color: AppColors.cardBorder)),
+            title: const Row(
+              children: [
+                Icon(Icons.more_time_rounded, color: AppColors.primary),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text("Overtime / Work Authorization",
+                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text("WORK AUTHORIZATION DATES:",
+                      style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () async {
+                            final picked = await showDatePicker(
+                              context: dialogCtx,
+                              initialDate: startDate,
+                              firstDate: DateTime(now.year, now.month - 1),
+                              lastDate: DateTime(now.year, now.month + 2),
+                            );
+                            if (picked != null) {
+                              setDialogState(() {
+                                startDate = picked;
+                                if (endDate.isBefore(startDate)) endDate = startDate;
+                              });
+                            }
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: AppColors.cardBorder),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                          ),
+                          child: Text("Start: $startDateStr", style: const TextStyle(fontSize: 10)),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () async {
+                            final picked = await showDatePicker(
+                              context: dialogCtx,
+                              initialDate: endDate,
+                              firstDate: startDate,
+                              lastDate: DateTime(now.year, now.month + 2),
+                            );
+                            if (picked != null) setDialogState(() => endDate = picked);
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: AppColors.cardBorder),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                          ),
+                          child: Text("End: $endDateStr", style: const TextStyle(fontSize: 10)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const Text("OVERTIME SHIFT TIMES:",
+                      style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () async {
+                            final picked = await showTimePicker(context: dialogCtx, initialTime: timeStart);
+                            if (picked != null) setDialogState(() => timeStart = picked);
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: AppColors.cardBorder),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                          ),
+                          child: Text("Time In: $startStr", style: const TextStyle(fontSize: 11)),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () async {
+                            final picked = await showTimePicker(context: dialogCtx, initialTime: timeEnd);
+                            if (picked != null) setDialogState(() => timeEnd = picked);
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: AppColors.cardBorder),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                          ),
+                          child: Text("Time Out: $endStr", style: const TextStyle(fontSize: 11)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const Text("SUPERVISOR NAME:",
+                      style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: supervisorController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: Colors.black.withValues(alpha: 0.3),
+                      hintText: "Enter supervisor name...",
+                      hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text("REASON / TASKS PERFORMED:",
+                      style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: reasonController,
+                    style: const TextStyle(color: Colors.white),
+                    maxLines: 2,
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: Colors.black.withValues(alpha: 0.3),
+                      hintText: "Enter tasks...",
+                      hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 12),
-            const Text("Reason/Tasks performed:",
-                style: TextStyle(color: AppColors.textBody, fontSize: 13)),
-            const SizedBox(height: 6),
-            TextField(
-              controller: reasonController,
-              style: const TextStyle(color: Colors.white),
-              maxLines: 2,
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: Colors.black.withValues(alpha: 0.3),
-                hintText: "Enter tasks...",
-                hintStyle: const TextStyle(color: AppColors.textMuted),
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text("Cancel", style: TextStyle(color: AppColors.textBody))),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                onPressed: () async {
+                  final reason = reasonController.text.trim();
+                  final supervisor = supervisorController.text.trim();
+                  if (reason.isEmpty || supervisor.isEmpty) return;
+                  Navigator.pop(ctx);
+
+                  _showFeedback("Overtime Request recorded.");
+                  _loadData();
+
+                  if (GoogleFormService().isEnabled) {
+                    final url = PrefilledFormService().buildOvertimeUrl(
+                      reason: reason,
+                      startDate: startDateStr,
+                      timeStart: timeStart,
+                      endDate: endDateStr,
+                      timeEnd: timeEnd,
+                      supervisor: supervisor,
+                    );
+                    await _launchFormUrl(url);
+                  }
+                },
+                child: const Text("Submit & Open Form",
+                    style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
               ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text("Cancel",
-                  style: TextStyle(color: AppColors.textBody))),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12))),
-            onPressed: () {
-              final hours = double.tryParse(hoursController.text.trim());
-              if (hours == null || hours <= 0) return;
-              Navigator.pop(ctx);
-              _showFeedback("Overtime Request recorded ($hours hrs).");
-              _loadData();
-            },
-            child: const Text("Submit",
-                style:
-                    TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }
 
   void _showWorkAuthDialog() {
-    final detailsController = TextEditingController();
+    final supervisorController = TextEditingController();
+    final now = DateTime.now();
+    DateTime incidentDate = DateTime.now();
+    TimeOfDay incidentTime = TimeOfDay.fromDateTime(now);
+    String selectedAction = "Clock In";
+    String selectedReason = "Forgot";
+
+    final excuseReasons = [
+      "Forgot",
+      "Emergency",
+      "Phone Battery",
+      "Technical Issue : No Internet",
+      "System Error",
+      "OB"
+    ];
+
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.bgDeep,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-            side: const BorderSide(color: AppColors.cardBorder)),
-        title: const Row(
-          children: [
-            Icon(Icons.badge_rounded, color: AppColors.secondary),
-            SizedBox(width: 10),
-            Text("Work Authorization",
-                style: TextStyle(color: Colors.white, fontSize: 18)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("Authorization details / Shift info:",
-                style: TextStyle(color: AppColors.textBody, fontSize: 13)),
-            const SizedBox(height: 10),
-            TextField(
-              controller: detailsController,
-              style: const TextStyle(color: Colors.white),
-              maxLines: 3,
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: Colors.black.withValues(alpha: 0.3),
-                hintText: "Enter details...",
-                hintStyle: const TextStyle(color: AppColors.textMuted),
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none),
+      builder: (ctx) => StatefulBuilder(
+        builder: (dialogCtx, setDialogState) {
+          final timeStr = AppFormatters.formatTimeOfDay(incidentTime);
+          final dateStr = "${incidentDate.year}-${incidentDate.month.toString().padLeft(2, '0')}-${incidentDate.day.toString().padLeft(2, '0')}";
+
+          return AlertDialog(
+            backgroundColor: AppColors.bgDeep,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+                side: const BorderSide(color: AppColors.cardBorder)),
+            title: const Row(
+              children: [
+                Icon(Icons.receipt_long_rounded, color: AppColors.secondary),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text("Clock In/Out Excuse Slip",
+                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text("MISSING ACTION:",
+                      style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: ["Clock In", "Clock Out"].map((action) {
+                      final isSelected = selectedAction == action;
+                      return ChoiceChip(
+                        label: Text(action),
+                        selected: isSelected,
+                        onSelected: (selected) {
+                          if (selected) setDialogState(() => selectedAction = action);
+                        },
+                        selectedColor: AppColors.secondary.withValues(alpha: 0.2),
+                        backgroundColor: AppColors.cardGlass,
+                        labelStyle: TextStyle(
+                            color: isSelected ? AppColors.secondary : Colors.white70,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11),
+                        showCheckmark: false,
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text("INCIDENT DATE & TIME:",
+                      style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () async {
+                            final picked = await showDatePicker(
+                              context: dialogCtx,
+                              initialDate: incidentDate,
+                              firstDate: DateTime(now.year, now.month - 1),
+                              lastDate: DateTime(now.year, now.month + 2),
+                            );
+                            if (picked != null) setDialogState(() => incidentDate = picked);
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: AppColors.cardBorder),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                          ),
+                          child: Text("Date: $dateStr", style: const TextStyle(fontSize: 10)),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () async {
+                            final picked = await showTimePicker(context: dialogCtx, initialTime: incidentTime);
+                            if (picked != null) setDialogState(() => incidentTime = picked);
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: AppColors.cardBorder),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                          ),
+                          child: Text("Time: $timeStr", style: const TextStyle(fontSize: 11)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const Text("REASON FOR FAILURE:",
+                      style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 5,
+                    runSpacing: 5,
+                    children: excuseReasons.map((reason) {
+                      final isSelected = selectedReason == reason;
+                      return ChoiceChip(
+                        label: Text(reason),
+                        selected: isSelected,
+                        onSelected: (selected) {
+                          if (selected) setDialogState(() => selectedReason = reason);
+                        },
+                        selectedColor: AppColors.secondary.withValues(alpha: 0.2),
+                        backgroundColor: AppColors.cardGlass,
+                        labelStyle: TextStyle(
+                            color: isSelected ? AppColors.secondary : Colors.white70,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 10),
+                        showCheckmark: false,
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text("SUPERVISOR VERIFICATION:",
+                      style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: supervisorController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: Colors.black.withValues(alpha: 0.3),
+                      hintText: "Enter supervisor name...",
+                      hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text("Cancel",
-                  style: TextStyle(color: AppColors.textBody))),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.secondary,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12))),
-            onPressed: () {
-              if (detailsController.text.trim().isEmpty) return;
-              Navigator.pop(ctx);
-              _showFeedback("Work Authorization Request submitted.");
-            },
-            child: const Text("Submit",
-                style:
-                    TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-          ),
-        ],
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text("Cancel", style: TextStyle(color: AppColors.textBody))),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.secondary,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                onPressed: () async {
+                  final supervisor = supervisorController.text.trim();
+                  if (supervisor.isEmpty) return;
+                  Navigator.pop(ctx);
+
+                  _showFeedback("Excuse Slip Request submitted.");
+
+                  if (GoogleFormService().isEnabled) {
+                    final url = PrefilledFormService().buildExcuseSlipUrl(
+                      missingAction: selectedAction,
+                      date: dateStr,
+                      time: incidentTime,
+                      reason: selectedReason,
+                      supervisor: supervisor,
+                    );
+                    await _launchFormUrl(url);
+                  }
+                },
+                child: const Text("Submit & Open Form",
+                    style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   Future<void> _showFormInstructionAndLaunch(
       String url, String logId, String type) async {
@@ -1238,7 +1599,7 @@ void _showAllowanceBreakdownDialog() {
     );
   }
 
-  Widget _buildRequestsSection() {
+ Widget _buildRequestsSection() {
     return Row(
       children: [
         Expanded(
@@ -1256,14 +1617,9 @@ void _showAllowanceBreakdownDialog() {
                 ),
                 child: const Column(
                   children: [
-                    Icon(Icons.event_busy_rounded,
-                        color: AppColors.orange, size: 24),
+                    Icon(Icons.event_busy_rounded, color: AppColors.orange, size: 24),
                     SizedBox(height: 6),
-                    Text("Absence",
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700)),
+                    Text("Absence", style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
                   ],
                 ),
               ),
@@ -1286,14 +1642,9 @@ void _showAllowanceBreakdownDialog() {
                 ),
                 child: const Column(
                   children: [
-                    Icon(Icons.more_time_rounded,
-                        color: AppColors.primary, size: 24),
+                    Icon(Icons.more_time_rounded, color: AppColors.primary, size: 24),
                     SizedBox(height: 6),
-                    Text("Overtime",
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700)),
+                    Text("Overtime", style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
                   ],
                 ),
               ),
@@ -1316,14 +1667,9 @@ void _showAllowanceBreakdownDialog() {
                 ),
                 child: const Column(
                   children: [
-                    Icon(Icons.badge_rounded,
-                        color: AppColors.secondary, size: 24),
+                    Icon(Icons.receipt_long_rounded, color: AppColors.secondary, size: 24),
                     SizedBox(height: 6),
-                    Text("Work Auth",
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700)),
+                    Text("Excuse Slip", style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
                   ],
                 ),
               ),
@@ -1333,6 +1679,12 @@ void _showAllowanceBreakdownDialog() {
       ],
     );
   }
+
+
+
+
+
+
 
   Widget _buildConfirmationCard() {
     return GlassCard(
