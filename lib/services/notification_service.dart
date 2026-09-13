@@ -22,6 +22,9 @@ class NotificationService {
   static const String _channelId = 'mobilesched_reminders_v2';
   static const String _channelName = 'MobileSched Reminders';
 
+  static const String _hubChannelId = 'mobilesched_hub_updates_v1';
+  static const String _hubChannelName = 'MobileSched Hub Updates';
+
   static const String _keyEnabled = 'notif_enabled';
   static const String _keySound = 'notif_sound';
   static const String _keyVibration = 'notif_vibration';
@@ -49,6 +52,7 @@ class NotificationService {
 
     try {
       final timezone = await FlutterTimezone.getLocalTimezone();
+
       tz.setLocalLocation(
         tz.getLocation(timezone.identifier),
       );
@@ -63,9 +67,9 @@ class NotificationService {
 
     const DarwinInitializationSettings iosSettings =
         DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
     );
 
     const InitializationSettings initializationSettings =
@@ -83,7 +87,7 @@ class NotificationService {
     await androidPlugin?.requestNotificationsPermission();
     await androidPlugin?.requestExactAlarmsPermission();
 
-    const AndroidNotificationChannel channel =
+    const AndroidNotificationChannel reminderChannel =
         AndroidNotificationChannel(
       _channelId,
       _channelName,
@@ -95,9 +99,46 @@ class NotificationService {
       showBadge: true,
     );
 
-    await androidPlugin?.createNotificationChannel(channel);
+    const AndroidNotificationChannel hubChannel =
+        AndroidNotificationChannel(
+      _hubChannelId,
+      _hubChannelName,
+      description:
+          'Announcements and birthday updates from MobileSched.',
+      importance: Importance.max,
+      playSound: true,
+      enableVibration: true,
+      showBadge: true,
+    );
+
+    await androidPlugin?.createNotificationChannel(reminderChannel);
+    await androidPlugin?.createNotificationChannel(hubChannel);
+
+    final iosPlugin =
+        _plugin.resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin>();
+
+    await iosPlugin?.requestPermissions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
 
     _initialized = true;
+  }
+
+  Future<bool?> requestIOSPermissions() async {
+    await init();
+
+    final iosPlugin =
+        _plugin.resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin>();
+
+    return iosPlugin?.requestPermissions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
   }
 
   void _loadSettings() {
@@ -161,6 +202,40 @@ class NotificationService {
     );
   }
 
+  NotificationDetails _hubNotificationDetails(
+    String body,
+  ) {
+    return NotificationDetails(
+      android: AndroidNotificationDetails(
+        _hubChannelId,
+        _hubChannelName,
+        channelDescription:
+            'Announcements and birthday updates from MobileSched.',
+        importance: Importance.max,
+        priority: Priority.max,
+        visibility: NotificationVisibility.public,
+        playSound: _sound,
+        enableVibration: _vibration,
+        ongoing: false,
+        autoCancel: true,
+        icon: '@mipmap/launcher_icon',
+        largeIcon: const DrawableResourceAndroidBitmap(
+          '@mipmap/launcher_icon',
+        ),
+        styleInformation: BigTextStyleInformation(
+          body,
+        ),
+      ),
+      iOS: DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: _sound,
+        interruptionLevel: InterruptionLevel.timeSensitive,
+        threadIdentifier: 'mobilesched_hub',
+      ),
+    );
+  }
+
   Future<bool> showTestNotification({
     String? title,
     String? body,
@@ -181,6 +256,82 @@ class NotificationService {
     return true;
   }
 
+  Future<bool> showHubNotification({
+    required String id,
+    required String title,
+    required String body,
+    required String type,
+  }) async {
+    await init();
+
+    if (!_enabled) {
+      return false;
+    }
+
+    final notificationId = _stableNotificationId(
+      'hub:$type:$id',
+      500000,
+    );
+
+    await _plugin.show(
+      notificationId,
+      title,
+      body,
+      _hubNotificationDetails(body),
+      payload: 'hub:$type:$id',
+    );
+
+    return true;
+  }
+
+  Future<bool> showBirthdayNotificationOncePerDay({
+    required String id,
+    required String name,
+    required String department,
+  }) async {
+    await init();
+
+    if (!_enabled) {
+      return false;
+    }
+
+    final now = DateTime.now();
+
+    final dateKey =
+        '${now.year}-'
+        '${now.month.toString().padLeft(2, '0')}-'
+        '${now.day.toString().padLeft(2, '0')}';
+
+    final preferenceKey =
+        'birthday_notification_${dateKey}_$id';
+
+    if (_prefs.getBool(preferenceKey) == true) {
+      return false;
+    }
+
+    final departmentText =
+        department.trim().isEmpty || department == '—'
+            ? ''
+            : ' • $department';
+
+    final shown = await showHubNotification(
+      id: id,
+      title: '🎂 Happy Birthday, $name!',
+      body:
+          'MobileSched is celebrating $name today$departmentText.',
+      type: 'birthday',
+    );
+
+    if (shown) {
+      await _prefs.setBool(
+        preferenceKey,
+        true,
+      );
+    }
+
+    return shown;
+  }
+
   Future<void> scheduleReminders({
     required List<int> dutyDays,
     required TimeOfDay timeIn,
@@ -199,7 +350,8 @@ class NotificationService {
         weekday: weekday,
         time: _subtractMinutes(timeIn, 15),
         title: 'Almost Time In',
-        body: 'Your duty starts in 15 minutes. Prepare to clock in.',
+        body:
+            'Your duty starts in 15 minutes. Prepare to clock in.',
       );
 
       await _scheduleReminder(
@@ -207,7 +359,8 @@ class NotificationService {
         weekday: weekday,
         time: timeIn,
         title: 'Time In Now',
-        body: 'Your shift is starting. Open MobileSched and clock in.',
+        body:
+            'Your shift is starting. Open MobileSched and clock in.',
       );
 
       await _scheduleReminder(
@@ -215,7 +368,8 @@ class NotificationService {
         weekday: weekday,
         time: _addMinutes(timeIn, 10),
         title: 'Clock In Missing',
-        body: 'You have not clocked in yet. Please clock in now.',
+        body:
+            'You have not clocked in yet. Please clock in now.',
       );
 
       await _scheduleReminder(
@@ -223,7 +377,8 @@ class NotificationService {
         weekday: weekday,
         time: _addMinutes(timeIn, 20),
         title: 'Still Not Clocked In',
-        body: 'MobileSched is still waiting for your Time In.',
+        body:
+            'MobileSched is still waiting for your Time In.',
       );
 
       await _scheduleReminder(
@@ -231,7 +386,8 @@ class NotificationService {
         weekday: weekday,
         time: _addMinutes(timeIn, 30),
         title: 'Final Time In Reminder',
-        body: 'You are already late. Record your Time In now.',
+        body:
+            'You are already late. Record your Time In now.',
       );
 
       await _scheduleReminder(
@@ -257,7 +413,8 @@ class NotificationService {
         weekday: weekday,
         time: _addMinutes(timeOut, 10),
         title: 'Clock Out Missing',
-        body: 'You have not clocked out yet. Please complete it now.',
+        body:
+            'You have not clocked out yet. Please complete it now.',
       );
 
       await _scheduleReminder(
@@ -274,7 +431,8 @@ class NotificationService {
         weekday: weekday,
         time: _addMinutes(timeOut, 30),
         title: 'Final Time Out Reminder',
-        body: 'Your attendance record is incomplete. Clock out now.',
+        body:
+            'Your attendance record is incomplete. Clock out now.',
       );
     }
   }
@@ -346,8 +504,24 @@ class NotificationService {
     return _plugin.pendingNotificationRequests();
   }
 
-  int _notificationId(int weekday, int type) {
+  int _notificationId(
+    int weekday,
+    int type,
+  ) {
     return (weekday * 100) + type;
+  }
+
+  int _stableNotificationId(
+    String value,
+    int base,
+  ) {
+    var hash = 0;
+
+    for (final codeUnit in value.codeUnits) {
+      hash = ((hash * 31) + codeUnit) & 0x7FFFFFFF;
+    }
+
+    return base + (hash % 400000);
   }
 
   tz.TZDateTime _nextWeekdayTime(

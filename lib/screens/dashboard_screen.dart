@@ -13,6 +13,7 @@ import '../utils/constants.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/premium_button.dart';
 import '../widgets/status_chip.dart';
+import '../widgets/hub_updates_section.dart';
 import '../services/theme_service.dart';
 import '../theme/app_theme.dart';
 
@@ -1320,7 +1321,13 @@ void _showOvertimeDialog() {
                     _buildHeader(_totalDays)
                         .animate()
                         .fadeIn(duration: 300.ms),
+
+                    const SizedBox(height: 22),
+
+                    const HubUpdatesSection(),
+
                     const SizedBox(height: 28),
+
                     Center(
                       child: Text(
                         liveTimeStr,
