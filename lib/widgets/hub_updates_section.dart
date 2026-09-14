@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-
 import '../services/hub_content_service.dart';
 import '../services/notification_service.dart';
 import '../utils/constants.dart';
@@ -43,6 +42,10 @@ class _HubUpdatesSectionState
   bool _celebrantBaselineReady = false;
 
   String? _highlightAnnouncementId;
+  final PageController _birthdayPageController =
+    PageController(viewportFraction: 0.78);
+
+int _activeBirthdayIndex = 0;
 
   @override
   void initState() {
@@ -79,6 +82,7 @@ class _HubUpdatesSectionState
   void dispose() {
     _announcementSubscription?.cancel();
     _celebrantSubscription?.cancel();
+    _birthdayPageController.dispose();
 
     super.dispose();
   }
@@ -707,377 +711,1153 @@ class _HubUpdatesSectionState
         );
   }
 
-  Widget _buildBirthdays() {
-    return StreamBuilder<
-        List<BirthdayCelebrant>>(
-      stream: _celebrants,
-      builder: (context, snapshot) {
-        final all =
-            snapshot.data ??
-                const <BirthdayCelebrant>[];
 
-        final now = DateTime.now();
+Widget _buildBirthdays() {
+  return StreamBuilder<List<BirthdayCelebrant>>(
+    stream: _celebrants,
+    builder: (context, snapshot) {
+      final all =
+          snapshot.data ?? const <BirthdayCelebrant>[];
 
-        final today =
-            all.where((person) {
-          return person.birthdate.month ==
-                  now.month &&
-              person.birthdate.day ==
-                  now.day;
-        }).toList();
+      final now = DateTime.now();
 
-        final thisMonth =
-            all.where((person) {
-          return person.birthdate.month ==
-              now.month;
-        }).toList();
+      final thisMonth = all.where((person) {
+        return person.birthdate.month == now.month;
+      }).toList()
+        ..sort(
+          (a, b) =>
+              a.birthdate.day.compareTo(b.birthdate.day),
+        );
 
-        final shown =
-            today.isNotEmpty
-                ? today
-                : thisMonth;
+      final today = thisMonth.where((person) {
+        return person.birthdate.day == now.day;
+      }).toList();
 
-        final subtitle =
-            today.isNotEmpty
-                ? "Today's celebrants"
-                : "This month's celebrants";
+      final shown =
+          today.isNotEmpty ? today : thisMonth;
 
-        return Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(
-                  Icons.cake_rounded,
-                  color: AppColors.orange,
-                  size: 22,
-                )
-                    .animate(
-                      onPlay:
-                          (controller) =>
-                              controller
-                                  .repeat(),
-                    )
-                    .shimmer(
-                      duration:
-                          1600.ms,
-                      color: AppColors
-                          .warning
-                          .withValues(
-                            alpha: 0.45,
-                          ),
+      final activeIndex = shown.isEmpty
+          ? 0
+          : _activeBirthdayIndex
+              .clamp(0, shown.length - 1)
+              .toInt();
+
+      final subtitle = today.isNotEmpty
+          ? today.length == 1
+              ? "Today's birthday celebrant"
+              : "${today.length} birthdays today! 🎉"
+          : "This month's celebrants";
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.cake_rounded,
+                color: AppColors.orange,
+                size: 22,
+              )
+                  .animate(
+                    onPlay: (controller) =>
+                        controller.repeat(),
+                  )
+                  .shimmer(
+                    duration: 1600.ms,
+                    color: AppColors.warning.withValues(
+                      alpha: 0.45,
                     ),
-                const SizedBox(width: 8),
-                const Text(
+                  ),
+
+              const SizedBox(width: 8),
+
+              const Expanded(
+                child: Text(
                   'Birthday Celebrants',
                   style: TextStyle(
-                    color:
-                        AppColors.textTitle,
+                    color: AppColors.textTitle,
                     fontSize: 20,
-                    fontWeight:
-                        FontWeight.w800,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
-              ],
-            )
-                .animate()
-                .fadeIn(
-                  duration: 400.ms,
-                )
-                .slideY(
-                  begin: 0.10,
-                  end: 0,
-                  duration: 400.ms,
-                ),
-
-            const SizedBox(height: 4),
-
-            Text(
-              subtitle,
-              style: const TextStyle(
-                color:
-                    AppColors.textMuted,
-                fontSize: 11,
               ),
-            ),
 
-            const SizedBox(height: 12),
-
-            if (snapshot.connectionState ==
-                    ConnectionState.waiting &&
-                all.isEmpty)
-              _messageCard(
-                Icons.cake_outlined,
-                'Loading birthday celebrants...',
-              )
-            else if (snapshot.hasError)
-              _messageCard(
-                Icons.cloud_off_rounded,
-                'Unable to load birthday celebrants.',
-              )
-            else if (shown.isEmpty)
-              _messageCard(
-                Icons.cake_outlined,
-                'No birthday celebrants this month.',
-              )
-            else
-              SizedBox(
-                height: 190,
-                child:
-                    ListView.separated(
-                  scrollDirection:
-                      Axis.horizontal,
-                  physics:
-                      const BouncingScrollPhysics(),
-                  itemCount:
-                      shown.length,
-                  separatorBuilder:
-                      (_, __) =>
-                          const SizedBox(
-                    width: 10,
-                  ),
-                  itemBuilder:
-                      (context, index) {
-                    final person =
-                        shown[index];
-
-                    return _celebrantCard(
-                      person,
-                    )
-                        .animate(
-                          delay:
-                              (index * 80).ms,
-                        )
-                        .fadeIn(
-                          duration:
-                              420.ms,
-                        )
-                        .slideY(
-                          begin: 0.14,
-                          end: 0,
-                          duration:
-                              420.ms,
-                          curve: Curves
-                              .easeOutCubic,
-                        );
+              if (thisMonth.length > 1) ...[
+                TextButton(
+                  onPressed: () {
+                    _showAllCelebrants(thisMonth);
                   },
+                  style: TextButton.styleFrom(
+                    padding:
+                        const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    minimumSize: Size.zero,
+                    tapTargetSize:
+                        MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'View All',
+                        style: TextStyle(
+                          color: AppColors.orange,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      SizedBox(width: 3),
+                      Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        color: AppColors.orange,
+                        size: 10,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-          ],
-        );
-      },
-    );
-  }
 
-  Widget _celebrantCard(
-    BirthdayCelebrant person,
-  ) {
-    final now = DateTime.now();
+                const SizedBox(width: 4),
+              ],
 
-    final isToday =
-        person.birthdate.month ==
-                now.month &&
-            person.birthdate.day ==
-                now.day;
-
-    final isHighlighted =
-        _highlightCelebrantIds
-            .contains(person.id);
-
-    final highlighted =
-        isToday || isHighlighted;
-
-    final card = SizedBox(
-      width: 142,
-      child: GlassCard(
-        padding:
-            const EdgeInsets.all(12),
-        hasGlow: highlighted,
-        borderColor: highlighted
-            ? AppColors.orange
-                .withValues(alpha: 0.60)
-            : null,
-        child: Column(
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
+              if (thisMonth.isNotEmpty)
                 Container(
                   padding:
-                      const EdgeInsets.all(
-                    3,
+                      const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 4,
                   ),
-                  decoration:
-                      BoxDecoration(
-                    shape: BoxShape.circle,
+                  decoration: BoxDecoration(
+                    color: AppColors.orange.withValues(
+                      alpha: 0.10,
+                    ),
+                    borderRadius:
+                        BorderRadius.circular(20),
                     border: Border.all(
-                      color: highlighted
-                          ? AppColors.orange
-                          : AppColors
-                              .cardBorder,
-                      width:
-                          highlighted
-                              ? 2
-                              : 1,
+                      color: AppColors.orange.withValues(
+                        alpha: 0.20,
+                      ),
                     ),
                   ),
-                  child: ClipOval(
-                    child: SizedBox(
-                      width: 70,
-                      height: 70,
-                      child:
-                          person.imageUrl ==
-                                  null
-                              ? _avatarFallback(
-                                  person.name,
-                                )
-                              : Image.network(
-                                  person
-                                      .imageUrl!,
-                                  fit: BoxFit
-                                      .cover,
-                                  errorBuilder:
-                                      (
-                                    context,
-                                    error,
-                                    stackTrace,
-                                  ) {
-                                    return _avatarFallback(
-                                      person
-                                          .name,
-                                    );
-                                  },
-                                ),
+                  child: Text(
+                    '${thisMonth.length}',
+                    style: const TextStyle(
+                      color: AppColors.orange,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
                 ),
+            ],
+          )
+              .animate()
+              .fadeIn(duration: 400.ms)
+              .slideY(
+                begin: 0.10,
+                end: 0,
+                duration: 400.ms,
+              ),
 
-                if (isToday)
-                  Positioned(
-                    right: -7,
-                    bottom: -2,
-                    child: Container(
-                      width: 28,
-                      height: 28,
-                      decoration:
-                          BoxDecoration(
-                        color: AppColors
-                            .orange,
-                        shape:
-                            BoxShape.circle,
-                        border:
-                            Border.all(
-                          color: AppColors
-                              .bgDeep,
-                          width: 2,
+          const SizedBox(height: 5),
+
+          Text(
+            subtitle,
+            style: TextStyle(
+              color: today.length > 1
+                  ? AppColors.orange
+                  : AppColors.textMuted,
+              fontSize: 11,
+              fontWeight: today.length > 1
+                  ? FontWeight.w700
+                  : FontWeight.normal,
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          if (snapshot.connectionState ==
+                  ConnectionState.waiting &&
+              all.isEmpty)
+            _messageCard(
+              Icons.cake_outlined,
+              'Loading birthday celebrants...',
+            )
+          else if (snapshot.hasError)
+            _messageCard(
+              Icons.cloud_off_rounded,
+              'Unable to load birthday celebrants.',
+            )
+          else if (shown.isEmpty)
+            _messageCard(
+              Icons.cake_outlined,
+              'No birthday celebrants this month.',
+            )
+          else ...[
+            if (today.length > 1) ...[
+              _multipleBirthdayGreeting(today),
+              const SizedBox(height: 16),
+            ],
+
+            SizedBox(
+              height: 285,
+              child: PageView.builder(
+                controller: _birthdayPageController,
+                itemCount: shown.length,
+                physics:
+                    const BouncingScrollPhysics(),
+                onPageChanged: (index) {
+                  if (!mounted) {
+                    return;
+                  }
+
+                  setState(() {
+                    _activeBirthdayIndex = index;
+                  });
+                },
+                itemBuilder: (context, index) {
+                  final person = shown[index];
+
+                  final isActive =
+                      index == activeIndex;
+
+                  return AnimatedScale(
+                    scale: isActive ? 1.0 : 0.91,
+                    duration: const Duration(
+                      milliseconds: 280,
+                    ),
+                    curve: Curves.easeOutCubic,
+                    child: AnimatedOpacity(
+                      opacity:
+                          isActive ? 1.0 : 0.58,
+                      duration: const Duration(
+                        milliseconds: 280,
+                      ),
+                      child: Padding(
+                        padding:
+                            const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 8,
+                        ),
+                        child:
+                            _birthdayGreetingCard(
+                          person,
+                          isActive,
                         ),
                       ),
-                      child:
-                          const Icon(
-                        Icons
-                            .cake_rounded,
-                        size: 14,
-                        color:
-                            Colors.white,
-                      ),
-                    )
-                        .animate(
-                          onPlay:
-                              (controller) =>
-                                  controller
-                                      .repeat(
-                            reverse: true,
-                          ),
-                        )
-                        .shimmer(
-                          duration:
-                              1100.ms,
-                          color: Colors
-                              .white
-                              .withValues(
-                            alpha: 0.50,
-                          ),
-                        ),
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            if (shown.length > 1) ...[
+              const SizedBox(height: 5),
+
+              Row(
+                mainAxisAlignment:
+                    MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.swipe_rounded,
+                    color: AppColors.textMuted,
+                    size: 14,
                   ),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${activeIndex + 1} / ${shown.length}  •  Swipe to see everyone',
+                    style: const TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 8),
+
+              Row(
+                mainAxisAlignment:
+                    MainAxisAlignment.center,
+                children: [
+                  for (int index = 0;
+                      index < shown.length &&
+                          index < 7;
+                      index++)
+                    AnimatedContainer(
+                      duration: const Duration(
+                        milliseconds: 250,
+                      ),
+                      margin:
+                          const EdgeInsets.symmetric(
+                        horizontal: 3,
+                      ),
+                      width:
+                          index == activeIndex ? 18 : 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: index == activeIndex
+                            ? AppColors.orange
+                            : AppColors.textMuted
+                                .withValues(
+                                  alpha: 0.28,
+                                ),
+                        borderRadius:
+                            BorderRadius.circular(20),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ],
+        ],
+      );
+    },
+  );
+}
+
+
+
+void _showAllCelebrants(
+  List<BirthdayCelebrant> celebrants,
+) {
+  if (celebrants.isEmpty) {
+    return;
+  }
+
+  final sortedCelebrants =
+      List<BirthdayCelebrant>.from(celebrants)
+        ..sort(
+          (a, b) =>
+              a.birthdate.day.compareTo(b.birthdate.day),
+        );
+
+  final now = DateTime.now();
+
+  showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    useSafeArea: true,
+    builder: (sheetContext) {
+      return DraggableScrollableSheet(
+        initialChildSize: 0.86,
+        minChildSize: 0.55,
+        maxChildSize: 0.96,
+        expand: false,
+        builder: (
+          context,
+          scrollController,
+        ) {
+          return Container(
+            decoration: BoxDecoration(
+              color: AppColors.bgDeep,
+              borderRadius:
+                  const BorderRadius.vertical(
+                top: Radius.circular(30),
+              ),
+              border: Border.all(
+                color: AppColors.cardBorder,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(
+                    alpha: 0.35,
+                  ),
+                  blurRadius: 30,
+                  offset: const Offset(0, -6),
+                ),
               ],
             ),
+            child: Column(
+              children: [
+                const SizedBox(height: 12),
 
-            const SizedBox(height: 10),
+                Container(
+                  width: 45,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: AppColors.cardBorder,
+                    borderRadius:
+                        BorderRadius.circular(20),
+                  ),
+                ),
 
-            Text(
-              person.name,
-              textAlign:
-                  TextAlign.center,
-              maxLines: 1,
-              overflow:
-                  TextOverflow.ellipsis,
-              style: const TextStyle(
-                color:
-                    AppColors.textTitle,
-                fontSize: 12,
-                fontWeight:
-                    FontWeight.w800,
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    20,
+                    18,
+                    12,
+                    14,
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: AppColors.orange
+                              .withValues(
+                            alpha: 0.12,
+                          ),
+                          borderRadius:
+                              BorderRadius.circular(14),
+                        ),
+                        child: const Icon(
+                          Icons.cake_rounded,
+                          color: AppColors.orange,
+                          size: 22,
+                        ),
+                      )
+                          .animate(
+                            onPlay: (controller) =>
+                                controller.repeat(),
+                          )
+                          .shimmer(
+                            duration: 1700.ms,
+                            color: AppColors.warning
+                                .withValues(
+                              alpha: 0.35,
+                            ),
+                          ),
+
+                      const SizedBox(width: 12),
+
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment:
+                              CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${_fullMonthName(now.month)} Celebrants',
+                              style: const TextStyle(
+                                color:
+                                    AppColors.textTitle,
+                                fontSize: 19,
+                                fontWeight:
+                                    FontWeight.w900,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              '${sortedCelebrants.length} ${sortedCelebrants.length == 1 ? 'birthday' : 'birthdays'} this month',
+                              style: const TextStyle(
+                                color:
+                                    AppColors.textMuted,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      IconButton(
+                        tooltip: 'Close',
+                        onPressed: () {
+                          Navigator.pop(
+                            sheetContext,
+                          );
+                        },
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                Divider(
+                  height: 1,
+                  color: AppColors.cardBorder
+                      .withValues(alpha: 0.8),
+                ),
+
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (
+                      context,
+                      constraints,
+                    ) {
+                      int columns = 2;
+
+                      if (constraints.maxWidth >= 720) {
+                        columns = 4;
+                      } else if (
+                          constraints.maxWidth >= 520) {
+                        columns = 3;
+                      }
+
+                      return GridView.builder(
+                        controller:
+                            scrollController,
+                        padding:
+                            const EdgeInsets.all(16),
+                        physics:
+                            const BouncingScrollPhysics(),
+                        itemCount:
+                            sortedCelebrants.length,
+                        gridDelegate:
+                            SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: columns,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          childAspectRatio: 0.78,
+                        ),
+                        itemBuilder: (
+                          context,
+                          index,
+                        ) {
+                          final person =
+                              sortedCelebrants[index];
+
+                          return _celebrantGridCard(
+                            person,
+                          )
+                              .animate(
+                                delay:
+                                    (index * 55).ms,
+                              )
+                              .fadeIn(
+                                duration: 380.ms,
+                              )
+                              .scale(
+                                begin:
+                                    const Offset(
+                                  0.94,
+                                  0.94,
+                                ),
+                                end:
+                                    const Offset(
+                                  1,
+                                  1,
+                                ),
+                                duration: 380.ms,
+                                curve: Curves
+                                    .easeOutBack,
+                              );
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          )
+              .animate()
+              .fadeIn(
+                duration: 250.ms,
+              )
+              .slideY(
+                begin: 0.06,
+                end: 0,
+                duration: 350.ms,
+                curve: Curves.easeOutCubic,
+              );
+        },
+      );
+    },
+  );
+}
+
+Widget _celebrantGridCard(
+  BirthdayCelebrant person,
+) {
+  final now = DateTime.now();
+
+  final isToday =
+      person.birthdate.month == now.month &&
+          person.birthdate.day == now.day;
+
+  final highlighted =
+      isToday ||
+      _highlightCelebrantIds.contains(person.id);
+
+  return GlassCard(
+    padding: const EdgeInsets.all(12),
+    hasGlow: highlighted,
+    borderColor: highlighted
+        ? AppColors.orange.withValues(
+            alpha: 0.65,
+          )
+        : null,
+    child: Column(
+      mainAxisAlignment:
+          MainAxisAlignment.center,
+      children: [
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: highlighted
+                      ? AppColors.orange
+                      : AppColors.cardBorder,
+                  width: highlighted ? 2 : 1,
+                ),
+              ),
+              child: ClipOval(
+                child: SizedBox(
+                  width: 66,
+                  height: 66,
+                  child: person.imageUrl == null
+                      ? _avatarFallback(
+                          person.name,
+                        )
+                      : Image.network(
+                          person.imageUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (
+                            context,
+                            error,
+                            stackTrace,
+                          ) {
+                            return _avatarFallback(
+                              person.name,
+                            );
+                          },
+                        ),
+                ),
               ),
             ),
 
-            const SizedBox(height: 3),
+            if (isToday)
+              Positioned(
+                right: -5,
+                bottom: -2,
+                child: Container(
+                  width: 27,
+                  height: 27,
+                  decoration: BoxDecoration(
+                    color: AppColors.orange,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: AppColors.bgDeep,
+                      width: 2,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.celebration_rounded,
+                    color: Colors.white,
+                    size: 13,
+                  ),
+                )
+                    .animate(
+                      onPlay: (controller) =>
+                          controller.repeat(
+                        reverse: true,
+                      ),
+                    )
+                    .scale(
+                      begin:
+                          const Offset(
+                        0.92,
+                        0.92,
+                      ),
+                      end:
+                          const Offset(
+                        1.08,
+                        1.08,
+                      ),
+                      duration: 800.ms,
+                    ),
+              ),
+          ],
+        ),
 
-            Text(
-              person.department,
-              textAlign:
-                  TextAlign.center,
-              maxLines: 1,
-              overflow:
-                  TextOverflow.ellipsis,
-              style: const TextStyle(
-                color:
-                    AppColors.textMuted,
-                fontSize: 9,
+        const SizedBox(height: 10),
+
+        Text(
+          person.name,
+          textAlign: TextAlign.center,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: AppColors.textTitle,
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            height: 1.2,
+          ),
+        ),
+
+        const SizedBox(height: 4),
+
+        Text(
+          person.department,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: AppColors.textMuted,
+            fontSize: 9,
+          ),
+        ),
+
+        const SizedBox(height: 8),
+
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 9,
+            vertical: 5,
+          ),
+          decoration: BoxDecoration(
+            color: isToday
+                ? AppColors.orange.withValues(
+                    alpha: 0.14,
+                  )
+                : AppColors.primary.withValues(
+                    alpha: 0.08,
+                  ),
+            borderRadius:
+                BorderRadius.circular(20),
+          ),
+          child: Text(
+            isToday
+                ? '🎉 TODAY'
+                : _birthdayDate(
+                    person.birthdate,
+                  ),
+            style: TextStyle(
+              color: isToday
+                  ? AppColors.orange
+                  : AppColors.primary,
+              fontSize: 9,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+
+Widget _multipleBirthdayGreeting(
+  List<BirthdayCelebrant> celebrants,
+) {
+  final names = celebrants
+      .map((person) => person.name.trim())
+      .where((name) => name.isNotEmpty)
+      .toList();
+
+  String greetingNames;
+
+  if (names.length == 2) {
+    greetingNames =
+        '${names[0]} & ${names[1]}';
+  } else if (names.length == 3) {
+    greetingNames =
+        '${names[0]}, ${names[1]} & ${names[2]}';
+  } else if (names.length > 3) {
+    greetingNames =
+        '${names[0]}, ${names[1]}, ${names[2]} + ${names.length - 3} more';
+  } else {
+    greetingNames =
+        names.isEmpty ? 'Everyone' : names.first;
+  }
+
+  return GlassCard(
+    hasGlow: true,
+    borderColor:
+        AppColors.orange.withValues(
+      alpha: 0.55,
+    ),
+    padding: const EdgeInsets.symmetric(
+      horizontal: 18,
+      vertical: 18,
+    ),
+    child: Column(
+      children: [
+        Row(
+          mainAxisAlignment:
+              MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.auto_awesome_rounded,
+              color: AppColors.warning,
+              size: 16,
+            )
+                .animate(
+                  onPlay: (controller) =>
+                      controller.repeat(
+                    reverse: true,
+                  ),
+                )
+                .scale(
+                  begin:
+                      const Offset(0.85, 0.85),
+                  end:
+                      const Offset(1.10, 1.10),
+                  duration: 900.ms,
+                ),
+
+            const SizedBox(width: 7),
+
+            const Text(
+              "TODAY'S CELEBRATION",
+              style: TextStyle(
+                color: AppColors.orange,
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.2,
               ),
             ),
 
-            const SizedBox(height: 4),
+            const SizedBox(width: 7),
+
+            const Icon(
+              Icons.celebration_rounded,
+              color: AppColors.warning,
+              size: 16,
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 12),
+
+        const Text(
+          '🎉 Happy Birthday! 🎂',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: AppColors.textTitle,
+            fontSize: 20,
+            fontWeight: FontWeight.w900,
+          ),
+        )
+            .animate(
+              onPlay: (controller) =>
+                  controller.repeat(
+                reverse: true,
+              ),
+            )
+            .shimmer(
+              duration: 1700.ms,
+              color: AppColors.warning.withValues(
+                alpha: 0.45,
+              ),
+            ),
+
+        const SizedBox(height: 9),
+
+        Text(
+          greetingNames,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: AppColors.orange,
+            fontSize: 15,
+            fontWeight: FontWeight.w900,
+            height: 1.3,
+          ),
+        ),
+
+        const SizedBox(height: 8),
+
+        Text(
+          '${celebrants.length} amazing people are celebrating today!',
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: AppColors.textBody,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+
+        const SizedBox(height: 5),
+
+        const Text(
+          'Wishing you all a wonderful day filled with happiness and celebration. 🥳',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: AppColors.textMuted,
+            fontSize: 10,
+            height: 1.4,
+          ),
+        ),
+      ],
+    ),
+  )
+      .animate()
+      .fadeIn(duration: 450.ms)
+      .scale(
+        begin: const Offset(
+          0.96,
+          0.96,
+        ),
+        end: const Offset(
+          1,
+          1,
+        ),
+        duration: 450.ms,
+        curve: Curves.easeOutBack,
+      );
+}
+
+Widget _birthdayGreetingCard(
+  BirthdayCelebrant person,
+  bool isActive,
+) {
+  final now = DateTime.now();
+
+  final isToday =
+      person.birthdate.month == now.month &&
+          person.birthdate.day == now.day;
+
+  final highlighted =
+      isToday ||
+      _highlightCelebrantIds.contains(
+        person.id,
+      );
+
+  final card = GlassCard(
+    padding: const EdgeInsets.symmetric(
+      horizontal: 18,
+      vertical: 15,
+    ),
+    hasGlow: highlighted || isActive,
+    borderColor: isToday
+        ? AppColors.orange.withValues(
+            alpha: 0.75,
+          )
+        : isActive
+            ? AppColors.orange.withValues(
+                alpha: 0.28,
+              )
+            : null,
+    child: Column(
+      mainAxisAlignment:
+          MainAxisAlignment.center,
+      children: [
+        Row(
+          mainAxisAlignment:
+              MainAxisAlignment.center,
+          children: [
+            Icon(
+              isToday
+                  ? Icons.celebration_rounded
+                  : Icons.cake_rounded,
+              color: AppColors.orange,
+              size: 15,
+            ),
+
+            const SizedBox(width: 6),
 
             Text(
               isToday
-                  ? '🎉 TODAY'
-                  : _birthdayDate(
-                      person.birthdate,
-                    ),
-              style: TextStyle(
-                color: isToday
-                    ? AppColors.orange
-                    : AppColors
-                        .textMuted,
-                fontSize: 10,
-                fontWeight:
-                    FontWeight.w800,
+                  ? 'HAPPY BIRTHDAY!'
+                  : 'BIRTHDAY CELEBRANT',
+              style: const TextStyle(
+                color: AppColors.orange,
+                fontSize: 9,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.2,
               ),
             ),
           ],
         ),
-      ),
-    );
 
-    if (!highlighted) {
-      return card;
-    }
+        const SizedBox(height: 10),
 
-    return card
-        .animate(
-          onPlay: (controller) =>
-              controller.repeat(
-            reverse: true,
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isToday
+                      ? AppColors.orange
+                      : AppColors.primary
+                          .withValues(
+                            alpha: 0.45,
+                          ),
+                  width: 2,
+                ),
+                boxShadow: isToday
+                    ? [
+                        BoxShadow(
+                          color: AppColors.orange
+                              .withValues(
+                            alpha: 0.22,
+                          ),
+                          blurRadius: 18,
+                          spreadRadius: 2,
+                        ),
+                      ]
+                    : null,
+              ),
+              child: ClipOval(
+                child: SizedBox(
+                  width: 74,
+                  height: 74,
+                  child:
+                      person.imageUrl == null
+                          ? _avatarFallback(
+                              person.name,
+                            )
+                          : Image.network(
+                              person.imageUrl!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (
+                                context,
+                                error,
+                                stackTrace,
+                              ) {
+                                return _avatarFallback(
+                                  person.name,
+                                );
+                              },
+                            ),
+                ),
+              ),
+            ),
+
+            if (isToday)
+              Positioned(
+                right: -7,
+                bottom: -1,
+                child: Container(
+                  width: 29,
+                  height: 29,
+                  decoration: BoxDecoration(
+                    color: AppColors.orange,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: AppColors.bgDeep,
+                      width: 2,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.auto_awesome_rounded,
+                    color: Colors.white,
+                    size: 14,
+                  ),
+                )
+                    .animate(
+                      onPlay: (controller) =>
+                          controller.repeat(
+                        reverse: true,
+                      ),
+                    )
+                    .scale(
+                      begin:
+                          const Offset(
+                        0.90,
+                        0.90,
+                      ),
+                      end:
+                          const Offset(
+                        1.08,
+                        1.08,
+                      ),
+                      duration: 850.ms,
+                    ),
+              ),
+          ],
+        ),
+
+        const SizedBox(height: 10),
+
+        Text(
+          person.name,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: AppColors.textTitle,
+            fontSize: 17,
+            fontWeight: FontWeight.w900,
           ),
-        )
-        .shimmer(
-          duration: 1500.ms,
-          color: AppColors.orange
-              .withValues(alpha: 0.16),
-        );
+        ),
+
+        const SizedBox(height: 3),
+
+        Text(
+          person.department,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: AppColors.textMuted,
+            fontSize: 10,
+          ),
+        ),
+
+        const SizedBox(height: 8),
+
+        Text(
+          isToday
+              ? 'Wishing you an amazing birthday! 🎂'
+              : 'Celebrating on ${_birthdayDate(person.birthdate)} 🎉',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: isToday
+                ? AppColors.textBody
+                : AppColors.textMuted,
+            fontSize: 10,
+            fontWeight: isToday
+                ? FontWeight.w700
+                : FontWeight.w500,
+          ),
+        ),
+
+        const SizedBox(height: 8),
+
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 5,
+          ),
+          decoration: BoxDecoration(
+            color: AppColors.orange.withValues(
+              alpha: 0.11,
+            ),
+            borderRadius:
+                BorderRadius.circular(20),
+          ),
+          child: Text(
+            isToday
+                ? '🎉 TODAY'
+                : _birthdayDate(
+                    person.birthdate,
+                  ).toUpperCase(),
+            style: const TextStyle(
+              color: AppColors.orange,
+              fontSize: 9,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.6,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  if (!isToday) {
+    return card;
   }
 
+  return card
+      .animate(
+        onPlay: (controller) =>
+            controller.repeat(
+          reverse: true,
+        ),
+      )
+      .shimmer(
+        duration: 1800.ms,
+        color: AppColors.orange.withValues(
+          alpha: 0.14,
+        ),
+      );
+}
+
+
+ 
   Widget _avatarFallback(
     String name,
   ) {
@@ -1379,6 +2159,26 @@ class _HubUpdatesSectionState
 
     return 'Tap to read this announcement.';
   }
+
+String _fullMonthName(int month) {
+  const months = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
+
+  return months[month - 1];
+}
+
 
   String _birthdayDate(
     DateTime date,
