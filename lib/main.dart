@@ -17,16 +17,21 @@ Future<void> main() async {
 
   await Supabase.initialize(
     url: 'https://kigculljqtosfwldzgch.supabase.co',
-    publishableKey: 'sb_publishable_YVTSzNoD11FYvW_O6L11cg_0g0v9WgN',
+    publishableKey:
+        'sb_publishable_YVTSzNoD11FYvW_O6L11cg_0g0v9WgN',
   );
 
+  // Native notifications only.
+  // iPhone PWA notifications are handled by OneSignal Web Push.
   if (!kIsWeb &&
       (defaultTargetPlatform == TargetPlatform.android ||
           defaultTargetPlatform == TargetPlatform.iOS)) {
     try {
       await NotificationService().init();
     } catch (error) {
-      debugPrint('Notification initialization failed: $error');
+      debugPrint(
+        'Notification initialization failed: $error',
+      );
     }
   }
 
@@ -37,24 +42,36 @@ class MobileSchedApp extends StatefulWidget {
   const MobileSchedApp({super.key});
 
   @override
-  State<MobileSchedApp> createState() => _MobileSchedAppState();
+  State<MobileSchedApp> createState() =>
+      _MobileSchedAppState();
 }
 
-class _MobileSchedAppState extends State<MobileSchedApp> {
+class _MobileSchedAppState
+    extends State<MobileSchedApp> {
   final ThemeService _themeService = ThemeService();
 
-  void _updateSystemUiOverlay(AppPalette palette) {
+  void _updateSystemUiOverlay(
+    AppPalette palette,
+  ) {
     SystemChrome.setSystemUIOverlayStyle(
       SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness:
-            palette.isDark ? Brightness.light : Brightness.dark,
+            palette.isDark
+                ? Brightness.light
+                : Brightness.dark,
         statusBarBrightness:
-            palette.isDark ? Brightness.dark : Brightness.light,
-        systemNavigationBarColor: palette.background,
+            palette.isDark
+                ? Brightness.dark
+                : Brightness.light,
+        systemNavigationBarColor:
+            palette.background,
         systemNavigationBarIconBrightness:
-            palette.isDark ? Brightness.light : Brightness.dark,
-        systemNavigationBarDividerColor: Colors.transparent,
+            palette.isDark
+                ? Brightness.light
+                : Brightness.dark,
+        systemNavigationBarDividerColor:
+            Colors.transparent,
       ),
     );
   }
@@ -64,11 +81,13 @@ class _MobileSchedAppState extends State<MobileSchedApp> {
     return AnimatedBuilder(
       animation: _themeService,
       builder: (context, child) {
-        final AppPalette palette = MobileSchedTheme.palette(
+        final AppPalette palette =
+            MobileSchedTheme.palette(
           _themeService.preset,
         );
 
-        WidgetsBinding.instance.addPostFrameCallback((_) {
+        WidgetsBinding.instance
+            .addPostFrameCallback((_) {
           _updateSystemUiOverlay(palette);
         });
 
