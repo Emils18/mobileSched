@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="/mobileSched/">
+
+  <meta charset="UTF-8">
+
+  <meta
+    content="IE=Edge"
+    http-equiv="X-UA-Compatible"
+  >
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+  >
+
+  <meta
+    name="description"
+    content="AWS HUB attendance, duty schedule, announcements and scholar updates."
+  >
+
+  <meta
+    name="theme-color"
+    content="#103F87"
+  >
+
+  <!-- iPhone / PWA -->
+  <meta
+    name="mobile-web-app-capable"
+    content="yes"
+  >
+
+  <meta
+    name="apple-mobile-web-app-capable"
+    content="yes"
+  >
+
+  <meta
+    name="apple-mobile-web-app-status-bar-style"
+    content="black-translucent"
+  >
+
+  <meta
+    name="apple-mobile-web-app-title"
+    content="AWS HUB"
+  >
+
+  <link
+    rel="apple-touch-icon"
+    href="icons/Icon-192.png"
+  >
+
+  <link
+    rel="icon"
+    type="image/png"
+    href="favicon.png"
+  >
+
+  <title>AWS HUB</title>
+
+  <link
+    rel="manifest"
+    href="manifest.json"
+  >
+
+  <!-- OneSignal -->
+  <script
+    src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js"
+    defer
+  ></script>
+
+  <style>
+    #mobilesched-notification-button {
+      display: none;
+
+      position: fixed;
+
+      left: 18px;
+      right: 18px;
+
+      bottom:
+        calc(
+          18px +
+          env(safe-area-inset-bottom)
+        );
+
+      max-width: 440px;
+
+      margin:
+        0 auto;
+
+      z-index: 999999;
+
+      border: 1px solid
+        rgba(
+          254,
+          248,
+          242,
+          0.22
+        );
+
+      border-radius: 18px;
+
+      padding:
+        16px 20px;
+
+      background:
+        linear-gradient(
+          135deg,
+          #103F87,
+          #2D8DCC
+        );
+
+      color:
+        #FEF8F2;
+
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+
+      font-size: 15px;
+
+      font-weight: 800;
+
+      letter-spacing:
+        0.1px;
+
+      box-shadow:
+        0 14px 38px
+        rgba(
+          16,
+          63,
+          135,
+          0.38
+        );
+
+      cursor:
+        pointer;
+
+      -webkit-tap-highlight-color:
+        transparent;
+
+      touch-action:
+        manipulation;
+
+      transition:
+        transform 160ms ease,
+        opacity 160ms ease;
+    }
+
+    #mobilesched-notification-button:active {
+      transform:
+        scale(0.97);
+    }
+
+    #mobilesched-notification-button:disabled {
+      opacity:
+        0.72;
+    }
+  </style>
+</head>
+
+<body>
+
+  <button
+    id="mobilesched-notification-button"
+    type="button"
+  >
+    Enable Notifications
+  </button>
+
+  <script>
+    window.OneSignalDeferred =
+      window.OneSignalDeferred || [];
+
+    window.OneSignalDeferred.push(
+      async function (OneSignal) {
+
+        await OneSignal.init({
+          appId:
+            "e9e26912-3ff7-4fac-92e6-ec24f88922a4",
+
+          serviceWorkerPath:
+            "/mobileSched/push/onesignal/OneSignalSDKWorker.js",
+
+          serviceWorkerParam: {
+            scope:
+              "/mobileSched/push/onesignal/"
+          },
+
+          // Remove OneSignal's small bell.
+          notifyButton: {
+            enable: false
+          }
+        });
+
+        const button =
+          document.getElementById(
+            "mobilesched-notification-button"
+          );
+
+        if (!button) {
+          return;
+        }
+
+        const userAgent =
+          navigator.userAgent || "";
+
+        const isIOS =
+          /iPad|iPhone|iPod/i
+            .test(userAgent) ||
+          (
+            navigator.platform ===
+              "MacIntel" &&
+            navigator.maxTouchPoints > 1
+          );
+
+        const isStandalone =
+          window.matchMedia(
+            "(display-mode: standalone)"
+          ).matches ||
+          window.navigator.standalone === true;
+
+        // Only show our custom prompt
+        // inside the installed iPhone PWA.
+        if (
+          !isIOS ||
+          !isStandalone ||
+          !OneSignal.Notifications
+            .isPushSupported()
+        ) {
+          button.style.display =
+            "none";
+
+          return;
+        }
+
+        function updateButton() {
+          const subscribed =
+            OneSignal.User
+              .PushSubscription
+              .optedIn === true;
+
+          const permission =
+            OneSignal.Notifications
+              .permissionNative;
+
+          if (subscribed) {
+            button.style.display =
+              "none";
+
+            return;
+          }
+
+          button.style.display =
+            "block";
+
+          if (
+            permission ===
+            "denied"
+          ) {
+            button.disabled =
+              true;
+
+            button.textContent =
+              "Notifications Blocked in iPhone Settings";
+
+            return;
+          }
+
+          button.disabled =
+            false;
+
+          button.textContent =
+            "Enable Notifications";
+        }
+
+        updateButton();
+
+        OneSignal.User
+          .PushSubscription
+          .addEventListener(
+            "change",
+            updateButton
+          );
+
+        OneSignal.Notifications
+          .addEventListener(
+            "permissionChange",
+            updateButton
+          );
+
+        button.addEventListener(
+          "click",
+          async function () {
+            button.disabled =
+              true;
+
+            button.textContent =
+              "Enabling Notifications...";
+
+            try {
+              const accepted =
+                await OneSignal
+                  .Notifications
+                  .requestPermission();
+
+              if (!accepted) {
+                updateButton();
+                return;
+              }
+
+              await OneSignal.User
+                .PushSubscription
+                .optIn();
+
+              button.textContent =
+                "Notifications Enabled";
+
+              setTimeout(
+                updateButton,
+                900
+              );
+            } catch (error) {
+              console.error(
+                "AWS HUB notification error:",
+                error
+              );
+
+              button.disabled =
+                false;
+
+              button.textContent =
+                "Try Enabling Notifications Again";
+            }
+          }
+        );
+      }
+    );
+  </script>
+
+  <script
+    src="flutter_bootstrap.js"
+    async
+  ></script>
+
+</body>
+</html>
