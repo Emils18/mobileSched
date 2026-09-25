@@ -21,8 +21,8 @@ Future<void> main() async {
         'sb_publishable_YVTSzNoD11FYvW_O6L11cg_0g0v9WgN',
   );
 
-  // Native notifications only.
-  // iPhone PWA notifications are handled by OneSignal Web Push.
+  // Native Android / native iOS notifications.
+  // iPhone PWA notifications are handled by OneSignal.
   if (!kIsWeb &&
       (defaultTargetPlatform == TargetPlatform.android ||
           defaultTargetPlatform == TargetPlatform.iOS)) {
@@ -35,19 +35,22 @@ Future<void> main() async {
     }
   }
 
-  runApp(const MobileSchedApp());
+  runApp(
+    const MobileSchedApp(),
+  );
 }
 
 class MobileSchedApp extends StatefulWidget {
-  const MobileSchedApp({super.key});
+  const MobileSchedApp({
+    super.key,
+  });
 
   @override
   State<MobileSchedApp> createState() =>
       _MobileSchedAppState();
 }
 
-class _MobileSchedAppState
-    extends State<MobileSchedApp> {
+class _MobileSchedAppState extends State<MobileSchedApp> {
   final ThemeService _themeService = ThemeService();
 
   void _updateSystemUiOverlay(
@@ -77,7 +80,9 @@ class _MobileSchedAppState
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return AnimatedBuilder(
       animation: _themeService,
       builder: (context, child) {
@@ -87,16 +92,26 @@ class _MobileSchedAppState
         );
 
         WidgetsBinding.instance
-            .addPostFrameCallback((_) {
-          _updateSystemUiOverlay(palette);
-        });
+            .addPostFrameCallback(
+          (_) {
+            _updateSystemUiOverlay(
+              palette,
+            );
+          },
+        );
 
         return MaterialApp(
-          title: 'MobileSched',
+          title: 'AWS HUB',
           debugShowCheckedModeBanner: false,
           theme: MobileSchedTheme.build(
             _themeService.preset,
           ),
+          themeAnimationDuration:
+              const Duration(
+            milliseconds: 350,
+          ),
+          themeAnimationCurve:
+              Curves.easeOutCubic,
           home: const SplashScreen(),
         );
       },

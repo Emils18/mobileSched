@@ -1,17 +1,19 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
-
-import '../utils/constants.dart';
 
 class GlassCard extends StatelessWidget {
   final Widget child;
+
   final double? width;
   final double? height;
+
   final EdgeInsetsGeometry padding;
+
   final BorderRadius? borderRadius;
+
   final bool hasGlow;
+
   final Color? borderColor;
+
   final VoidCallback? onTap;
 
   const GlassCard({
@@ -28,60 +30,111 @@ class GlassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = borderRadius ?? BorderRadius.circular(24);
-    final effectiveBorderColor = borderColor ?? AppColors.cardBorder;
-    final glowColor = borderColor ?? AppColors.primary;
+    final ThemeData theme = Theme.of(context);
 
-    final card = Container(
+    final ColorScheme colors =
+        theme.colorScheme;
+
+    final bool isDark =
+        theme.brightness == Brightness.dark;
+
+    final BorderRadius radius =
+        borderRadius ??
+            BorderRadius.circular(24);
+
+    final Color effectiveBorderColor =
+        borderColor ??
+            theme.dividerColor;
+
+    final Color glowColor =
+        borderColor ??
+            colors.primary;
+
+    final Widget card = AnimatedContainer(
+      duration: const Duration(
+        milliseconds: 260,
+      ),
+      curve: Curves.easeOutCubic,
+
       width: width,
       height: height,
+
       decoration: BoxDecoration(
         borderRadius: radius,
+
         boxShadow: hasGlow
             ? [
                 BoxShadow(
-                  color: glowColor.withValues(alpha: 0.16),
-                  blurRadius: 30,
-                  spreadRadius: -6,
+                  color: glowColor.withValues(
+                    alpha: isDark
+                        ? 0.18
+                        : 0.12,
+                  ),
+                  blurRadius: 26,
+                  spreadRadius: -7,
+                  offset: const Offset(
+                    0,
+                    8,
+                  ),
                 ),
               ]
             : [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.28),
-                  blurRadius: 20,
-                  spreadRadius: -6,
-                  offset: const Offset(0, 10),
+                  color: Colors.black.withValues(
+                    alpha: isDark
+                        ? 0.18
+                        : 0.07,
+                  ),
+                  blurRadius: 18,
+                  spreadRadius: -8,
+                  offset: const Offset(
+                    0,
+                    8,
+                  ),
                 ),
               ],
       ),
+
       child: ClipRRect(
         borderRadius: radius,
-        child: BackdropFilter(
-          filter: ImageFilter.blur(
-            sigmaX: 22,
-            sigmaY: 22,
+
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: radius,
+
+            border: Border.all(
+              color: effectiveBorderColor,
+              width: borderColor == null
+                  ? 1
+                  : 1.4,
+            ),
+
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+
+              colors: [
+                colors.surface.withValues(
+                  alpha: isDark
+                      ? 0.94
+                      : 0.98,
+                ),
+
+                Color.lerp(
+                      colors.surface,
+                      colors.primary,
+                      isDark
+                          ? 0.10
+                          : 0.04,
+                    ) ??
+                    colors.surface,
+              ],
+            ),
           ),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: AppColors.cardGlass,
-              borderRadius: radius,
-              border: Border.all(
-                color: effectiveBorderColor,
-                width: borderColor == null ? 1 : 1.4,
-              ),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Colors.white.withValues(alpha: 0.085),
-                  Colors.white.withValues(alpha: 0.018),
-                ],
-              ),
-            ),
-            child: Padding(
-              padding: padding,
-              child: child,
-            ),
+
+          child: Padding(
+            padding: padding,
+            child: child,
           ),
         ),
       ),

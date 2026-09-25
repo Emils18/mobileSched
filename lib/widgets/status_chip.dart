@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../utils/constants.dart';
+import '../services/theme_service.dart';
+import '../theme/app_theme.dart';
 
-class StatusChip extends StatelessWidget {
+class StatusChip
+    extends StatelessWidget {
   final String status;
 
   const StatusChip({
@@ -10,105 +12,188 @@ class StatusChip extends StatelessWidget {
     required this.status,
   });
 
-  Color _getColor() {
-    switch (status.toUpperCase()) {
+  Color _getColor(
+    AppPalette palette,
+  ) {
+    switch (
+        status.toUpperCase()) {
       case 'ON TIME':
       case 'SHIFT COMPLETED':
       case 'CURRENTLY ON DUTY':
-        return AppColors.success;
+        return palette.success;
 
       case 'ALMOST TIME IN':
       case 'TIME IN NOW':
       case 'TIME OUT NOW':
       case 'EARLY OUT':
-        return AppColors.orange;
+        return palette.warning;
 
       case 'LATE':
       case 'LATE OUT':
       case 'LATE / MISSING TIME IN':
       case 'MISSING TIME OUT':
-        return AppColors.error;
+        return palette.error;
 
       case 'MANUAL ENTRY':
       case 'MANUAL':
       case 'OUTSIDE SCHEDULE':
-        return AppColors.primary;
+        return palette.primary;
 
       case 'NO DUTY DAY':
       case 'NO DUTY TODAY':
       case 'DUTY LATER':
-        return AppColors.textBody;
+        return palette.textSecondary;
 
       default:
-        return AppColors.textMuted;
+        return palette.textMuted;
     }
   }
 
   IconData _getIcon() {
-    switch (status.toUpperCase()) {
+    switch (
+        status.toUpperCase()) {
       case 'ON TIME':
       case 'SHIFT COMPLETED':
-        return Icons.check_circle_outline_rounded;
+        return Icons
+            .check_circle_outline_rounded;
+
+      case 'CURRENTLY ON DUTY':
+        return Icons
+            .work_outline_rounded;
 
       case 'LATE':
       case 'LATE OUT':
       case 'LATE / MISSING TIME IN':
       case 'MISSING TIME OUT':
-        return Icons.warning_amber_rounded;
+        return Icons
+            .warning_amber_rounded;
+
+      case 'ALMOST TIME IN':
+      case 'TIME IN NOW':
+      case 'TIME OUT NOW':
+        return Icons
+            .notifications_active_outlined;
 
       case 'EARLY OUT':
-        return Icons.timelapse_rounded;
+        return Icons
+            .timelapse_rounded;
 
       case 'OUTSIDE SCHEDULE':
-        return Icons.schedule_rounded;
+        return Icons
+            .schedule_rounded;
 
       case 'NO DUTY DAY':
       case 'NO DUTY TODAY':
-        return Icons.weekend_outlined;
+        return Icons
+            .weekend_outlined;
+
+      case 'DUTY LATER':
+        return Icons
+            .event_available_outlined;
 
       default:
-        return Icons.info_outline_rounded;
+        return Icons
+            .info_outline_rounded;
     }
   }
 
   @override
-  Widget build(BuildContext context) {
-    final color = _getColor();
+  Widget build(
+    BuildContext context,
+  ) {
+    final AppPalette palette =
+        MobileSchedTheme.palette(
+      ThemeService().preset,
+    );
 
-    return Container(
-      constraints: const BoxConstraints(
-        maxWidth: 150,
+    final Color color =
+        _getColor(
+      palette,
+    );
+
+    return AnimatedContainer(
+      duration:
+          const Duration(
+        milliseconds: 220,
       ),
-      padding: const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 5,
+
+      constraints:
+          const BoxConstraints(
+        maxWidth: 170,
       ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.13),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: color.withValues(alpha: 0.38),
+
+      padding:
+          const EdgeInsets
+              .symmetric(
+        horizontal: 10,
+        vertical: 6,
+      ),
+
+      decoration:
+          BoxDecoration(
+        color:
+            color.withValues(
+          alpha: 0.12,
+        ),
+
+        borderRadius:
+            BorderRadius.circular(
+          20,
+        ),
+
+        border:
+            Border.all(
+          color:
+              color.withValues(
+            alpha: 0.36,
+          ),
         ),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+
+      child:
+          Row(
+        mainAxisSize:
+            MainAxisSize.min,
+
         children: [
           Icon(
             _getIcon(),
-            color: color,
-            size: 12,
+            color:
+                color,
+            size:
+                13,
           ),
-          const SizedBox(width: 5),
+
+          const SizedBox(
+            width: 5,
+          ),
+
           Flexible(
-            child: Text(
+            child:
+                Text(
               status,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: color,
-                fontSize: 9,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.15,
+
+              maxLines:
+                  1,
+
+              overflow:
+                  TextOverflow
+                      .ellipsis,
+
+              style:
+                  TextStyle(
+                color:
+                    color,
+
+                fontSize:
+                    9,
+
+                fontWeight:
+                    FontWeight
+                        .w800,
+
+                letterSpacing:
+                    0.25,
               ),
             ),
           ),

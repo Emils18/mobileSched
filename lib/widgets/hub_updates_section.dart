@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+
 import '../services/hub_content_service.dart';
 import '../services/notification_service.dart';
 import '../utils/constants.dart';
@@ -18,14 +19,10 @@ class HubUpdatesSection extends StatefulWidget {
 
 class _HubUpdatesSectionState
     extends State<HubUpdatesSection> {
-  final HubContentService _service =
-      HubContentService();
+  final HubContentService _service = HubContentService();
 
-  late final Stream<List<HubAnnouncement>>
-      _announcements;
-
-  late final Stream<List<BirthdayCelebrant>>
-      _celebrants;
+  late final Stream<List<HubAnnouncement>> _announcements;
+  late final Stream<List<BirthdayCelebrant>> _celebrants;
 
   StreamSubscription<List<HubAnnouncement>>?
       _announcementSubscription;
@@ -35,17 +32,19 @@ class _HubUpdatesSectionState
 
   final Set<String> _knownAnnouncementIds = {};
   final Set<String> _knownCelebrantIds = {};
-
   final Set<String> _highlightCelebrantIds = {};
 
   bool _announcementBaselineReady = false;
   bool _celebrantBaselineReady = false;
 
   String? _highlightAnnouncementId;
-  final PageController _birthdayPageController =
-    PageController(viewportFraction: 0.78);
 
-int _activeBirthdayIndex = 0;
+  final PageController _birthdayPageController =
+      PageController(
+    viewportFraction: 0.90,
+  );
+
+  int _activeBirthdayIndex = 0;
 
   @override
   void initState() {
@@ -91,7 +90,9 @@ int _activeBirthdayIndex = 0;
     List<HubAnnouncement> announcements,
   ) {
     final currentIds =
-        announcements.map((item) => item.id).toSet();
+        announcements
+            .map((item) => item.id)
+            .toSet();
 
     if (!_announcementBaselineReady) {
       _knownAnnouncementIds
@@ -102,12 +103,13 @@ int _activeBirthdayIndex = 0;
       return;
     }
 
-    final newAnnouncements = announcements
-        .where(
-          (item) =>
-              !_knownAnnouncementIds.contains(item.id),
-        )
-        .toList();
+    final newAnnouncements =
+        announcements.where(
+      (item) =>
+          !_knownAnnouncementIds.contains(
+        item.id,
+      ),
+    ).toList();
 
     _knownAnnouncementIds
       ..clear()
@@ -117,23 +119,29 @@ int _activeBirthdayIndex = 0;
       return;
     }
 
-    final newest = newAnnouncements.first;
+    final newest =
+        newAnnouncements.first;
 
     if (mounted) {
       setState(() {
-        _highlightAnnouncementId = newest.id;
+        _highlightAnnouncementId =
+            newest.id;
       });
 
       Future<void>.delayed(
-        const Duration(seconds: 6),
+        const Duration(
+          seconds: 6,
+        ),
         () {
           if (!mounted ||
-              _highlightAnnouncementId != newest.id) {
+              _highlightAnnouncementId !=
+                  newest.id) {
             return;
           }
 
           setState(() {
-            _highlightAnnouncementId = null;
+            _highlightAnnouncementId =
+                null;
           });
         },
       );
@@ -143,14 +151,17 @@ int _activeBirthdayIndex = 0;
       _showWebNotice(
         title: 'New Announcement',
         message: newest.title,
-        icon: Icons.campaign_rounded,
+        icon:
+            Icons.campaign_rounded,
       );
     } else {
       unawaited(
-        NotificationService().showHubNotification(
+        NotificationService()
+            .showHubNotification(
           id: newest.id,
-          title: '📢 ${newest.title}',
-          body: _previewText(newest),
+          title: newest.title,
+          body:
+              _previewText(newest),
           type: 'announcement',
         ),
       );
@@ -160,11 +171,17 @@ int _activeBirthdayIndex = 0;
   void _handleCelebrantUpdates(
     List<BirthdayCelebrant> celebrants,
   ) {
-    final currentIds =
-        celebrants.map((item) => item.id).toSet();
+    final currentMonthCelebrants = _currentMonthCelebrants(celebrants);
+    final currentIds = currentMonthCelebrants.map((item) => item.id).toSet();
 
-    final todayCelebrants =
-        _todayCelebrants(celebrants);
+    // Keep every celebrant for the CURRENT month highlighted for the whole month.
+    if (mounted) {
+      setState(() {
+        _highlightCelebrantIds
+          ..clear()
+          ..addAll(currentIds);
+      });
+    }
 
     if (!_celebrantBaselineReady) {
       _knownCelebrantIds
@@ -173,52 +190,55 @@ int _activeBirthdayIndex = 0;
 
       _celebrantBaselineReady = true;
 
-      if (todayCelebrants.isNotEmpty) {
+      // Show the monthly notice once when the app first loads this month's list.
+      if (currentMonthCelebrants.isNotEmpty) {
         _triggerBirthdayEffects(
-          todayCelebrants,
+          currentMonthCelebrants,
           showWebBanner: true,
         );
       }
-
       return;
     }
 
-    final newTodayCelebrants =
-        todayCelebrants.where(
-      (person) =>
-          !_knownCelebrantIds.contains(person.id),
+    final newlyAddedThisMonth = currentMonthCelebrants.where(
+      (person) => !_knownCelebrantIds.contains(person.id),
     ).toList();
 
     _knownCelebrantIds
       ..clear()
       ..addAll(currentIds);
 
-    if (newTodayCelebrants.isNotEmpty) {
+    if (newlyAddedThisMonth.isNotEmpty) {
       _triggerBirthdayEffects(
-        newTodayCelebrants,
+        currentMonthCelebrants,
         showWebBanner: true,
       );
     }
   }
 
-  List<BirthdayCelebrant> _todayCelebrants(
+  List<BirthdayCelebrant> _currentMonthCelebrants(
     List<BirthdayCelebrant> celebrants,
   ) {
-    final now = DateTime.now();
+    final currentMonth = DateTime.now().month;
 
-    return celebrants.where((person) {
-      return person.birthdate.month == now.month &&
-          person.birthdate.day == now.day;
-    }).toList();
+    final result = celebrants.where(
+      (person) => person.monthNumber == currentMonth,
+    ).toList();
+
+    result.sort(
+      (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+    );
+
+    return result;
   }
 
   void _triggerBirthdayEffects(
     List<BirthdayCelebrant> people, {
     required bool showWebBanner,
   }) {
-    if (people.isEmpty) {
-      return;
-    }
+    if (people.isEmpty) return;
+
+    final monthName = _fullMonthName(DateTime.now().month);
 
     if (mounted) {
       setState(() {
@@ -226,52 +246,34 @@ int _activeBirthdayIndex = 0;
           people.map((person) => person.id),
         );
       });
-
-      Future<void>.delayed(
-        const Duration(seconds: 8),
-        () {
-          if (!mounted) {
-            return;
-          }
-
-          setState(() {
-            for (final person in people) {
-              _highlightCelebrantIds.remove(
-                person.id,
-              );
-            }
-          });
-        },
-      );
     }
+
+    final names = people
+        .map((person) => person.name.trim())
+        .where((name) => name.isNotEmpty)
+        .toList();
 
     if (kIsWeb) {
       if (showWebBanner) {
-        final names = people
-            .map((person) => person.name)
-            .join(', ');
+        final message = names.length == 1
+            ? '${names.first} is celebrating this $monthName! 🎉'
+            : '${names.length} working scholars are celebrating this $monthName! 🎉';
 
         _showWebNotice(
-          title: '🎂 Birthday Celebration',
-          message:
-              'Happy Birthday, $names!',
-          icon: Icons.cake_rounded,
+          title: '$monthName Birthday Celebrants',
+          message: message,
+          icon: Icons.celebration_rounded,
         );
       }
-
       return;
     }
 
-    for (final person in people) {
-      unawaited(
-        NotificationService()
-            .showBirthdayNotificationOncePerDay(
-          id: person.id,
-          name: person.name,
-          department: person.department,
-        ),
-      );
-    }
+    unawaited(
+      NotificationService().showBirthdayCelebrantsNotificationOncePerMonth(
+        monthName: monthName,
+        names: names,
+      ),
+    );
   }
 
   void _showWebNotice({
@@ -283,46 +285,69 @@ int _activeBirthdayIndex = 0;
       return;
     }
 
-    WidgetsBinding.instance.addPostFrameCallback(
+    WidgetsBinding.instance
+        .addPostFrameCallback(
       (_) {
         if (!mounted) {
           return;
         }
 
-        ScaffoldMessenger.of(context)
+        ScaffoldMessenger.of(
+          context,
+        )
           ..hideCurrentSnackBar()
           ..showSnackBar(
             SnackBar(
-              behavior: SnackBarBehavior.floating,
-              duration: const Duration(seconds: 4),
+              behavior:
+                  SnackBarBehavior
+                      .floating,
+              duration:
+                  const Duration(
+                seconds: 4,
+              ),
               content: Row(
                 children: [
                   Icon(
                     icon,
-                    color: Colors.white,
+                    color:
+                        Colors.white,
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(
+                    width: 12,
+                  ),
                   Expanded(
                     child: Column(
                       mainAxisSize:
-                          MainAxisSize.min,
+                          MainAxisSize
+                              .min,
                       crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                          CrossAxisAlignment
+                              .start,
                       children: [
                         Text(
                           title,
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style:
+                              const TextStyle(
+                            color:
+                                Colors
+                                    .white,
                             fontWeight:
-                                FontWeight.w800,
+                                FontWeight
+                                    .w800,
                           ),
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(
+                          height: 2,
+                        ),
                         Text(
                           message,
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
+                          style:
+                              const TextStyle(
+                            color:
+                                Colors
+                                    .white70,
+                            fontSize:
+                                12,
                           ),
                         ),
                       ],
@@ -337,315 +362,796 @@ int _activeBirthdayIndex = 0;
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Column(
       crossAxisAlignment:
           CrossAxisAlignment.start,
       children: [
         _buildAnnouncements(),
-        const SizedBox(height: 24),
+        const SizedBox(
+          height: 24,
+        ),
         _buildBirthdays(),
       ],
     );
   }
 
   Widget _buildAnnouncements() {
-    return StreamBuilder<List<HubAnnouncement>>(
+    return StreamBuilder<
+        List<HubAnnouncement>>(
       stream: _announcements,
-      builder: (context, snapshot) {
+      builder:
+          (context, snapshot) {
+        final theme =
+            Theme.of(context);
+
+        final colors =
+            theme.colorScheme;
+
         final items =
-            snapshot.data ??
-                const <HubAnnouncement>[];
+            List<HubAnnouncement>.from(
+          snapshot.data ??
+              const <
+                  HubAnnouncement>[],
+        )..sort(
+                (a, b) =>
+                    b.publishedAt
+                        .compareTo(
+                  a.publishedAt,
+                ),
+              );
+
+        final visibleItems =
+            items.take(3).toList();
 
         return Column(
           crossAxisAlignment:
-              CrossAxisAlignment.start,
+              CrossAxisAlignment
+                  .start,
           children: [
-            const Row(
+            Row(
               children: [
-                Icon(
-                  Icons.campaign_rounded,
-                  color: AppColors.primary,
-                  size: 22,
-                ),
-                SizedBox(width: 8),
-                Text(
-                  'Announcements',
-                  style: TextStyle(
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration:
+                      BoxDecoration(
+                    gradient:
+                        LinearGradient(
+                      begin:
+                          Alignment
+                              .topLeft,
+                      end:
+                          Alignment
+                              .bottomRight,
+                      colors: [
+                        colors
+                            .primary,
+                        colors
+                            .secondary,
+                      ],
+                    ),
+                    borderRadius:
+                        BorderRadius
+                            .circular(
+                      14,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: colors
+                            .primary
+                            .withValues(
+                          alpha:
+                              0.22,
+                        ),
+                        blurRadius:
+                            18,
+                        spreadRadius:
+                            -5,
+                      ),
+                    ],
+                  ),
+                  child:
+                      const Icon(
+                    Icons
+                        .campaign_rounded,
                     color:
-                        AppColors.textTitle,
-                    fontSize: 20,
-                    fontWeight:
-                        FontWeight.w800,
+                        Colors.white,
+                    size: 21,
                   ),
                 ),
+
+                const SizedBox(
+                  width: 12,
+                ),
+
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment
+                            .start,
+                    children: [
+                      Text(
+                        'Announcements',
+                        style: theme
+                            .textTheme
+                            .titleLarge
+                            ?.copyWith(
+                          fontSize:
+                              21,
+                          fontWeight:
+                              FontWeight
+                                  .w900,
+                        ),
+                      ),
+                      const SizedBox(
+                        height: 2,
+                      ),
+                      Text(
+                        items.isEmpty
+                            ? 'Scholar updates and notices'
+                            : '${items.length} ${items.length == 1 ? 'announcement' : 'announcements'} available',
+                        style: theme
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(
+                          fontSize:
+                              10,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                if (items.length >
+                    1)
+                  TextButton(
+                    onPressed: () {
+                      _showAllAnnouncements(
+                        items,
+                      );
+                    },
+                    style:
+                        TextButton
+                            .styleFrom(
+                      padding:
+                          const EdgeInsets
+                              .symmetric(
+                        horizontal:
+                            8,
+                        vertical:
+                            5,
+                      ),
+                      minimumSize:
+                          Size.zero,
+                      tapTargetSize:
+                          MaterialTapTargetSize
+                              .shrinkWrap,
+                    ),
+                    child: Row(
+                      mainAxisSize:
+                          MainAxisSize
+                              .min,
+                      children: [
+                        Text(
+                          'View All',
+                          style:
+                              TextStyle(
+                            color:
+                                colors
+                                    .primary,
+                            fontSize:
+                                10,
+                            fontWeight:
+                                FontWeight
+                                    .w800,
+                          ),
+                        ),
+                        const SizedBox(
+                          width: 3,
+                        ),
+                        Icon(
+                          Icons
+                              .arrow_forward_ios_rounded,
+                          color:
+                              colors
+                                  .primary,
+                          size: 10,
+                        ),
+                      ],
+                    ),
+                  ),
               ],
             )
                 .animate()
                 .fadeIn(
-                  duration: 350.ms,
+                  duration:
+                      350.ms,
                 )
                 .slideY(
                   begin: 0.10,
                   end: 0,
-                  duration: 350.ms,
+                  duration:
+                      350.ms,
                 ),
 
-            const SizedBox(height: 12),
+            const SizedBox(
+              height: 14,
+            ),
 
-            if (snapshot.connectionState ==
-                    ConnectionState.waiting &&
+            if (snapshot
+                        .connectionState ==
+                    ConnectionState
+                        .waiting &&
                 items.isEmpty)
               _messageCard(
-                Icons.cloud_download_outlined,
+                Icons
+                    .cloud_download_outlined,
                 'Loading announcements...',
               )
-            else if (snapshot.hasError)
+            else if (snapshot
+                .hasError)
               _messageCard(
-                Icons.cloud_off_rounded,
+                Icons
+                    .cloud_off_rounded,
                 'Unable to load announcements.',
               )
             else if (items.isEmpty)
               _messageCard(
-                Icons.campaign_outlined,
+                Icons
+                    .campaign_outlined,
                 'No announcements yet.',
               )
-            else
-              AnimatedSwitcher(
-                duration:
-                    const Duration(
-                  milliseconds: 450,
-                ),
-                transitionBuilder:
-                    (child, animation) {
-                  final curved =
-                      CurvedAnimation(
-                    parent: animation,
-                    curve:
-                        Curves.easeOutCubic,
-                  );
-
-                  return FadeTransition(
-                    opacity: curved,
-                    child: ScaleTransition(
-                      scale: Tween<double>(
-                        begin: 0.97,
-                        end: 1,
-                      ).animate(curved),
-                      child: child,
-                    ),
-                  );
-                },
-                child: KeyedSubtree(
-                  key: ValueKey(
-                    items.first.id,
-                  ),
-                  child:
-                      _announcementCard(
-                    items.first,
-                  ),
-                ),
+            else ...[
+              _announcementCard(
+                visibleItems.first,
+                isLatest: true,
               ),
+
+              if (visibleItems
+                      .length >
+                  1) ...[
+                const SizedBox(
+                  height: 15,
+                ),
+
+                Row(
+                  children: [
+                    Icon(
+                      Icons
+                          .history_rounded,
+                      size: 15,
+                      color: theme
+                          .textTheme
+                          .bodySmall
+                          ?.color,
+                    ),
+                    const SizedBox(
+                      width: 6,
+                    ),
+                    Text(
+                      'PREVIOUS ANNOUNCEMENTS',
+                      style: theme
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(
+                        fontSize:
+                            9,
+                        fontWeight:
+                            FontWeight
+                                .w900,
+                        letterSpacing:
+                            1,
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(
+                  height: 9,
+                ),
+
+                for (final announcement
+                    in visibleItems
+                        .skip(
+                  1,
+                )) ...[
+                  _compactAnnouncementCard(
+                    announcement,
+                  ),
+                  const SizedBox(
+                    height: 9,
+                  ),
+                ],
+              ],
+            ],
           ],
         );
       },
     );
   }
 
-  Widget _announcementCard(
-    HubAnnouncement announcement,
-  ) {
-    final isNew =
-        _highlightAnnouncementId ==
-            announcement.id;
 
-    final card = GlassCard(
-      padding: EdgeInsets.zero,
-      hasGlow:
-          announcement.pinned || isNew,
-      borderColor: isNew
-          ? AppColors.primary
-              .withValues(alpha: 0.75)
-          : announcement.pinned
-              ? AppColors.primary
-                  .withValues(alpha: 0.45)
-              : null,
-      onTap: () =>
-          _showAnnouncement(announcement),
+
+
+Widget _announcementCard(
+  HubAnnouncement announcement, {
+  required bool isLatest,
+}) {
+  final theme = Theme.of(context);
+  final colors = theme.colorScheme;
+
+  final bool isNew =
+      _highlightAnnouncementId == announcement.id;
+
+  final String tag = announcement.tag.trim().isEmpty
+      ? 'ANNOUNCEMENT'
+      : announcement.tag.trim().toUpperCase();
+
+  final Color accent = isNew || isLatest
+      ? AppColors.brandOrange
+      : colors.primary;
+
+  final Widget card = GlassCard(
+    padding: EdgeInsets.zero,
+    hasGlow:
+        announcement.pinned || isLatest || isNew,
+    borderColor: isNew
+        ? AppColors.brandOrange.withValues(
+            alpha: 0.85,
+          )
+        : isLatest
+            ? colors.primary.withValues(
+                alpha: 0.55,
+              )
+            : announcement.pinned
+                ? AppColors.brandOrange.withValues(
+                    alpha: 0.50,
+                  )
+                : colors.primary.withValues(
+                    alpha: 0.25,
+                  ),
+    onTap: () {
+      _showAnnouncement(
+        announcement,
+      );
+    },
+    child: ClipRRect(
+      borderRadius: BorderRadius.circular(24),
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // =====================================
+          // ANNOUNCEMENT HERO
+          // =====================================
           if (announcement.imageUrl != null)
-            ClipRRect(
-              borderRadius:
-                  const BorderRadius.vertical(
-                top: Radius.circular(24),
+            Stack(
+              children: [
+                Image.network(
+                  announcement.imageUrl!,
+                  width: double.infinity,
+                  height: 195,
+                  fit: BoxFit.cover,
+                  errorBuilder: (
+                    context,
+                    error,
+                    stackTrace,
+                  ) {
+                    return Container(
+                      width: double.infinity,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            colors.primary,
+                            colors.secondary,
+                          ],
+                        ),
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.campaign_rounded,
+                          color: Colors.white,
+                          size: 45,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withValues(
+                            alpha: 0.15,
+                          ),
+                          Colors.black.withValues(
+                            alpha: 0.72,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                Positioned(
+                  top: 14,
+                  left: 14,
+                  child: Wrap(
+                    spacing: 7,
+                    children: [
+                      if (isLatest)
+                        _announcementBadge(
+                          label: 'LATEST',
+                          icon: Icons.bolt_rounded,
+                          color:
+                              AppColors.brandOrange,
+                        ),
+
+                      if (isNew)
+                        _announcementBadge(
+                          label: 'NEW',
+                          icon:
+                              Icons.fiber_new_rounded,
+                          color: colors.secondary,
+                        ),
+                    ],
+                  ),
+                ),
+
+                if (announcement.pinned)
+                  Positioned(
+                    top: 14,
+                    right: 14,
+                    child: _announcementBadge(
+                      label: 'PINNED',
+                      icon:
+                          Icons.push_pin_rounded,
+                      color:
+                          AppColors.brandOrange,
+                    ),
+                  ),
+
+                Positioned(
+                  left: 16,
+                  bottom: 15,
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color:
+                              AppColors.brandOrange,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black
+                                  .withValues(
+                                alpha: 0.25,
+                              ),
+                              blurRadius: 12,
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.campaign_rounded,
+                          color: Colors.white,
+                          size: 19,
+                        ),
+                      )
+                          .animate(
+                            onPlay: (controller) {
+                              controller.repeat(
+                                reverse: true,
+                              );
+                            },
+                          )
+                          .scale(
+                            begin: const Offset(
+                              0.94,
+                              0.94,
+                            ),
+                            end: const Offset(
+                              1.07,
+                              1.07,
+                            ),
+                            duration: 1000.ms,
+                          ),
+
+                      const SizedBox(
+                        width: 9,
+                      ),
+
+                      const Text(
+                        'AWS HUB UPDATE',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight:
+                              FontWeight.w900,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            )
+          else
+            // =====================================
+            // NO IMAGE HERO
+            // =====================================
+            Container(
+              width: double.infinity,
+              height: 120,
+              padding:
+                  const EdgeInsets.symmetric(
+                horizontal: 20,
               ),
-              child: Image.network(
-                announcement.imageUrl!,
-                width: double.infinity,
-                height: 180,
-                fit: BoxFit.cover,
-                errorBuilder:
-                    (
-                  context,
-                  error,
-                  stackTrace,
-                ) {
-                  return const SizedBox
-                      .shrink();
-                },
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end:
+                      Alignment.bottomRight,
+                  colors: [
+                    colors.primary,
+                    colors.secondary,
+                  ],
+                ),
+              ),
+              child: Stack(
+                children: [
+                  Positioned(
+                    right: -20,
+                    top: -35,
+                    child: Icon(
+                      Icons.campaign_rounded,
+                      size: 150,
+                      color:
+                          Colors.white.withValues(
+                        alpha: 0.08,
+                      ),
+                    ),
+                  ),
+
+                  Row(
+                    children: [
+                      Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          color: Colors.white
+                              .withValues(
+                            alpha: 0.16,
+                          ),
+                          borderRadius:
+                              BorderRadius.circular(
+                            17,
+                          ),
+                          border: Border.all(
+                            color: Colors.white
+                                .withValues(
+                              alpha: 0.20,
+                            ),
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.campaign_rounded,
+                          color: Colors.white,
+                          size: 26,
+                        ),
+                      )
+                          .animate(
+                            onPlay: (controller) {
+                              controller.repeat(
+                                reverse: true,
+                              );
+                            },
+                          )
+                          .scale(
+                            begin:
+                                const Offset(
+                              0.94,
+                              0.94,
+                            ),
+                            end:
+                                const Offset(
+                              1.06,
+                              1.06,
+                            ),
+                            duration: 1000.ms,
+                          ),
+
+                      const SizedBox(
+                        width: 14,
+                      ),
+
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment:
+                              MainAxisAlignment
+                                  .center,
+                          crossAxisAlignment:
+                              CrossAxisAlignment
+                                  .start,
+                          children: [
+                            Text(
+                              isLatest
+                                  ? 'LATEST AWS HUB UPDATE'
+                                  : 'AWS HUB ANNOUNCEMENT',
+                              style:
+                                  const TextStyle(
+                                color:
+                                    Colors.white,
+                                fontSize: 11,
+                                fontWeight:
+                                    FontWeight
+                                        .w900,
+                                letterSpacing:
+                                    0.8,
+                              ),
+                            ),
+
+                            const SizedBox(
+                              height: 5,
+                            ),
+
+                            Text(
+                              'Tap to read the full announcement',
+                              style: TextStyle(
+                                color: Colors.white
+                                    .withValues(
+                                  alpha: 0.75,
+                                ),
+                                fontSize: 10,
+                                fontWeight:
+                                    FontWeight
+                                        .w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      if (isLatest)
+                        Container(
+                          padding:
+                              const EdgeInsets
+                                  .symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration:
+                              BoxDecoration(
+                            color: AppColors
+                                .brandOrange,
+                            borderRadius:
+                                BorderRadius
+                                    .circular(
+                              20,
+                            ),
+                          ),
+                          child:
+                              const Text(
+                            'NEW',
+                            style: TextStyle(
+                              color:
+                                  Colors.white,
+                              fontSize: 8,
+                              fontWeight:
+                                  FontWeight
+                                      .w900,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
               ),
             ),
 
+          // =====================================
+          // ANNOUNCEMENT DETAILS
+          // =====================================
           Padding(
             padding:
-                const EdgeInsets.all(20),
+                const EdgeInsets.fromLTRB(
+                    20,
+                    8,
+                    20,
+                    8,
+                  ),
             child: Column(
               crossAxisAlignment:
                   CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Container(
-                      padding:
-                          const EdgeInsets
-                              .symmetric(
-                        horizontal: 10,
-                        vertical: 5,
-                      ),
-                      decoration:
-                          BoxDecoration(
-                        color: AppColors
-                            .primary
-                            .withValues(
-                              alpha: 0.12,
-                            ),
-                        borderRadius:
-                            BorderRadius
-                                .circular(20),
-                      ),
-                      child: Text(
-                        announcement.tag
-                            .toUpperCase(),
-                        style:
-                            const TextStyle(
-                          color:
-                              AppColors.primary,
-                          fontSize: 9,
-                          fontWeight:
-                              FontWeight.w900,
-                          letterSpacing: 0.8,
-                        ),
-                      ),
+                    _announcementBadge(
+                      label: tag,
+                      icon: Icons
+                          .campaign_outlined,
+                      color: colors.primary,
                     ),
-
-                    if (announcement
-                        .pinned) ...[
-                      const SizedBox(
-                        width: 8,
-                      ),
-                      const Icon(
-                        Icons.push_pin_rounded,
-                        color:
-                            AppColors.orange,
-                        size: 17,
-                      ),
-                    ],
 
                     if (isNew) ...[
                       const SizedBox(
                         width: 8,
                       ),
+
                       Container(
-                        padding:
-                            const EdgeInsets
-                                .symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
+                        width: 8,
+                        height: 8,
                         decoration:
-                            BoxDecoration(
+                            const BoxDecoration(
                           color: AppColors
-                              .secondary
-                              .withValues(
-                                alpha: 0.15,
-                              ),
-                          borderRadius:
-                              BorderRadius
-                                  .circular(
-                            20,
-                          ),
-                        ),
-                        child:
-                            const Text(
-                          'NEW',
-                          style: TextStyle(
-                            color: AppColors
-                                .secondary,
-                            fontSize: 8,
-                            fontWeight:
-                                FontWeight
-                                    .w900,
-                            letterSpacing:
-                                0.8,
-                          ),
+                              .brandOrange,
+                          shape:
+                              BoxShape.circle,
                         ),
                       )
                           .animate(
                             onPlay:
-                                (controller) =>
-                                    controller
-                                        .repeat(
-                              reverse: true,
-                            ),
+                                (controller) {
+                              controller.repeat(
+                                reverse: true,
+                              );
+                            },
                           )
-                          .shimmer(
-                            duration:
-                                1200.ms,
-                            color: AppColors
-                                .secondary
-                                .withValues(
-                              alpha: 0.30,
-                            ),
+                          .fade(
+                            begin: 0.20,
+                            end: 1,
+                            duration: 650.ms,
                           ),
                     ],
 
                     const Spacer(),
 
-                    Text(
-                      AppFormatters
-                          .formatDate(
-                        announcement
-                            .publishedAt
-                            .toIso8601String(),
+                    if (isLatest)
+                      const Text(
+                        'NEWEST UPDATE',
+                        style: TextStyle(
+                          color: AppColors
+                              .brandOrange,
+                          fontSize: 8,
+                          fontWeight:
+                              FontWeight.w900,
+                          letterSpacing: 0.6,
+                        ),
                       ),
-                      style:
-                          const TextStyle(
-                        color: AppColors
-                            .textMuted,
-                        fontSize: 10,
-                      ),
-                    ),
                   ],
                 ),
 
-                const SizedBox(height: 14),
+                const SizedBox(
+                  height: 14,
+                ),
 
                 Text(
                   announcement.title,
-                  style: const TextStyle(
-                    color:
-                        AppColors.textTitle,
+                  style: theme
+                      .textTheme.titleLarge
+                      ?.copyWith(
                     fontSize: 22,
                     fontWeight:
                         FontWeight.w900,
-                    height: 1.2,
+                    height: 1.15,
+                    letterSpacing: -0.3,
                   ),
                 ),
 
-                const SizedBox(height: 8),
+                const SizedBox(
+                  height: 8,
+                ),
 
                 Text(
                   _previewText(
@@ -654,1210 +1160,2334 @@ int _activeBirthdayIndex = 0;
                   maxLines: 3,
                   overflow:
                       TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color:
-                        AppColors.textBody,
+                  style: theme
+                      .textTheme.bodyMedium
+                      ?.copyWith(
                     fontSize: 13,
-                    height: 1.5,
+                    height: 1.45,
                   ),
                 ),
 
-                const SizedBox(height: 14),
+                const SizedBox(
+                  height: 17,
+                ),
 
-                const Row(
-                  children: [
-                    Text(
-                      'Read announcement',
-                      style: TextStyle(
-                        color:
-                            AppColors.primary,
-                        fontSize: 11,
-                        fontWeight:
-                            FontWeight.w700,
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: accent.withValues(
+                      alpha: 0.07,
+                    ),
+                    borderRadius:
+                        BorderRadius.circular(
+                      15,
+                    ),
+                    border: Border.all(
+                      color: accent.withValues(
+                        alpha: 0.15,
                       ),
                     ),
-                    SizedBox(width: 5),
-                    Icon(
-                      Icons
-                          .arrow_forward_rounded,
-                      color:
-                          AppColors.primary,
-                      size: 16,
-                    ),
-                  ],
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons
+                            .calendar_month_rounded,
+                        color: accent,
+                        size: 15,
+                      ),
+
+                      const SizedBox(
+                        width: 7,
+                      ),
+
+                      Expanded(
+                        child: Text(
+                          _announcementDateLabel(
+                            announcement
+                                .publishedAt,
+                          ),
+                          style: theme
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(
+                            fontSize: 10,
+                            fontWeight:
+                                FontWeight
+                                    .w700,
+                          ),
+                        ),
+                      ),
+
+                      Container(
+                        padding:
+                            const EdgeInsets
+                                .symmetric(
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
+                        decoration:
+                            BoxDecoration(
+                          gradient:
+                              LinearGradient(
+                            colors: [
+                              colors.primary,
+                              colors.secondary,
+                            ],
+                          ),
+                          borderRadius:
+                              BorderRadius
+                                  .circular(
+                            20,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: colors
+                                  .primary
+                                  .withValues(
+                                alpha: 0.22,
+                              ),
+                              blurRadius: 12,
+                              spreadRadius: -4,
+                            ),
+                          ],
+                        ),
+                        child: const Row(
+                          mainAxisSize:
+                              MainAxisSize.min,
+                          children: [
+                            Text(
+                              'OPEN',
+                              style:
+                                  TextStyle(
+                                color:
+                                    Colors.white,
+                                fontSize: 9,
+                                fontWeight:
+                                    FontWeight
+                                        .w900,
+                                letterSpacing:
+                                    0.5,
+                              ),
+                            ),
+                            SizedBox(
+                              width: 5,
+                            ),
+                            Icon(
+                              Icons
+                                  .arrow_forward_rounded,
+                              color:
+                                  Colors.white,
+                              size: 14,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
         ],
       ),
-    );
+    ),
+  );
 
-    if (!isNew) {
-      return card;
-    }
+  Widget result = card
+      .animate()
+      .fadeIn(
+        duration: 400.ms,
+      )
+      .slideY(
+        begin: 0.05,
+        end: 0,
+        duration: 450.ms,
+        curve:
+            Curves.easeOutCubic,
+      );
 
-    return card
+  if (isNew) {
+    result = result
         .animate(
-          onPlay: (controller) =>
-              controller.repeat(
-            reverse: true,
-          ),
+          onPlay: (controller) {
+            controller.repeat(
+              reverse: true,
+            );
+          },
         )
         .shimmer(
-          duration: 1400.ms,
-          color: AppColors.primary
-              .withValues(alpha: 0.18),
+          duration: 1900.ms,
+          color: AppColors.brandOrange
+              .withValues(
+            alpha: 0.10,
+          ),
         );
   }
 
+  return result;
+}
 
-Widget _buildBirthdays() {
-  return StreamBuilder<List<BirthdayCelebrant>>(
-    stream: _celebrants,
-    builder: (context, snapshot) {
-      final all =
-          snapshot.data ?? const <BirthdayCelebrant>[];
 
-      final now = DateTime.now();
-
-      final thisMonth = all.where((person) {
-        return person.birthdate.month == now.month;
-      }).toList()
-        ..sort(
-          (a, b) =>
-              a.birthdate.day.compareTo(b.birthdate.day),
-        );
-
-      final today = thisMonth.where((person) {
-        return person.birthdate.day == now.day;
-      }).toList();
-
-      final shown =
-          today.isNotEmpty ? today : thisMonth;
-
-      final activeIndex = shown.isEmpty
-          ? 0
-          : _activeBirthdayIndex
-              .clamp(0, shown.length - 1)
-              .toInt();
-
-      final subtitle = today.isNotEmpty
-          ? today.length == 1
-              ? "Today's birthday celebrant"
-              : "${today.length} birthdays today! 🎉"
-          : "This month's celebrants";
-
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _announcementBadge({
+    required String label,
+    required Color color,
+    IconData? icon,
+  }) {
+    return Container(
+      padding:
+          const EdgeInsets
+              .symmetric(
+        horizontal: 9,
+        vertical: 5,
+      ),
+      decoration:
+          BoxDecoration(
+        color:
+            color.withValues(
+          alpha: 0.13,
+        ),
+        borderRadius:
+            BorderRadius.circular(
+          20,
+        ),
+        border: Border.all(
+          color:
+              color.withValues(
+            alpha: 0.24,
+          ),
+        ),
+      ),
+      child: Row(
+        mainAxisSize:
+            MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.cake_rounded,
-                color: AppColors.orange,
-                size: 22,
-              )
-                  .animate(
-                    onPlay: (controller) =>
-                        controller.repeat(),
-                  )
-                  .shimmer(
-                    duration: 1600.ms,
-                    color: AppColors.warning.withValues(
-                      alpha: 0.45,
-                    ),
-                  ),
-
-              const SizedBox(width: 8),
-
-              const Expanded(
-                child: Text(
-                  'Birthday Celebrants',
-                  style: TextStyle(
-                    color: AppColors.textTitle,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-
-              if (thisMonth.length > 1) ...[
-                TextButton(
-                  onPressed: () {
-                    _showAllCelebrants(thisMonth);
-                  },
-                  style: TextButton.styleFrom(
-                    padding:
-                        const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    minimumSize: Size.zero,
-                    tapTargetSize:
-                        MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'View All',
-                        style: TextStyle(
-                          color: AppColors.orange,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      SizedBox(width: 3),
-                      Icon(
-                        Icons.arrow_forward_ios_rounded,
-                        color: AppColors.orange,
-                        size: 10,
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(width: 4),
-              ],
-
-              if (thisMonth.isNotEmpty)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(
-                    horizontal: 9,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.orange.withValues(
-                      alpha: 0.10,
-                    ),
-                    borderRadius:
-                        BorderRadius.circular(20),
-                    border: Border.all(
-                      color: AppColors.orange.withValues(
-                        alpha: 0.20,
-                      ),
-                    ),
-                  ),
-                  child: Text(
-                    '${thisMonth.length}',
-                    style: const TextStyle(
-                      color: AppColors.orange,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-            ],
-          )
-              .animate()
-              .fadeIn(duration: 400.ms)
-              .slideY(
-                begin: 0.10,
-                end: 0,
-                duration: 400.ms,
-              ),
-
-          const SizedBox(height: 5),
-
+          if (icon != null) ...[
+            Icon(
+              icon,
+              color: color,
+              size: 11,
+            ),
+            const SizedBox(
+              width: 4,
+            ),
+          ],
           Text(
-            subtitle,
+            label,
             style: TextStyle(
-              color: today.length > 1
-                  ? AppColors.orange
-                  : AppColors.textMuted,
-              fontSize: 11,
-              fontWeight: today.length > 1
-                  ? FontWeight.w700
-                  : FontWeight.normal,
+              color: color,
+              fontSize: 8,
+              fontWeight:
+                  FontWeight.w900,
+              letterSpacing:
+                  0.7,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _compactAnnouncementCard(
+    HubAnnouncement announcement,
+  ) {
+    final theme =
+        Theme.of(context);
+
+    final colors =
+        theme.colorScheme;
+
+    return GlassCard(
+      padding:
+          const EdgeInsets.all(
+        14,
+      ),
+      borderRadius:
+          BorderRadius.circular(
+        18,
+      ),
+      borderColor:
+          announcement.pinned
+              ? AppColors
+                  .brandOrange
+                  .withValues(
+                  alpha:
+                      0.34,
+                )
+              : null,
+      onTap: () {
+        _showAnnouncement(
+          announcement,
+        );
+      },
+      child: Row(
+        crossAxisAlignment:
+            CrossAxisAlignment
+                .center,
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration:
+                BoxDecoration(
+              color:
+                  announcement
+                          .pinned
+                      ? AppColors
+                          .brandOrange
+                          .withValues(
+                          alpha:
+                              0.12,
+                        )
+                      : colors
+                          .primary
+                          .withValues(
+                          alpha:
+                              0.11,
+                        ),
+              borderRadius:
+                  BorderRadius
+                      .circular(
+                14,
+              ),
+            ),
+            child: Icon(
+              announcement
+                      .pinned
+                  ? Icons
+                      .push_pin_rounded
+                  : Icons
+                      .campaign_outlined,
+              color:
+                  announcement
+                          .pinned
+                      ? AppColors
+                          .brandOrange
+                      : colors
+                          .primary,
+              size: 20,
             ),
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(
+            width: 12,
+          ),
 
-          if (snapshot.connectionState ==
-                  ConnectionState.waiting &&
-              all.isEmpty)
-            _messageCard(
-              Icons.cake_outlined,
-              'Loading birthday celebrants...',
-            )
-          else if (snapshot.hasError)
-            _messageCard(
-              Icons.cloud_off_rounded,
-              'Unable to load birthday celebrants.',
-            )
-          else if (shown.isEmpty)
-            _messageCard(
-              Icons.cake_outlined,
-              'No birthday celebrants this month.',
-            )
-          else ...[
-            if (today.length > 1) ...[
-              _multipleBirthdayGreeting(today),
-              const SizedBox(height: 16),
-            ],
-
-            SizedBox(
-              height: 285,
-              child: PageView.builder(
-                controller: _birthdayPageController,
-                itemCount: shown.length,
-                physics:
-                    const BouncingScrollPhysics(),
-                onPageChanged: (index) {
-                  if (!mounted) {
-                    return;
-                  }
-
-                  setState(() {
-                    _activeBirthdayIndex = index;
-                  });
-                },
-                itemBuilder: (context, index) {
-                  final person = shown[index];
-
-                  final isActive =
-                      index == activeIndex;
-
-                  return AnimatedScale(
-                    scale: isActive ? 1.0 : 0.91,
-                    duration: const Duration(
-                      milliseconds: 280,
-                    ),
-                    curve: Curves.easeOutCubic,
-                    child: AnimatedOpacity(
-                      opacity:
-                          isActive ? 1.0 : 0.58,
-                      duration: const Duration(
-                        milliseconds: 280,
-                      ),
-                      child: Padding(
-                        padding:
-                            const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 8,
-                        ),
-                        child:
-                            _birthdayGreetingCard(
-                          person,
-                          isActive,
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-
-            if (shown.length > 1) ...[
-              const SizedBox(height: 5),
-
-              Row(
-                mainAxisAlignment:
-                    MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.swipe_rounded,
-                    color: AppColors.textMuted,
-                    size: 14,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    '${activeIndex + 1} / ${shown.length}  •  Swipe to see everyone',
-                    style: const TextStyle(
-                      color: AppColors.textMuted,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 8),
-
-              Row(
-                mainAxisAlignment:
-                    MainAxisAlignment.center,
-                children: [
-                  for (int index = 0;
-                      index < shown.length &&
-                          index < 7;
-                      index++)
-                    AnimatedContainer(
-                      duration: const Duration(
-                        milliseconds: 250,
-                      ),
-                      margin:
-                          const EdgeInsets.symmetric(
-                        horizontal: 3,
-                      ),
-                      width:
-                          index == activeIndex ? 18 : 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                        color: index == activeIndex
-                            ? AppColors.orange
-                            : AppColors.textMuted
-                                .withValues(
-                                  alpha: 0.28,
-                                ),
-                        borderRadius:
-                            BorderRadius.circular(20),
-                      ),
-                    ),
-                ],
-              ),
-            ],
-          ],
-        ],
-      );
-    },
-  );
-}
-
-
-
-void _showAllCelebrants(
-  List<BirthdayCelebrant> celebrants,
-) {
-  if (celebrants.isEmpty) {
-    return;
-  }
-
-  final sortedCelebrants =
-      List<BirthdayCelebrant>.from(celebrants)
-        ..sort(
-          (a, b) =>
-              a.birthdate.day.compareTo(b.birthdate.day),
-        );
-
-  final now = DateTime.now();
-
-  showModalBottomSheet<void>(
-    context: context,
-    backgroundColor: Colors.transparent,
-    isScrollControlled: true,
-    useSafeArea: true,
-    builder: (sheetContext) {
-      return DraggableScrollableSheet(
-        initialChildSize: 0.86,
-        minChildSize: 0.55,
-        maxChildSize: 0.96,
-        expand: false,
-        builder: (
-          context,
-          scrollController,
-        ) {
-          return Container(
-            decoration: BoxDecoration(
-              color: AppColors.bgDeep,
-              borderRadius:
-                  const BorderRadius.vertical(
-                top: Radius.circular(30),
-              ),
-              border: Border.all(
-                color: AppColors.cardBorder,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(
-                    alpha: 0.35,
-                  ),
-                  blurRadius: 30,
-                  offset: const Offset(0, -6),
-                ),
-              ],
-            ),
+          Expanded(
             child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment
+                      .start,
               children: [
-                const SizedBox(height: 12),
-
-                Container(
-                  width: 45,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: AppColors.cardBorder,
-                    borderRadius:
-                        BorderRadius.circular(20),
-                  ),
-                ),
-
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    20,
-                    18,
-                    12,
-                    14,
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: AppColors.orange
-                              .withValues(
-                            alpha: 0.12,
-                          ),
-                          borderRadius:
-                              BorderRadius.circular(14),
-                        ),
-                        child: const Icon(
-                          Icons.cake_rounded,
-                          color: AppColors.orange,
-                          size: 22,
-                        ),
-                      )
-                          .animate(
-                            onPlay: (controller) =>
-                                controller.repeat(),
-                          )
-                          .shimmer(
-                            duration: 1700.ms,
-                            color: AppColors.warning
-                                .withValues(
-                              alpha: 0.35,
-                            ),
-                          ),
-
-                      const SizedBox(width: 12),
-
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment:
-                              CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${_fullMonthName(now.month)} Celebrants',
-                              style: const TextStyle(
-                                color:
-                                    AppColors.textTitle,
-                                fontSize: 19,
-                                fontWeight:
-                                    FontWeight.w900,
-                              ),
-                            ),
-                            const SizedBox(height: 3),
-                            Text(
-                              '${sortedCelebrants.length} ${sortedCelebrants.length == 1 ? 'birthday' : 'birthdays'} this month',
-                              style: const TextStyle(
-                                color:
-                                    AppColors.textMuted,
-                                fontSize: 10,
-                              ),
-                            ),
-                          ],
+                Row(
+                  children: [
+                    if (announcement
+                        .pinned) ...[
+                      const Text(
+                        'PINNED',
+                        style:
+                            TextStyle(
+                          color:
+                              AppColors
+                                  .brandOrange,
+                          fontSize:
+                              8,
+                          fontWeight:
+                              FontWeight
+                                  .w900,
+                          letterSpacing:
+                              0.7,
                         ),
                       ),
-
-                      IconButton(
-                        tooltip: 'Close',
-                        onPressed: () {
-                          Navigator.pop(
-                            sheetContext,
-                          );
-                        },
-                        icon: const Icon(
-                          Icons.close_rounded,
-                          color: AppColors.textMuted,
-                        ),
+                      const SizedBox(
+                        width: 6,
                       ),
                     ],
+                    Expanded(
+                      child: Text(
+                        _announcementDateLabel(
+                          announcement
+                              .publishedAt,
+                        ),
+                        textAlign:
+                            TextAlign
+                                .end,
+                        style: theme
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(
+                          fontSize:
+                              9,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(
+                  height: 4,
+                ),
+
+                Text(
+                  announcement
+                      .title,
+                  maxLines: 1,
+                  overflow:
+                      TextOverflow
+                          .ellipsis,
+                  style: theme
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(
+                    fontSize: 13,
+                    fontWeight:
+                        FontWeight
+                            .w800,
                   ),
                 ),
 
-                Divider(
-                  height: 1,
-                  color: AppColors.cardBorder
-                      .withValues(alpha: 0.8),
+                const SizedBox(
+                  height: 3,
                 ),
 
-                Expanded(
-                  child: LayoutBuilder(
-                    builder: (
-                      context,
-                      constraints,
-                    ) {
-                      int columns = 2;
-
-                      if (constraints.maxWidth >= 720) {
-                        columns = 4;
-                      } else if (
-                          constraints.maxWidth >= 520) {
-                        columns = 3;
-                      }
-
-                      return GridView.builder(
-                        controller:
-                            scrollController,
-                        padding:
-                            const EdgeInsets.all(16),
-                        physics:
-                            const BouncingScrollPhysics(),
-                        itemCount:
-                            sortedCelebrants.length,
-                        gridDelegate:
-                            SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: columns,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                          childAspectRatio: 0.78,
-                        ),
-                        itemBuilder: (
-                          context,
-                          index,
-                        ) {
-                          final person =
-                              sortedCelebrants[index];
-
-                          return _celebrantGridCard(
-                            person,
-                          )
-                              .animate(
-                                delay:
-                                    (index * 55).ms,
-                              )
-                              .fadeIn(
-                                duration: 380.ms,
-                              )
-                              .scale(
-                                begin:
-                                    const Offset(
-                                  0.94,
-                                  0.94,
-                                ),
-                                end:
-                                    const Offset(
-                                  1,
-                                  1,
-                                ),
-                                duration: 380.ms,
-                                curve: Curves
-                                    .easeOutBack,
-                              );
-                        },
-                      );
-                    },
+                Text(
+                  _previewText(
+                    announcement,
+                  ),
+                  maxLines: 1,
+                  overflow:
+                      TextOverflow
+                          .ellipsis,
+                  style: theme
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(
+                    fontSize: 10,
                   ),
                 ),
               ],
             ),
-          )
-              .animate()
-              .fadeIn(
-                duration: 250.ms,
-              )
-              .slideY(
-                begin: 0.06,
-                end: 0,
-                duration: 350.ms,
-                curve: Curves.easeOutCubic,
+          ),
+
+          const SizedBox(
+            width: 8,
+          ),
+
+          Icon(
+            Icons
+                .chevron_right_rounded,
+            color: theme
+                .textTheme
+                .bodySmall
+                ?.color,
+            size: 20,
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAllAnnouncements(
+    List<HubAnnouncement>
+        announcements,
+  ) {
+    if (announcements.isEmpty) {
+      return;
+    }
+
+    final byDate =
+        List<HubAnnouncement>.from(
+      announcements,
+    )..sort(
+            (a, b) =>
+                b.publishedAt
+                    .compareTo(
+              a.publishedAt,
+            ),
+          );
+
+    final String latestId =
+        byDate.first.id;
+
+    final displayItems =
+        List<HubAnnouncement>.from(
+      byDate,
+    )..sort(
+            (a, b) {
+              if (a.pinned !=
+                  b.pinned) {
+                return a.pinned
+                    ? -1
+                    : 1;
+              }
+
+              return b
+                  .publishedAt
+                  .compareTo(
+                a.publishedAt,
               );
-        },
-      );
-    },
-  );
-}
+            },
+          );
 
-Widget _celebrantGridCard(
-  BirthdayCelebrant person,
-) {
-  final now = DateTime.now();
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor:
+          Colors.transparent,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder:
+          (sheetContext) {
+        final theme =
+            Theme.of(
+          sheetContext,
+        );
 
-  final isToday =
-      person.birthdate.month == now.month &&
-          person.birthdate.day == now.day;
+        final colors =
+            theme.colorScheme;
 
-  final highlighted =
-      isToday ||
-      _highlightCelebrantIds.contains(person.id);
-
-  return GlassCard(
-    padding: const EdgeInsets.all(12),
-    hasGlow: highlighted,
-    borderColor: highlighted
-        ? AppColors.orange.withValues(
-            alpha: 0.65,
-          )
-        : null,
-    child: Column(
-      mainAxisAlignment:
-          MainAxisAlignment.center,
-      children: [
-        Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(3),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: highlighted
-                      ? AppColors.orange
-                      : AppColors.cardBorder,
-                  width: highlighted ? 2 : 1,
+        return DraggableScrollableSheet(
+          initialChildSize:
+              0.88,
+          minChildSize:
+              0.58,
+          maxChildSize:
+              0.96,
+          expand: false,
+          builder: (
+            context,
+            scrollController,
+          ) {
+            return Container(
+              decoration:
+                  BoxDecoration(
+                color: theme
+                    .scaffoldBackgroundColor,
+                borderRadius:
+                    const BorderRadius
+                        .vertical(
+                  top:
+                      Radius.circular(
+                    30,
+                  ),
+                ),
+                border:
+                    Border.all(
+                  color: theme
+                      .dividerColor,
                 ),
               ),
-              child: ClipOval(
-                child: SizedBox(
-                  width: 66,
-                  height: 66,
-                  child: person.imageUrl == null
-                      ? _avatarFallback(
-                          person.name,
-                        )
-                      : Image.network(
-                          person.imageUrl!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (
-                            context,
-                            error,
-                            stackTrace,
-                          ) {
-                            return _avatarFallback(
-                              person.name,
+              child: Column(
+                children: [
+                  const SizedBox(
+                    height: 12,
+                  ),
+
+                  Container(
+                    width: 44,
+                    height: 5,
+                    decoration:
+                        BoxDecoration(
+                      color: theme
+                          .dividerColor,
+                      borderRadius:
+                          BorderRadius
+                              .circular(
+                        20,
+                      ),
+                    ),
+                  ),
+
+                  Padding(
+                    padding:
+                        const EdgeInsets
+                            .fromLTRB(
+                      20,
+                      18,
+                      12,
+                      15,
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 46,
+                          height: 46,
+                          decoration:
+                              BoxDecoration(
+                            gradient:
+                                LinearGradient(
+                              colors: [
+                                colors
+                                    .primary,
+                                colors
+                                    .secondary,
+                              ],
+                            ),
+                            borderRadius:
+                                BorderRadius
+                                    .circular(
+                              15,
+                            ),
+                          ),
+                          child:
+                              const Icon(
+                            Icons
+                                .campaign_rounded,
+                            color: Colors
+                                .white,
+                            size: 23,
+                          ),
+                        ),
+
+                        const SizedBox(
+                          width: 12,
+                        ),
+
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment:
+                                CrossAxisAlignment
+                                    .start,
+                            children: [
+                              Text(
+                                'All Announcements',
+                                style: theme
+                                    .textTheme
+                                    .titleLarge
+                                    ?.copyWith(
+                                  fontSize:
+                                      20,
+                                  fontWeight:
+                                      FontWeight
+                                          .w900,
+                                ),
+                              ),
+                              const SizedBox(
+                                height:
+                                    3,
+                              ),
+                              Text(
+                                '${displayItems.length} ${displayItems.length == 1 ? 'announcement' : 'announcements'}',
+                                style: theme
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                  fontSize:
+                                      10,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        IconButton(
+                          onPressed:
+                              () {
+                            Navigator.pop(
+                              sheetContext,
                             );
                           },
+                          icon: Icon(
+                            Icons
+                                .close_rounded,
+                            color: theme
+                                .textTheme
+                                .bodySmall
+                                ?.color,
+                          ),
                         ),
-                ),
-              ),
-            ),
-
-            if (isToday)
-              Positioned(
-                right: -5,
-                bottom: -2,
-                child: Container(
-                  width: 27,
-                  height: 27,
-                  decoration: BoxDecoration(
-                    color: AppColors.orange,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: AppColors.bgDeep,
-                      width: 2,
+                      ],
                     ),
+                  ),
+
+                  Divider(
+                    height: 1,
+                    color: theme
+                        .dividerColor,
+                  ),
+
+                  Expanded(
+                    child:
+                        ListView
+                            .separated(
+                      controller:
+                          scrollController,
+                      padding:
+                          const EdgeInsets
+                              .all(
+                        16,
+                      ),
+                      physics:
+                          const BouncingScrollPhysics(),
+                      itemCount:
+                          displayItems
+                              .length,
+                      separatorBuilder:
+                          (
+                        _,
+                        __,
+                      ) =>
+                              const SizedBox(
+                        height:
+                            10,
+                      ),
+                      itemBuilder: (
+                        context,
+                        index,
+                      ) {
+                        final announcement =
+                            displayItems[
+                                index];
+
+                        final bool latest =
+                            announcement.id ==
+                                latestId;
+
+                        return GlassCard(
+                          padding:
+                              const EdgeInsets
+                                  .all(
+                            15,
+                          ),
+                          borderRadius:
+                              BorderRadius
+                                  .circular(
+                            19,
+                          ),
+                          borderColor:
+                              announcement
+                                      .pinned
+                                  ? AppColors
+                                      .brandOrange
+                                      .withValues(
+                                      alpha:
+                                          0.42,
+                                    )
+                                  : latest
+                                      ? colors
+                                          .primary
+                                          .withValues(
+                                          alpha:
+                                              0.35,
+                                        )
+                                      : null,
+                          onTap: () {
+                            Navigator.pop(
+                              sheetContext,
+                            );
+
+                            Future<void>
+                                .delayed(
+                              const Duration(
+                                milliseconds:
+                                    180,
+                              ),
+                              () {
+                                if (mounted) {
+                                  _showAnnouncement(
+                                    announcement,
+                                  );
+                                }
+                              },
+                            );
+                          },
+                          child: Row(
+                            crossAxisAlignment:
+                                CrossAxisAlignment
+                                    .start,
+                            children: [
+                              Container(
+                                width: 46,
+                                height: 46,
+                                decoration:
+                                    BoxDecoration(
+                                  color:
+                                      announcement
+                                              .pinned
+                                          ? AppColors
+                                              .brandOrange
+                                              .withValues(
+                                              alpha:
+                                                  0.12,
+                                            )
+                                          : colors
+                                              .primary
+                                              .withValues(
+                                              alpha:
+                                                  0.10,
+                                            ),
+                                  borderRadius:
+                                      BorderRadius
+                                          .circular(
+                                    14,
+                                  ),
+                                ),
+                                child: Icon(
+                                  announcement
+                                          .pinned
+                                      ? Icons
+                                          .push_pin_rounded
+                                      : Icons
+                                          .campaign_outlined,
+                                  color:
+                                      announcement
+                                              .pinned
+                                          ? AppColors
+                                              .brandOrange
+                                          : colors
+                                              .primary,
+                                ),
+                              ),
+
+                              const SizedBox(
+                                width: 12,
+                              ),
+
+                              Expanded(
+                                child:
+                                    Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment
+                                          .start,
+                                  children: [
+                                    Wrap(
+                                      spacing:
+                                          6,
+                                      runSpacing:
+                                          5,
+                                      children: [
+                                        if (latest)
+                                          _announcementBadge(
+                                            label:
+                                                'LATEST',
+                                            icon: Icons
+                                                .bolt_rounded,
+                                            color:
+                                                AppColors
+                                                    .brandOrange,
+                                          ),
+
+                                        if (announcement
+                                            .pinned)
+                                          _announcementBadge(
+                                            label:
+                                                'PINNED',
+                                            icon: Icons
+                                                .push_pin_rounded,
+                                            color:
+                                                AppColors
+                                                    .brandOrange,
+                                          ),
+
+                                        _announcementBadge(
+                                          label: announcement
+                                                  .tag
+                                                  .trim()
+                                                  .isEmpty
+                                              ? 'ANNOUNCEMENT'
+                                              : announcement
+                                                  .tag
+                                                  .trim()
+                                                  .toUpperCase(),
+                                          color:
+                                              colors
+                                                  .primary,
+                                        ),
+                                      ],
+                                    ),
+
+                                    const SizedBox(
+                                      height:
+                                          9,
+                                    ),
+
+                                    Text(
+                                      announcement
+                                          .title,
+                                      style: theme
+                                          .textTheme
+                                          .titleMedium
+                                          ?.copyWith(
+                                        fontSize:
+                                            14,
+                                        fontWeight:
+                                            FontWeight
+                                                .w900,
+                                      ),
+                                    ),
+
+                                    const SizedBox(
+                                      height:
+                                          5,
+                                    ),
+
+                                    Text(
+                                      _previewText(
+                                        announcement,
+                                      ),
+                                      maxLines:
+                                          2,
+                                      overflow:
+                                          TextOverflow
+                                              .ellipsis,
+                                      style: theme
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                        fontSize:
+                                            10,
+                                        height:
+                                            1.35,
+                                      ),
+                                    ),
+
+                                    const SizedBox(
+                                      height:
+                                          8,
+                                    ),
+
+                                    Text(
+                                      _announcementDateLabel(
+                                        announcement
+                                            .publishedAt,
+                                      ),
+                                      style: theme
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                        fontSize:
+                                            9,
+                                        fontWeight:
+                                            FontWeight
+                                                .w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                            .animate(
+                              delay:
+                                  (index *
+                                          45)
+                                      .ms,
+                            )
+                            .fadeIn(
+                              duration:
+                                  300.ms,
+                            )
+                            .slideY(
+                              begin:
+                                  0.04,
+                              end: 0,
+                              duration:
+                                  300.ms,
+                            );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  String _announcementDateLabel(
+    DateTime date,
+  ) {
+    final now =
+        DateTime.now();
+
+    final today =
+        DateTime(
+      now.year,
+      now.month,
+      now.day,
+    );
+
+    final target =
+        DateTime(
+      date.year,
+      date.month,
+      date.day,
+    );
+
+    final difference =
+        today
+            .difference(
+              target,
+            )
+            .inDays;
+
+    final actualDate =
+        AppFormatters.formatDate(
+      date.toIso8601String(),
+    );
+
+    if (difference == 0) {
+      return 'Today - $actualDate';
+    }
+
+    if (difference == 1) {
+      return 'Yesterday - $actualDate';
+    }
+
+    return actualDate;
+  }
+
+  Widget _buildBirthdays() {
+    return StreamBuilder<List<BirthdayCelebrant>>(
+      stream: _celebrants,
+      builder: (context, snapshot) {
+        final theme = Theme.of(context);
+        final colors = theme.colorScheme;
+        final all = snapshot.data ?? const <BirthdayCelebrant>[];
+        final thisMonth = _currentMonthCelebrants(all);
+        final monthName = _fullMonthName(DateTime.now().month);
+
+        final activeIndex = thisMonth.isEmpty
+            ? 0
+            : _activeBirthdayIndex.clamp(0, thisMonth.length - 1).toInt();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        AppColors.brandOrange,
+                        Color(0xFFF3A34D),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(15),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.brandOrange.withValues(alpha: 0.26),
+                        blurRadius: 20,
+                        spreadRadius: -5,
+                      ),
+                    ],
                   ),
                   child: const Icon(
                     Icons.celebration_rounded,
                     color: Colors.white,
-                    size: 13,
+                    size: 23,
                   ),
                 )
-                    .animate(
-                      onPlay: (controller) =>
-                          controller.repeat(
-                        reverse: true,
-                      ),
-                    )
-                    .scale(
-                      begin:
-                          const Offset(
-                        0.92,
-                        0.92,
-                      ),
-                      end:
-                          const Offset(
-                        1.08,
-                        1.08,
-                      ),
-                      duration: 800.ms,
+                    .animate(onPlay: (controller) => controller.repeat(reverse: true))
+                    .shimmer(
+                      duration: 1900.ms,
+                      color: Colors.white.withValues(alpha: 0.18),
                     ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '$monthName Celebrants',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        thisMonth.isEmpty
+                            ? 'No celebrants listed for $monthName yet'
+                            : 'Celebrating our working scholars this month ✨',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontSize: 10,
+                          color: thisMonth.isEmpty
+                              ? null
+                              : AppColors.brandOrange,
+                          fontWeight: thisMonth.isEmpty
+                              ? FontWeight.w500
+                              : FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (thisMonth.length > 1)
+                  TextButton(
+                    onPressed: () => _showAllCelebrants(thisMonth),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.brandOrange,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 5,
+                      ),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'View All',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        SizedBox(width: 3),
+                        Icon(Icons.arrow_forward_ios_rounded, size: 10),
+                      ],
+                    ),
+                  ),
+                if (thisMonth.isNotEmpty) ...[
+                  const SizedBox(width: 5),
+                  Container(
+                    constraints: const BoxConstraints(minWidth: 30),
+                    height: 30,
+                    alignment: Alignment.center,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.brandOrange.withValues(alpha: 0.11),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: AppColors.brandOrange.withValues(alpha: 0.28),
+                      ),
+                    ),
+                    child: Text(
+                      '${thisMonth.length}',
+                      style: const TextStyle(
+                        color: AppColors.brandOrange,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            )
+                .animate()
+                .fadeIn(duration: 350.ms)
+                .slideY(begin: 0.08, end: 0, duration: 350.ms),
+            const SizedBox(height: 14),
+            if (snapshot.connectionState == ConnectionState.waiting && all.isEmpty)
+              _messageCard(
+                Icons.cake_outlined,
+                'Loading birthday celebrants...',
+              )
+            else if (snapshot.hasError)
+              _messageCard(
+                Icons.cloud_off_rounded,
+                'Unable to load birthday celebrants.',
+              )
+            else if (thisMonth.isEmpty)
+              _messageCard(
+                Icons.celebration_outlined,
+                'No birthday celebrants for $monthName yet.',
+              )
+            else ...[
+              SizedBox(
+                height: 330,
+                child: PageView.builder(
+                  controller: _birthdayPageController,
+                  itemCount: thisMonth.length,
+                  physics: const BouncingScrollPhysics(),
+                  onPageChanged: (index) {
+                    if (!mounted) return;
+                    setState(() => _activeBirthdayIndex = index);
+                  },
+                  itemBuilder: (context, index) {
+                    final person = thisMonth[index];
+                    final isActive = index == activeIndex;
+
+                    return AnimatedScale(
+                      scale: isActive ? 1.0 : 0.965,
+                      duration: const Duration(milliseconds: 260),
+                      curve: Curves.easeOutCubic,
+                      child: AnimatedOpacity(
+                        opacity: isActive ? 1.0 : 0.72,
+                        duration: const Duration(milliseconds: 260),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 5,
+                          ),
+                          child: _birthdayGreetingCard(person, isActive),
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ),
+              if (thisMonth.length > 1) ...[
+                const SizedBox(height: 7),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.swipe_rounded,
+                      color: theme.textTheme.bodySmall?.color,
+                      size: 14,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${activeIndex + 1} / ${thisMonth.length}  •  Swipe to view',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    for (int index = 0;
+                        index < thisMonth.length && index < 7;
+                        index++)
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 250),
+                        margin: const EdgeInsets.symmetric(horizontal: 3),
+                        width: index == activeIndex ? 20 : 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          gradient: index == activeIndex
+                              ? const LinearGradient(
+                                  colors: [
+                                    AppColors.brandOrange,
+                                    Color(0xFFF3A34D),
+                                  ],
+                                )
+                              : null,
+                          color: index == activeIndex
+                              ? null
+                              : colors.onSurface.withValues(alpha: 0.16),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ],
           ],
-        ),
-
-        const SizedBox(height: 10),
-
-        Text(
-          person.name,
-          textAlign: TextAlign.center,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: AppColors.textTitle,
-            fontSize: 12,
-            fontWeight: FontWeight.w800,
-            height: 1.2,
-          ),
-        ),
-
-        const SizedBox(height: 4),
-
-        Text(
-          person.department,
-          textAlign: TextAlign.center,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: AppColors.textMuted,
-            fontSize: 9,
-          ),
-        ),
-
-        const SizedBox(height: 8),
-
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 9,
-            vertical: 5,
-          ),
-          decoration: BoxDecoration(
-            color: isToday
-                ? AppColors.orange.withValues(
-                    alpha: 0.14,
-                  )
-                : AppColors.primary.withValues(
-                    alpha: 0.08,
-                  ),
-            borderRadius:
-                BorderRadius.circular(20),
-          ),
-          child: Text(
-            isToday
-                ? '🎉 TODAY'
-                : _birthdayDate(
-                    person.birthdate,
-                  ),
-            style: TextStyle(
-              color: isToday
-                  ? AppColors.orange
-                  : AppColors.primary,
-              fontSize: 9,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-
-Widget _multipleBirthdayGreeting(
-  List<BirthdayCelebrant> celebrants,
-) {
-  final names = celebrants
-      .map((person) => person.name.trim())
-      .where((name) => name.isNotEmpty)
-      .toList();
-
-  String greetingNames;
-
-  if (names.length == 2) {
-    greetingNames =
-        '${names[0]} & ${names[1]}';
-  } else if (names.length == 3) {
-    greetingNames =
-        '${names[0]}, ${names[1]} & ${names[2]}';
-  } else if (names.length > 3) {
-    greetingNames =
-        '${names[0]}, ${names[1]}, ${names[2]} + ${names.length - 3} more';
-  } else {
-    greetingNames =
-        names.isEmpty ? 'Everyone' : names.first;
+        );
+      },
+    );
   }
 
-  return GlassCard(
-    hasGlow: true,
-    borderColor:
-        AppColors.orange.withValues(
-      alpha: 0.55,
-    ),
-    padding: const EdgeInsets.symmetric(
-      horizontal: 18,
-      vertical: 18,
-    ),
-    child: Column(
-      children: [
-        Row(
-          mainAxisAlignment:
-              MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.auto_awesome_rounded,
-              color: AppColors.warning,
-              size: 16,
-            )
-                .animate(
-                  onPlay: (controller) =>
-                      controller.repeat(
-                    reverse: true,
-                  ),
-                )
-                .scale(
-                  begin:
-                      const Offset(0.85, 0.85),
-                  end:
-                      const Offset(1.10, 1.10),
-                  duration: 900.ms,
-                ),
+  void _showAllCelebrants(
+    List<BirthdayCelebrant>
+        celebrants,
+  ) {
+    if (celebrants.isEmpty) {
+      return;
+    }
 
-            const SizedBox(width: 7),
-
-            const Text(
-              "TODAY'S CELEBRATION",
-              style: TextStyle(
-                color: AppColors.orange,
-                fontSize: 10,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 1.2,
-              ),
-            ),
-
-            const SizedBox(width: 7),
-
-            const Icon(
-              Icons.celebration_rounded,
-              color: AppColors.warning,
-              size: 16,
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 12),
-
-        const Text(
-          '🎉 Happy Birthday! 🎂',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: AppColors.textTitle,
-            fontSize: 20,
-            fontWeight: FontWeight.w900,
-          ),
-        )
-            .animate(
-              onPlay: (controller) =>
-                  controller.repeat(
-                reverse: true,
-              ),
-            )
-            .shimmer(
-              duration: 1700.ms,
-              color: AppColors.warning.withValues(
-                alpha: 0.45,
-              ),
-            ),
-
-        const SizedBox(height: 9),
-
-        Text(
-          greetingNames,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: AppColors.orange,
-            fontSize: 15,
-            fontWeight: FontWeight.w900,
-            height: 1.3,
-          ),
-        ),
-
-        const SizedBox(height: 8),
-
-        Text(
-          '${celebrants.length} amazing people are celebrating today!',
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: AppColors.textBody,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-
-        const SizedBox(height: 5),
-
-        const Text(
-          'Wishing you all a wonderful day filled with happiness and celebration. 🥳',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: AppColors.textMuted,
-            fontSize: 10,
-            height: 1.4,
-          ),
-        ),
-      ],
-    ),
-  )
-      .animate()
-      .fadeIn(duration: 450.ms)
-      .scale(
-        begin: const Offset(
-          0.96,
-          0.96,
-        ),
-        end: const Offset(
-          1,
-          1,
-        ),
-        duration: 450.ms,
-        curve: Curves.easeOutBack,
+    final sortedCelebrants = List<BirthdayCelebrant>.from(celebrants)
+      ..sort(
+        (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
       );
-}
+
+    final now =
+        DateTime.now();
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor:
+          Colors.transparent,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder:
+          (sheetContext) {
+        return DraggableScrollableSheet(
+          initialChildSize:
+              0.86,
+          minChildSize:
+              0.55,
+          maxChildSize:
+              0.96,
+          expand: false,
+          builder: (
+            context,
+            scrollController,
+          ) {
+            return Container(
+              decoration:
+                  BoxDecoration(
+                color:
+                    AppColors.bgDeep,
+                borderRadius:
+                    const BorderRadius
+                        .vertical(
+                  top:
+                      Radius.circular(
+                    30,
+                  ),
+                ),
+                border:
+                    Border.all(
+                  color: AppColors
+                      .cardBorder,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black
+                        .withValues(
+                      alpha:
+                          0.35,
+                    ),
+                    blurRadius:
+                        30,
+                    offset:
+                        const Offset(
+                      0,
+                      -6,
+                    ),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  const SizedBox(
+                    height: 12,
+                  ),
+
+                  Container(
+                    width: 45,
+                    height: 5,
+                    decoration:
+                        BoxDecoration(
+                      color: AppColors
+                          .cardBorder,
+                      borderRadius:
+                          BorderRadius
+                              .circular(
+                        20,
+                      ),
+                    ),
+                  ),
+
+                  Padding(
+                    padding:
+                        const EdgeInsets
+                            .fromLTRB(
+                      20,
+                      18,
+                      12,
+                      14,
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration:
+                              BoxDecoration(
+                            color: AppColors
+                                .orange
+                                .withValues(
+                              alpha:
+                                  0.12,
+                            ),
+                            borderRadius:
+                                BorderRadius
+                                    .circular(
+                              14,
+                            ),
+                          ),
+                          child:
+                              const Icon(
+                            Icons
+                                .cake_rounded,
+                            color: AppColors
+                                .orange,
+                            size: 22,
+                          ),
+                        )
+                            .animate(
+                              onPlay:
+                                  (controller) =>
+                                      controller
+                                          .repeat(),
+                            )
+                            .shimmer(
+                              duration:
+                                  1700.ms,
+                              color: AppColors
+                                  .warning
+                                  .withValues(
+                                alpha:
+                                    0.35,
+                              ),
+                            ),
+
+                        const SizedBox(
+                          width: 12,
+                        ),
+
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment:
+                                CrossAxisAlignment
+                                    .start,
+                            children: [
+                              Text(
+                                '${_fullMonthName(now.month)} Celebrants',
+                                style:
+                                    const TextStyle(
+                                  color:
+                                      AppColors
+                                          .textTitle,
+                                  fontSize:
+                                      19,
+                                  fontWeight:
+                                      FontWeight
+                                          .w900,
+                                ),
+                              ),
+                              const SizedBox(
+                                height:
+                                    3,
+                              ),
+                              Text(
+                                '${sortedCelebrants.length} ${sortedCelebrants.length == 1 ? 'birthday' : 'birthdays'} this month',
+                                style:
+                                    const TextStyle(
+                                  color:
+                                      AppColors
+                                          .textMuted,
+                                  fontSize:
+                                      10,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        IconButton(
+                          tooltip:
+                              'Close',
+                          onPressed:
+                              () {
+                            Navigator.pop(
+                              sheetContext,
+                            );
+                          },
+                          icon:
+                              const Icon(
+                            Icons
+                                .close_rounded,
+                            color:
+                                AppColors
+                                    .textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  Divider(
+                    height: 1,
+                    color: AppColors
+                        .cardBorder
+                        .withValues(
+                      alpha: 0.8,
+                    ),
+                  ),
+
+                  Expanded(
+                    child:
+                        LayoutBuilder(
+                      builder: (
+                        context,
+                        constraints,
+                      ) {
+                        int columns =
+                            2;
+
+                        if (constraints
+                                .maxWidth >=
+                            720) {
+                          columns =
+                              4;
+                        } else if (constraints
+                                .maxWidth >=
+                            520) {
+                          columns =
+                              3;
+                        }
+
+                        return GridView
+                            .builder(
+                          controller:
+                              scrollController,
+                          padding:
+                              const EdgeInsets
+                                  .all(
+                            16,
+                          ),
+                          physics:
+                              const BouncingScrollPhysics(),
+                          itemCount:
+                              sortedCelebrants
+                                  .length,
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount:
+                                columns,
+                            crossAxisSpacing:
+                                12,
+                            mainAxisSpacing:
+                                12,
+                            childAspectRatio:
+                                0.78,
+                          ),
+                          itemBuilder: (
+                            context,
+                            index,
+                          ) {
+                            final person =
+                                sortedCelebrants[
+                                    index];
+
+                            return _celebrantGridCard(
+                              person,
+                            )
+                                .animate(
+                                  delay:
+                                      (index *
+                                              55)
+                                          .ms,
+                                )
+                                .fadeIn(
+                                  duration:
+                                      380.ms,
+                                )
+                                .scale(
+                                  begin:
+                                      const Offset(
+                                    0.94,
+                                    0.94,
+                                  ),
+                                  end:
+                                      const Offset(
+                                    1,
+                                    1,
+                                  ),
+                                  duration:
+                                      380.ms,
+                                  curve: Curves
+                                      .easeOutBack,
+                                );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            )
+                .animate()
+                .fadeIn(
+                  duration:
+                      250.ms,
+                )
+                .slideY(
+                  begin:
+                      0.06,
+                  end: 0,
+                  duration:
+                      350.ms,
+                  curve: Curves
+                      .easeOutCubic,
+                );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _celebrantGridCard(
+    BirthdayCelebrant person,
+  ) {
+    final monthName = _fullMonthName(DateTime.now().month);
+    final highlighted = person.monthNumber == DateTime.now().month;
+
+    return GlassCard(
+      padding: const EdgeInsets.all(12),
+      hasGlow: highlighted,
+      borderColor: highlighted
+          ? AppColors.orange.withValues(alpha: 0.66)
+          : null,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: highlighted
+                      ? const LinearGradient(
+                          colors: [
+                            AppColors.brandOrange,
+                            Color(0xFFF3A34D),
+                          ],
+                        )
+                      : null,
+                  border: highlighted
+                      ? null
+                      : Border.all(color: AppColors.cardBorder),
+                  boxShadow: highlighted
+                      ? [
+                          BoxShadow(
+                            color: AppColors.brandOrange.withValues(alpha: 0.24),
+                            blurRadius: 18,
+                            spreadRadius: -4,
+                          ),
+                        ]
+                      : null,
+                ),
+                child: ClipOval(
+                  child: SizedBox(
+                    width: 68,
+                    height: 68,
+                    child: person.imageUrl == null
+                        ? _avatarFallback(person.name)
+                        : Image.network(
+                            person.imageUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return _avatarFallback(person.name);
+                            },
+                          ),
+                  ),
+                ),
+              ),
+              if (highlighted)
+                Positioned(
+                  right: -5,
+                  bottom: -2,
+                  child: Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: AppColors.orange,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.bgDeep, width: 2),
+                    ),
+                    child: const Icon(
+                      Icons.celebration_rounded,
+                      color: Colors.white,
+                      size: 14,
+                    ),
+                  )
+                      .animate(onPlay: (controller) => controller.repeat(reverse: true))
+                      .scale(
+                        begin: const Offset(0.94, 0.94),
+                        end: const Offset(1.06, 1.06),
+                        duration: 900.ms,
+                      ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            person.name,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppColors.textTitle,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              height: 1.2,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            person.department,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppColors.textMuted,
+              fontSize: 9,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: AppColors.orange.withValues(alpha: 0.13),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: AppColors.orange.withValues(alpha: 0.20),
+              ),
+            ),
+            child: Text(
+              monthName.toUpperCase(),
+              style: const TextStyle(
+                color: AppColors.orange,
+                fontSize: 9,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
 
 Widget _birthdayGreetingCard(
   BirthdayCelebrant person,
   bool isActive,
 ) {
-  final now = DateTime.now();
+  final theme = Theme.of(context);
+  final colors = theme.colorScheme;
 
-  final isToday =
-      person.birthdate.month == now.month &&
-          person.birthdate.day == now.day;
+  final monthName =
+      _fullMonthName(DateTime.now().month);
 
-  final highlighted =
-      isToday ||
-      _highlightCelebrantIds.contains(
-        person.id,
-      );
+  const accent = AppColors.brandOrange;
 
-  final card = GlassCard(
-    padding: const EdgeInsets.symmetric(
-      horizontal: 18,
-      vertical: 15,
+  final firstName =
+      person.name.trim().isEmpty
+          ? 'Scholar'
+          : person.name.trim().split(' ').first;
+
+  final Widget card = GlassCard(
+    padding: EdgeInsets.zero,
+    borderRadius: BorderRadius.circular(28),
+    hasGlow: true,
+    borderColor: accent.withValues(
+      alpha: isActive ? 0.75 : 0.38,
     ),
-    hasGlow: highlighted || isActive,
-    borderColor: isToday
-        ? AppColors.orange.withValues(
-            alpha: 0.75,
-          )
-        : isActive
-            ? AppColors.orange.withValues(
-                alpha: 0.28,
-              )
-            : null,
-    child: Column(
-      mainAxisAlignment:
-          MainAxisAlignment.center,
-      children: [
-        Row(
-          mainAxisAlignment:
-              MainAxisAlignment.center,
-          children: [
-            Icon(
-              isToday
-                  ? Icons.celebration_rounded
-                  : Icons.cake_rounded,
-              color: AppColors.orange,
-              size: 15,
-            ),
-
-            const SizedBox(width: 6),
-
-            Text(
-              isToday
-                  ? 'HAPPY BIRTHDAY!'
-                  : 'BIRTHDAY CELEBRANT',
-              style: const TextStyle(
-                color: AppColors.orange,
-                fontSize: 9,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 1.2,
-              ),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 10),
-
-        Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(4),
+    child: ClipRRect(
+      borderRadius: BorderRadius.circular(28),
+      child: Stack(
+        children: [
+          // =====================================
+          // SOFT BACKGROUND EFFECTS
+          // =====================================
+          Positioned(
+            top: -55,
+            right: -40,
+            child: Container(
+              width: 150,
+              height: 150,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(
-                  color: isToday
-                      ? AppColors.orange
-                      : AppColors.primary
-                          .withValues(
-                            alpha: 0.45,
-                          ),
-                  width: 2,
-                ),
-                boxShadow: isToday
-                    ? [
-                        BoxShadow(
-                          color: AppColors.orange
-                              .withValues(
-                            alpha: 0.22,
-                          ),
-                          blurRadius: 18,
-                          spreadRadius: 2,
-                        ),
-                      ]
-                    : null,
-              ),
-              child: ClipOval(
-                child: SizedBox(
-                  width: 74,
-                  height: 74,
-                  child:
-                      person.imageUrl == null
-                          ? _avatarFallback(
-                              person.name,
-                            )
-                          : Image.network(
-                              person.imageUrl!,
-                              fit: BoxFit.cover,
-                              errorBuilder: (
-                                context,
-                                error,
-                                stackTrace,
-                              ) {
-                                return _avatarFallback(
-                                  person.name,
-                                );
-                              },
-                            ),
+                color: accent.withValues(
+                  alpha: 0.08,
                 ),
               ),
             ),
+          ),
 
-            if (isToday)
-              Positioned(
-                right: -7,
-                bottom: -1,
-                child: Container(
-                  width: 29,
-                  height: 29,
-                  decoration: BoxDecoration(
-                    color: AppColors.orange,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: AppColors.bgDeep,
-                      width: 2,
-                    ),
+          Positioned(
+            bottom: -60,
+            left: -45,
+            child: Container(
+              width: 160,
+              height: 160,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: colors.primary.withValues(
+                  alpha: 0.07,
+                ),
+              ),
+            ),
+          ),
+
+          Column(
+            children: [
+              // =====================================
+              // BIRTHDAY HEADER
+              // =====================================
+              Container(
+                height: 62,
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                ),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [
+                      AppColors.brandOrange,
+                      Color(0xFFF49A3A),
+                      Color(0xFFEF7F1A),
+                    ],
                   ),
-                  child: const Icon(
-                    Icons.auto_awesome_rounded,
-                    color: Colors.white,
-                    size: 14,
-                  ),
-                )
-                    .animate(
-                      onPlay: (controller) =>
-                          controller.repeat(
-                        reverse: true,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(
+                          alpha: 0.18,
+                        ),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.white.withValues(
+                            alpha: 0.18,
+                          ),
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.celebration_rounded,
+                        color: Colors.white,
+                        size: 19,
                       ),
                     )
-                    .scale(
-                      begin:
-                          const Offset(
-                        0.90,
-                        0.90,
+                        .animate(
+                          onPlay: (controller) {
+                            controller.repeat(
+                              reverse: true,
+                            );
+                          },
+                        )
+                        .scale(
+                          begin: const Offset(
+                            0.92,
+                            0.92,
+                          ),
+                          end: const Offset(
+                            1.07,
+                            1.07,
+                          ),
+                          duration: 1000.ms,
+                        ),
+
+                    const SizedBox(width: 10),
+
+                    const Expanded(
+                      child: Column(
+                        mainAxisAlignment:
+                            MainAxisAlignment.center,
+                        crossAxisAlignment:
+                            CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'BIRTHDAY CELEBRANT',
+                            maxLines: 1,
+                            overflow:
+                                TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight:
+                                  FontWeight.w900,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Celebrating our scholar',
+                            maxLines: 1,
+                            overflow:
+                                TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 9,
+                              fontWeight:
+                                  FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
-                      end:
-                          const Offset(
-                        1.08,
-                        1.08,
-                      ),
-                      duration: 850.ms,
                     ),
+
+                    Container(
+                      padding:
+                          const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(
+                          alpha: 0.18,
+                        ),
+                        borderRadius:
+                            BorderRadius.circular(18),
+                      ),
+                      child: Text(
+                        monthName.toUpperCase(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 8,
+                          fontWeight:
+                              FontWeight.w900,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-          ],
-        ),
 
-        const SizedBox(height: 10),
+              // =====================================
+              // MAIN CONTENT
+              // =====================================
+              Expanded(
+                child: Stack(
+                  children: [
+                    // Animated sparkle left
+                    Positioned(
+                      top: 12,
+                      left: 22,
+                      child: Icon(
+                        Icons.auto_awesome_rounded,
+                        color: accent.withValues(
+                          alpha: 0.55,
+                        ),
+                        size: 17,
+                      )
+                          .animate(
+                            onPlay: (controller) {
+                              controller.repeat(
+                                reverse: true,
+                              );
+                            },
+                          )
+                          .fade(
+                            begin: 0.25,
+                            end: 1,
+                            duration: 1000.ms,
+                          ),
+                    ),
 
-        Text(
-          person.name,
-          textAlign: TextAlign.center,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: AppColors.textTitle,
-            fontSize: 17,
-            fontWeight: FontWeight.w900,
+                    // Animated star right
+                    Positioned(
+                      top: 22,
+                      right: 25,
+                      child: Icon(
+                        Icons.star_rounded,
+                        color: colors.primary.withValues(
+                          alpha: 0.40,
+                        ),
+                        size: 15,
+                      )
+                          .animate(
+                            onPlay: (controller) {
+                              controller.repeat(
+                                reverse: true,
+                              );
+                            },
+                          )
+                          .scale(
+                            begin: const Offset(
+                              0.80,
+                              0.80,
+                            ),
+                            end: const Offset(
+                              1.12,
+                              1.12,
+                            ),
+                            duration: 1200.ms,
+                          ),
+                    ),
+
+                    Positioned.fill(
+                      child: Padding(
+                        padding:
+                            const EdgeInsets.fromLTRB(
+                          18,
+                          6,
+                          18,
+                          6,
+                        ),
+                        child: Column(
+                          mainAxisAlignment:
+                              MainAxisAlignment.center,
+                          children: [
+                            // =====================================
+                            // PROFILE PHOTO
+                            // =====================================
+                            Stack(
+                              clipBehavior: Clip.none,
+                              alignment:
+                                  Alignment.center,
+                              children: [
+                                Container(
+                                  width: 82,
+                                  height: 82,
+                                  decoration:
+                                      BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    gradient:
+                                        LinearGradient(
+                                      begin:
+                                          Alignment.topLeft,
+                                      end: Alignment
+                                          .bottomRight,
+                                      colors: [
+                                        accent,
+                                        colors.primary,
+                                      ],
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: accent
+                                            .withValues(
+                                          alpha: 0.28,
+                                        ),
+                                        blurRadius: 20,
+                                        spreadRadius: -4,
+                                      ),
+                                    ],
+                                  ),
+                                )
+                                    .animate(
+                                      onPlay:
+                                          (controller) {
+                                        controller.repeat(
+                                          reverse: true,
+                                        );
+                                      },
+                                    )
+                                    .scale(
+                                      begin:
+                                          const Offset(
+                                        0.97,
+                                        0.97,
+                                      ),
+                                      end:
+                                          const Offset(
+                                        1.03,
+                                        1.03,
+                                      ),
+                                      duration: 1500.ms,
+                                    ),
+
+                                Container(
+                                  width: 74,
+                                  height: 74,
+                                  padding:
+                                      const EdgeInsets.all(
+                                    3,
+                                  ),
+                                  decoration:
+                                      BoxDecoration(
+                                    color: theme
+                                        .scaffoldBackgroundColor,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: ClipOval(
+                                    child:
+                                        person.imageUrl ==
+                                                null
+                                            ? _avatarFallback(
+                                                person
+                                                    .name,
+                                              )
+                                            : Image.network(
+                                                person
+                                                    .imageUrl!,
+                                                fit:
+                                                    BoxFit
+                                                        .cover,
+                                                errorBuilder: (
+                                                  context,
+                                                  error,
+                                                  stackTrace,
+                                                ) {
+                                                  return _avatarFallback(
+                                                    person
+                                                        .name,
+                                                  );
+                                                },
+                                              ),
+                                  ),
+                                ),
+
+                                Positioned(
+                                  right: -2,
+                                  bottom: 0,
+                                  child: Container(
+                                    width: 27,
+                                    height: 27,
+                                    decoration:
+                                        BoxDecoration(
+                                      color: accent,
+                                      shape:
+                                          BoxShape.circle,
+                                      border: Border.all(
+                                        color: theme
+                                            .scaffoldBackgroundColor,
+                                        width: 2.5,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: accent
+                                              .withValues(
+                                            alpha:
+                                                0.30,
+                                          ),
+                                          blurRadius: 8,
+                                        ),
+                                      ],
+                                    ),
+                                    child:
+                                        const Icon(
+                                      Icons.cake_rounded,
+                                      color: Colors.white,
+                                      size: 13,
+                                    ),
+                                  )
+                                      .animate(
+                                        onPlay:
+                                            (controller) {
+                                          controller
+                                              .repeat(
+                                            reverse: true,
+                                          );
+                                        },
+                                      )
+                                      .scale(
+                                        begin:
+                                            const Offset(
+                                          0.90,
+                                          0.90,
+                                        ),
+                                        end:
+                                            const Offset(
+                                          1.08,
+                                          1.08,
+                                        ),
+                                        duration: 900.ms,
+                                      ),
+                                ),
+                              ],
+                            ),
+
+                            const SizedBox(height: 5),
+
+                            // =====================================
+                            // NAME
+                            // =====================================
+                            Text(
+                              person.name,
+                              maxLines: 1,
+                              overflow:
+                                  TextOverflow.ellipsis,
+                              textAlign:
+                                  TextAlign.center,
+                              style: theme
+                                  .textTheme
+                                  .titleLarge
+                                  ?.copyWith(
+                                fontSize: 17,
+                                fontWeight:
+                                    FontWeight.w900,
+                                height: 1.05,
+                                letterSpacing: -0.2,
+                              ),
+                            ),
+
+                            const SizedBox(height: 3),
+
+                            // =====================================
+                            // DEPARTMENT
+                            // =====================================
+                            Container(
+                              padding:
+                                  const EdgeInsets
+                                      .symmetric(
+                                horizontal: 11,
+                                vertical: 4,
+                              ),
+                              decoration:
+                                  BoxDecoration(
+                                color: colors.primary
+                                    .withValues(
+                                  alpha: 0.09,
+                                ),
+                                borderRadius:
+                                    BorderRadius
+                                        .circular(
+                                  16,
+                                ),
+                                border: Border.all(
+                                  color: colors.primary
+                                      .withValues(
+                                    alpha: 0.12,
+                                  ),
+                                ),
+                              ),
+                              child: Text(
+                                person.department,
+                                maxLines: 1,
+                                overflow:
+                                    TextOverflow
+                                        .ellipsis,
+                                style: theme
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                  color:
+                                      colors.primary,
+                                  fontSize: 9,
+                                  height: 1,
+                                  fontWeight:
+                                      FontWeight.w800,
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(height: 5),
+
+                            // =====================================
+                            // CURRENT MONTH BADGE
+                            // =====================================
+                            Container(
+                              padding:
+                                  const EdgeInsets
+                                      .symmetric(
+                                horizontal: 11,
+                                vertical: 6,
+                              ),
+                              decoration:
+                                  BoxDecoration(
+                                gradient:
+                                    LinearGradient(
+                                  colors: [
+                                    accent.withValues(
+                                      alpha: 0.14,
+                                    ),
+                                    colors.primary
+                                        .withValues(
+                                      alpha: 0.07,
+                                    ),
+                                  ],
+                                ),
+                                borderRadius:
+                                    BorderRadius
+                                        .circular(
+                                  14,
+                                ),
+                                border: Border.all(
+                                  color:
+                                      accent.withValues(
+                                    alpha: 0.20,
+                                  ),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize:
+                                    MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons
+                                        .auto_awesome_rounded,
+                                    color: accent,
+                                    size: 12,
+                                  ),
+                                  const SizedBox(
+                                    width: 5,
+                                  ),
+                                  Flexible(
+                                    child: Text(
+                                      'Celebrating this $monthName',
+                                      maxLines: 1,
+                                      overflow:
+                                          TextOverflow
+                                              .ellipsis,
+                                      style:
+                                          const TextStyle(
+                                        color: accent,
+                                        fontSize: 9,
+                                        height: 1,
+                                        fontWeight:
+                                            FontWeight
+                                                .w900,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            const SizedBox(height: 5),
+
+                            // =====================================
+                            // SHORT MESSAGE
+                            // =====================================
+                            Text(
+                              'Happy birthday month, $firstName!',
+                              maxLines: 1,
+                              overflow:
+                                  TextOverflow.ellipsis,
+                              textAlign:
+                                  TextAlign.center,
+                              style: theme
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                fontSize: 9,
+                                height: 1,
+                                fontWeight:
+                                    FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ),
-
-        const SizedBox(height: 3),
-
-        Text(
-          person.department,
-          textAlign: TextAlign.center,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: AppColors.textMuted,
-            fontSize: 10,
-          ),
-        ),
-
-        const SizedBox(height: 8),
-
-        Text(
-          isToday
-              ? 'Wishing you an amazing birthday! 🎂'
-              : 'Celebrating on ${_birthdayDate(person.birthdate)} 🎉',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: isToday
-                ? AppColors.textBody
-                : AppColors.textMuted,
-            fontSize: 10,
-            fontWeight: isToday
-                ? FontWeight.w700
-                : FontWeight.w500,
-          ),
-        ),
-
-        const SizedBox(height: 8),
-
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 5,
-          ),
-          decoration: BoxDecoration(
-            color: AppColors.orange.withValues(
-              alpha: 0.11,
-            ),
-            borderRadius:
-                BorderRadius.circular(20),
-          ),
-          child: Text(
-            isToday
-                ? '🎉 TODAY'
-                : _birthdayDate(
-                    person.birthdate,
-                  ).toUpperCase(),
-            style: const TextStyle(
-              color: AppColors.orange,
-              fontSize: 9,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 0.6,
-            ),
-          ),
-        ),
-      ],
+        ],
+      ),
     ),
   );
 
-  if (!isToday) {
+  if (!isActive) {
     return card;
   }
 
   return card
-      .animate(
-        onPlay: (controller) =>
-            controller.repeat(
-          reverse: true,
-        ),
+      .animate()
+      .fadeIn(
+        duration: 350.ms,
+      )
+      .slideY(
+        begin: 0.03,
+        end: 0,
+        duration: 400.ms,
+        curve: Curves.easeOutCubic,
       )
       .shimmer(
+        delay: 600.ms,
         duration: 1800.ms,
-        color: AppColors.orange.withValues(
-          alpha: 0.14,
+        color: accent.withValues(
+          alpha: 0.08,
         ),
       );
 }
 
-
- 
   Widget _avatarFallback(
     String name,
   ) {
@@ -1868,17 +3498,25 @@ Widget _birthdayGreetingCard(
         cleanName.isEmpty
             ? '?'
             : cleanName
-                .substring(0, 1)
+                .substring(
+                  0,
+                  1,
+                )
                 .toUpperCase();
 
     return Container(
-      alignment: Alignment.center,
+      alignment:
+          Alignment.center,
       color: AppColors.primary
-          .withValues(alpha: 0.14),
+          .withValues(
+        alpha: 0.14,
+      ),
       child: Text(
         initial,
-        style: const TextStyle(
-          color: AppColors.primary,
+        style:
+            const TextStyle(
+          color:
+              AppColors.primary,
           fontSize: 28,
           fontWeight:
               FontWeight.w900,
@@ -1893,22 +3531,28 @@ Widget _birthdayGreetingCard(
   ) {
     return GlassCard(
       padding:
-          const EdgeInsets.all(18),
+          const EdgeInsets.all(
+        18,
+      ),
       child: Row(
         children: [
           Icon(
             icon,
-            color:
-                AppColors.textMuted,
+            color: AppColors
+                .textMuted,
           ),
-          const SizedBox(width: 12),
+          const SizedBox(
+            width: 12,
+          ),
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(
-                color:
-                    AppColors.textBody,
-                fontSize: 12,
+              style:
+                  const TextStyle(
+                color: AppColors
+                    .textBody,
+                fontSize:
+                    12,
               ),
             ),
           ),
@@ -1917,7 +3561,8 @@ Widget _birthdayGreetingCard(
     )
         .animate()
         .fadeIn(
-          duration: 350.ms,
+          duration:
+              350.ms,
         );
   }
 
@@ -1929,21 +3574,27 @@ Widget _birthdayGreetingCard(
       backgroundColor:
           Colors.transparent,
       isScrollControlled: true,
-      builder: (sheetContext) {
+      builder:
+          (sheetContext) {
         return SafeArea(
           child: Padding(
             padding:
-                const EdgeInsets.only(
+                const EdgeInsets
+                    .only(
               top: 50,
             ),
             child: GlassCard(
               borderRadius:
                   const BorderRadius
                       .vertical(
-                top: Radius.circular(28),
+                top:
+                    Radius.circular(
+                  28,
+                ),
               ),
               padding:
-                  const EdgeInsets.all(
+                  const EdgeInsets
+                      .all(
                 24,
               ),
               child:
@@ -1954,13 +3605,15 @@ Widget _birthdayGreetingCard(
                           .start,
                   children: [
                     Center(
-                      child: Container(
+                      child:
+                          Container(
                         width: 45,
                         height: 5,
                         decoration:
                             BoxDecoration(
-                          color: AppColors
-                              .cardBorder,
+                          color:
+                              AppColors
+                                  .cardBorder,
                           borderRadius:
                               BorderRadius
                                   .circular(
@@ -1990,7 +3643,8 @@ Widget _birthdayGreetingCard(
                           width: double
                               .infinity,
                           fit:
-                              BoxFit.cover,
+                              BoxFit
+                                  .cover,
                           errorBuilder:
                               (
                             context,
@@ -2002,22 +3656,28 @@ Widget _birthdayGreetingCard(
                           },
                         ),
                       ),
+
                       const SizedBox(
                         height: 20,
                       ),
                     ],
 
                     Text(
-                      announcement.tag
+                      announcement
+                          .tag
                           .toUpperCase(),
                       style:
                           const TextStyle(
                         color:
-                            AppColors.primary,
-                        fontSize: 10,
+                            AppColors
+                                .primary,
+                        fontSize:
+                            10,
                         fontWeight:
-                            FontWeight.w900,
-                        letterSpacing: 1,
+                            FontWeight
+                                .w900,
+                        letterSpacing:
+                            1,
                       ),
                     ),
 
@@ -2026,15 +3686,20 @@ Widget _birthdayGreetingCard(
                     ),
 
                     Text(
-                      announcement.title,
+                      announcement
+                          .title,
                       style:
                           const TextStyle(
-                        color: AppColors
-                            .textTitle,
-                        fontSize: 24,
+                        color:
+                            AppColors
+                                .textTitle,
+                        fontSize:
+                            24,
                         fontWeight:
-                            FontWeight.w900,
-                        height: 1.2,
+                            FontWeight
+                                .w900,
+                        height:
+                            1.2,
                       ),
                     ),
 
@@ -2051,9 +3716,11 @@ Widget _birthdayGreetingCard(
                       ),
                       style:
                           const TextStyle(
-                        color: AppColors
-                            .textMuted,
-                        fontSize: 11,
+                        color:
+                            AppColors
+                                .textMuted,
+                        fontSize:
+                            11,
                       ),
                     ),
 
@@ -2062,7 +3729,8 @@ Widget _birthdayGreetingCard(
                         .trim()
                         .isNotEmpty) ...[
                       const SizedBox(
-                        height: 18,
+                        height:
+                            18,
                       ),
                       Text(
                         announcement
@@ -2070,13 +3738,16 @@ Widget _birthdayGreetingCard(
                             .trim(),
                         style:
                             const TextStyle(
-                          color: AppColors
-                              .textBody,
-                          fontSize: 14,
+                          color:
+                              AppColors
+                                  .textBody,
+                          fontSize:
+                              14,
                           fontWeight:
                               FontWeight
                                   .w700,
-                          height: 1.5,
+                          height:
+                              1.5,
                         ),
                       ),
                     ],
@@ -2086,17 +3757,22 @@ Widget _birthdayGreetingCard(
                         .trim()
                         .isNotEmpty) ...[
                       const SizedBox(
-                        height: 18,
+                        height:
+                            18,
                       ),
                       Text(
-                        announcement.body
+                        announcement
+                            .body
                             .trim(),
                         style:
                             const TextStyle(
-                          color: AppColors
-                              .textBody,
-                          fontSize: 14,
-                          height: 1.6,
+                          color:
+                              AppColors
+                                  .textBody,
+                          fontSize:
+                              14,
+                          height:
+                              1.6,
                         ),
                       ),
                     ],
@@ -2106,11 +3782,12 @@ Widget _birthdayGreetingCard(
                     ),
 
                     SizedBox(
-                      width:
-                          double.infinity,
+                      width: double
+                          .infinity,
                       child:
                           FilledButton(
-                        onPressed: () {
+                        onPressed:
+                            () {
                           Navigator.pop(
                             sheetContext,
                           );
@@ -2129,12 +3806,14 @@ Widget _birthdayGreetingCard(
         )
             .animate()
             .fadeIn(
-              duration: 300.ms,
+              duration:
+                  300.ms,
             )
             .slideY(
               begin: 0.08,
               end: 0,
-              duration: 350.ms,
+              duration:
+                  350.ms,
             );
       },
     );
@@ -2143,61 +3822,48 @@ Widget _birthdayGreetingCard(
   String _previewText(
     HubAnnouncement announcement,
   ) {
-    if (announcement.summary
+    if (announcement
+        .summary
         .trim()
         .isNotEmpty) {
-      return announcement.summary
+      return announcement
+          .summary
           .trim();
     }
 
-    if (announcement.body
+    if (announcement
+        .body
         .trim()
         .isNotEmpty) {
-      return announcement.body
+      return announcement
+          .body
           .trim();
     }
 
     return 'Tap to read this announcement.';
   }
 
-String _fullMonthName(int month) {
-  const months = [
-    'January',
-    'February',
-    'March',
-    'April',
-    'May',
-    'June',
-    'July',
-    'August',
-    'September',
-    'October',
-    'November',
-    'December',
-  ];
-
-  return months[month - 1];
-}
-
-
-  String _birthdayDate(
-    DateTime date,
+  String _fullMonthName(
+    int month,
   ) {
     const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
+      'January',
+      'February',
+      'March',
+      'April',
       'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
     ];
 
-    return '${months[date.month - 1]} ${date.day}';
+    return months[
+        month - 1];
   }
+
+
 }

@@ -1101,7 +1101,7 @@ void _showOvertimeDialog() {
                 size: 40, color: AppColors.primary),
             const SizedBox(height: 16),
             const Text(
-              "After submitting the form, return to MobileSched to confirm.",
+              "After submitting the form, return to AWS HUB to confirm.",
               style: TextStyle(color: Colors.white, fontSize: 16),
               textAlign: TextAlign.center,
             ),
@@ -2432,7 +2432,7 @@ class _SettingsSheetContentState extends State<_SettingsSheetContent> {
         ),
         const SizedBox(height: 7),
         Text(
-          'Choose how MobileSched looks on your device.',
+          'Choose how AWS HUB looks on your device.',
           style: theme.textTheme.bodySmall?.copyWith(
             height: 1.4,
           ),
@@ -2777,7 +2777,7 @@ class _SettingsSheetContentState extends State<_SettingsSheetContent> {
                         children: [
                           Text(
                             widget.isFirstTime
-                                ? 'Welcome to MobileSched'
+                                ? 'Welcome to AWS HUB'
                                 : 'Settings & Schedule',
                             style: TextStyle(
                               color: colorScheme.onSurface,
@@ -3029,7 +3029,7 @@ class _SettingsSheetContentState extends State<_SettingsSheetContent> {
                             _buildSettingsSwitch(
                               context: context,
                               title: 'Enable notifications',
-                              subtitle: 'Turn all MobileSched alerts on/off.',
+                              subtitle: 'Turn all AWS HUB alerts on/off.',
                               icon: Icons.notifications_active_outlined,
                               value: _notifEnabled,
                               onChanged: (val) async {

@@ -9,88 +9,119 @@ enum AppThemePreset {
 }
 
 class ThemeService extends ChangeNotifier {
-  static final ThemeService _instance = ThemeService._internal();
+  static final ThemeService _instance =
+      ThemeService._internal();
 
   factory ThemeService() => _instance;
 
   ThemeService._internal();
 
-  static const String _themeKey = 'mobilesched_theme';
+  static const String _themeKey =
+      'mobilesched_theme';
 
-  late SharedPreferences _prefs;
+  SharedPreferences? _prefs;
 
-  AppThemePreset _preset = AppThemePreset.midnight;
+  AppThemePreset _preset =
+      AppThemePreset.midnight;
 
   AppThemePreset get preset => _preset;
 
   Future<void> init() async {
-    _prefs = await SharedPreferences.getInstance();
+    _prefs ??=
+        await SharedPreferences.getInstance();
 
-    final savedTheme = _prefs.getString(_themeKey);
+    final String? savedTheme =
+        _prefs!.getString(_themeKey);
 
-    _preset = AppThemePreset.values.firstWhere(
-      (theme) => theme.name == savedTheme,
-      orElse: () => AppThemePreset.midnight,
+    final AppThemePreset loadedTheme =
+        AppThemePreset.values.firstWhere(
+      (theme) =>
+          theme.name == savedTheme,
+      orElse: () =>
+          AppThemePreset.midnight,
     );
+
+    if (_preset != loadedTheme) {
+      _preset = loadedTheme;
+
+      // IMPORTANT:
+      // Makes the saved theme apply to the
+      // whole MaterialApp after startup.
+      notifyListeners();
+    }
   }
 
-  Future<void> setPreset(AppThemePreset preset) async {
+  Future<void> setPreset(
+    AppThemePreset preset,
+  ) async {
+    _prefs ??=
+        await SharedPreferences.getInstance();
+
     if (_preset == preset) {
       return;
     }
 
     _preset = preset;
 
-    await _prefs.setString(
+    await _prefs!.setString(
       _themeKey,
       preset.name,
     );
 
+    // Rebuilds MobileSched globally.
     notifyListeners();
   }
 
-  String getName(AppThemePreset preset) {
+  String getName(
+    AppThemePreset preset,
+  ) {
     switch (preset) {
       case AppThemePreset.midnight:
-        return 'Midnight Blue';
+        return 'Midnight Navy';
 
       case AppThemePreset.ocean:
-        return 'Ocean Neon';
+        return 'Azure Blue';
 
       case AppThemePreset.violet:
-        return 'Violet Glow';
+        // Internal enum stays violet so old
+        // saved settings do not break.
+        return 'Warm Amber';
 
       case AppThemePreset.light:
-        return 'Clean Light';
+        return 'Cream Light';
     }
   }
 
-  String getDescription(AppThemePreset preset) {
+  String getDescription(
+    AppThemePreset preset,
+  ) {
     switch (preset) {
       case AppThemePreset.midnight:
-        return 'Deep blue premium theme';
+        return 'Premium navy and blue';
 
       case AppThemePreset.ocean:
-        return 'Fresh teal and cyan theme';
+        return 'Rich blue with sky accents';
 
       case AppThemePreset.violet:
-        return 'Purple futuristic theme';
+        return 'Warm orange and navy';
 
       case AppThemePreset.light:
-        return 'Bright and clean theme';
+        return 'Clean cream and navy';
     }
   }
 
-  IconData getIcon(AppThemePreset preset) {
+  IconData getIcon(
+    AppThemePreset preset,
+  ) {
     switch (preset) {
       case AppThemePreset.midnight:
-        return Icons.nightlight_round;
+        return Icons.dark_mode_rounded;
 
       case AppThemePreset.ocean:
         return Icons.water_rounded;
 
       case AppThemePreset.violet:
-        return Icons.auto_awesome_rounded;
+        return Icons.wb_sunny_rounded;
 
       case AppThemePreset.light:
         return Icons.light_mode_rounded;

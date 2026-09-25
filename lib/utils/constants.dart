@@ -1,26 +1,58 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  static const Color bgDeep = Color(0xFF050B14);
-  static const Color bgDark = Color(0xFF0A1222);
-  static const Color bgSoft = Color(0xFF101B30);
+  // ============================================================
+  // OFFICIAL MOBILESCHED BRAND COLORS
+  // ============================================================
 
-  static const Color primary = Color(0xFF00F0FF);
-  static const Color primaryDark = Color(0xFF007BFF);
-  static const Color secondary = Color(0xFF00FF87);
-  static const Color accentPurple = Color(0xFF8A2BE2);
+  static const Color brandNavy = Color(0xFF103F87);
+  static const Color brandCream = Color(0xFFFEF8F2);
+  static const Color brandOrange = Color(0xFFE5791E);
+  static const Color brandSky = Color(0xFF2D8DCC);
 
-  static const Color cardGlass = Color(0x0FFFFFFF);
-  static const Color cardBorder = Color(0x1AFFFFFF);
+  // ============================================================
+  // DARK APP FOUNDATION
+  // ============================================================
 
-  static const Color textTitle = Color(0xFFFFFFFF);
-  static const Color textBody = Color(0xFF94A3B8);
-  static const Color textMuted = Color(0xFF64748B);
+  static const Color bgDeep = Color(0xFF07172E);
+  static const Color bgDark = Color(0xFF0B2447);
+  static const Color bgSoft = Color(0xFF103F87);
 
-  static const Color success = Color(0xFF00FF87);
-  static const Color error = Color(0xFFFF3B30);
-  static const Color warning = Color(0xFFFFCC00);
-  static const Color orange = Color(0xFFFF9500);
+  // Main accents
+  static const Color primary = brandSky;
+  static const Color primaryDark = brandNavy;
+  static const Color secondary = brandOrange;
+
+  // Legacy compatibility.
+  // Keep this name so older widgets do not break.
+  static const Color accentPurple = brandSky;
+
+  // ============================================================
+  // CARDS
+  // ============================================================
+
+  static const Color cardGlass = Color(0x14FEF8F2);
+  static const Color cardBorder = Color(0x332D8DCC);
+
+  // ============================================================
+  // TEXT
+  // ============================================================
+
+  static const Color textTitle = brandCream;
+  static const Color textBody = Color(0xFFD8E3EF);
+  static const Color textMuted = Color(0xFF91A6BA);
+
+  // ============================================================
+  // STATUS COLORS
+  // ============================================================
+
+  static const Color success = Color(0xFF35A86B);
+  static const Color error = Color(0xFFE05252);
+  static const Color warning = Color(0xFFF2B544);
+
+  // Keep existing name because birthdays and several
+  // existing widgets already use AppColors.orange.
+  static const Color orange = brandOrange;
 }
 
 class AppFormatters {
@@ -141,7 +173,10 @@ class AppFormatters {
     return days[weekday - 1];
   }
 
-  static String durationUntil(DateTime target, DateTime current) {
+  static String durationUntil(
+    DateTime target,
+    DateTime current,
+  ) {
     final difference = target.difference(current);
 
     if (difference.isNegative) {
@@ -149,7 +184,8 @@ class AppFormatters {
     }
 
     final hours = difference.inHours;
-    final minutes = difference.inMinutes.remainder(60);
+    final minutes =
+        difference.inMinutes.remainder(60);
 
     if (hours == 0) {
       return '${difference.inMinutes}m';

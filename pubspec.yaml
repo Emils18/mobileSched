@@ -1,5 +1,7 @@
 name: mobile_sched
+
 description: A premium animated attendance and schedule application.
+
 publish_to: 'none'
 
 version: 1.3.1+4
@@ -36,3 +38,18 @@ flutter:
   assets:
     - assets/images/mobilesched_logo.png
     - assets/images/mobilesched_branding.png
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+
+  image_path: assets/images/mobilesched_logo.png
+
+  remove_alpha_ios: true
+  background_color_ios: "#E5791E"
+
+  web:
+    generate: true
+    image_path: assets/images/mobilesched_logo.png
+    background_color: "#FEF8F2"
+    theme_color: "#103F87"

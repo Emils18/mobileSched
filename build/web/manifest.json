@@ -1,13 +1,13 @@
 {
-  "name": "MobileSched",
-  "short_name": "MobileSched",
+  "name": "AWS HUB",
+  "short_name": "AWS HUB",
   "id": "./",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#050B14",
-  "theme_color": "#050B14",
-  "description": "MobileSched attendance, duty schedule, announcements and scholar updates.",
+  "background_color": "#FEF8F2",
+  "theme_color": "#103F87",
+  "description": "AWS HUB attendance, duty schedule, announcements and scholar updates.",
   "orientation": "portrait-primary",
   "prefer_related_applications": false,
   "icons": [

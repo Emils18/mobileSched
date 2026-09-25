@@ -16,7 +16,6 @@ class WelcomeScreen extends StatefulWidget {
 
 class _WelcomeScreenState extends State<WelcomeScreen> {
   final AttendanceService _attendanceService = AttendanceService();
-
   final TextEditingController _nameController = TextEditingController();
 
   final List<int> _selectedDays = [
@@ -52,7 +51,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         _showMessage(
           'Please enter your preferred name.',
         );
-
         return;
       }
 
@@ -70,7 +68,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         _showMessage(
           'Select at least one duty day.',
         );
-
         return;
       }
 
@@ -88,7 +85,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       _showMessage(
         'Time Out must be later than Time In.',
       );
-
       return;
     }
 
@@ -121,7 +117,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         ) {
           return const DashboardScreen();
         },
-        transitionDuration: const Duration(milliseconds: 550),
+        transitionDuration: const Duration(
+          milliseconds: 550,
+        ),
         transitionsBuilder: (
           context,
           animation,
@@ -211,52 +209,93 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             ],
           ),
         ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              _buildProgressHeader(colors),
-              Expanded(
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 400),
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeInCubic,
-                  transitionBuilder: (
-                    child,
-                    animation,
-                  ) {
-                    return FadeTransition(
-                      opacity: animation,
-                      child: SlideTransition(
-                        position: Tween<Offset>(
-                          begin: const Offset(0.08, 0),
-                          end: Offset.zero,
-                        ).animate(animation),
-                        child: child,
+        child: Stack(
+          children: [
+            Positioned(
+              top: -120,
+              right: -100,
+              child: _backgroundOrb(
+                color: colors.primary,
+                size: 290,
+                opacity: 0.09,
+              ),
+            ),
+            Positioned(
+              bottom: -140,
+              left: -110,
+              child: _backgroundOrb(
+                color: colors.secondary,
+                size: 300,
+                opacity: 0.07,
+              ),
+            ),
+            SafeArea(
+              child: Column(
+                children: [
+                  _buildProgressHeader(colors),
+                  Expanded(
+                    child: AnimatedSwitcher(
+                      duration: const Duration(
+                        milliseconds: 400,
                       ),
-                    );
-                  },
-                  child: _buildStep(colors),
-                ),
+                      switchInCurve: Curves.easeOutCubic,
+                      switchOutCurve: Curves.easeInCubic,
+                      transitionBuilder: (
+                        child,
+                        animation,
+                      ) {
+                        return FadeTransition(
+                          opacity: animation,
+                          child: SlideTransition(
+                            position: Tween<Offset>(
+                              begin: const Offset(0.05, 0),
+                              end: Offset.zero,
+                            ).animate(animation),
+                            child: child,
+                          ),
+                        );
+                      },
+                      child: _buildStep(colors),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      24,
+                      10,
+                      24,
+                      26,
+                    ),
+                    child: PremiumButton(
+                      text: _step == 2
+                          ? 'ENTER AWS HUB'
+                          : 'CONTINUE',
+                      icon: _step == 2
+                          ? Icons.rocket_launch_rounded
+                          : Icons.arrow_forward_rounded,
+                      onTap: _next,
+                    ),
+                  ),
+                ],
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  24,
-                  10,
-                  24,
-                  26,
-                ),
-                child: PremiumButton(
-                  text: _step == 2
-                      ? 'START USING MOBILESCHED'
-                      : 'CONTINUE',
-                  icon: _step == 2
-                      ? Icons.rocket_launch_rounded
-                      : Icons.arrow_forward_rounded,
-                  onTap: _next,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _backgroundOrb({
+    required Color color,
+    required double size,
+    required double opacity,
+  }) {
+    return IgnorePointer(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: color.withValues(alpha: opacity),
         ),
       ),
     );
@@ -277,7 +316,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             height: 48,
             child: _step > 0
                 ? IconButton(
+                    tooltip: 'Back',
                     onPressed: _back,
+                    style: IconButton.styleFrom(
+                      backgroundColor: colors.surface,
+                    ),
                     icon: Icon(
                       Icons.arrow_back_rounded,
                       color: colors.textPrimary,
@@ -294,7 +337,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   final active = index <= _step;
 
                   return AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
+                    duration: const Duration(
+                      milliseconds: 300,
+                    ),
                     curve: Curves.easeOutCubic,
                     width: index == _step ? 34 : 9,
                     height: 9,
@@ -302,14 +347,28 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       horizontal: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: active
-                          ? colors.primary
-                          : colors.border,
+                      gradient: index == _step
+                          ? LinearGradient(
+                              colors: [
+                                colors.primary,
+                                colors.secondary,
+                              ],
+                            )
+                          : null,
+                      color: index == _step
+                          ? null
+                          : active
+                              ? colors.primary.withValues(
+                                  alpha: 0.65,
+                                )
+                              : colors.border,
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: index == _step
                           ? [
                               BoxShadow(
-                                color: colors.primary.withValues(alpha: 0.35),
+                                color: colors.primary.withValues(
+                                  alpha: 0.28,
+                                ),
                                 blurRadius: 12,
                               ),
                             ]
@@ -324,12 +383,25 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             width: 48,
             height: 48,
             child: Center(
-              child: Text(
-                '${_step + 1}/3',
-                style: TextStyle(
-                  color: colors.textMuted,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 9,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: colors.border,
+                  ),
+                ),
+                child: Text(
+                  '${_step + 1}/3',
+                  style: TextStyle(
+                    color: colors.textMuted,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
             ),
@@ -343,10 +415,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     switch (_step) {
       case 0:
         return _buildNameStep(colors);
-
       case 1:
         return _buildDaysStep(colors);
-
       default:
         return _buildScheduleStep(colors);
     }
@@ -359,7 +429,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           ScrollViewKeyboardDismissBehavior.onDrag,
       padding: const EdgeInsets.fromLTRB(
         28,
-        34,
+        28,
         28,
         20,
       ),
@@ -368,20 +438,30 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           Hero(
             tag: 'mobilesched-logo',
             child: Container(
-              width: 145,
-              height: 145,
+              width: 132,
+              height: 132,
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(35),
+                color: colors.surface,
+                borderRadius: BorderRadius.circular(34),
+                border: Border.all(
+                  color: colors.primary.withValues(
+                    alpha: 0.30,
+                  ),
+                ),
                 boxShadow: [
                   BoxShadow(
-                    color: colors.primary.withValues(alpha: 0.22),
-                    blurRadius: 35,
-                    spreadRadius: 1,
+                    color: colors.primary.withValues(
+                      alpha: 0.20,
+                    ),
+                    blurRadius: 34,
+                    spreadRadius: -4,
+                    offset: const Offset(0, 14),
                   ),
                 ],
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(35),
+                borderRadius: BorderRadius.circular(27),
                 child: Image.asset(
                   'assets/images/mobilesched_logo.png',
                   fit: BoxFit.cover,
@@ -393,9 +473,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                     return Container(
                       color: colors.surfaceStrong,
                       child: Icon(
-                        Icons.schedule_rounded,
+                        Icons.hub_rounded,
                         color: colors.primary,
-                        size: 64,
+                        size: 62,
                       ),
                     );
                   },
@@ -405,15 +485,58 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           )
               .animate()
               .fadeIn(
-                duration: 500.ms,
+                duration: 450.ms,
               )
               .scale(
-                begin: const Offset(0.9, 0.9),
+                begin: const Offset(0.92, 0.92),
                 end: const Offset(1, 1),
+                curve: Curves.easeOutBack,
               ),
-          const SizedBox(height: 32),
+
+          const SizedBox(height: 22),
+
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 6,
+            ),
+            decoration: BoxDecoration(
+              color: colors.primary.withValues(
+                alpha: 0.10,
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: colors.primary.withValues(
+                  alpha: 0.18,
+                ),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.hub_rounded,
+                  color: colors.primary,
+                  size: 13,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'WORKING SCHOLAR HUB',
+                  style: TextStyle(
+                    color: colors.primary,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 14),
+
           Text(
-            'Welcome to MobileSched',
+            'Welcome to AWS HUB',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: colors.textPrimary,
@@ -422,48 +545,64 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               letterSpacing: -0.8,
             ),
           ),
-          const SizedBox(height: 12),
+
+          const SizedBox(height: 9),
+
           Text(
-            'Your smarter and simpler way to manage attendance and daily schedules.',
+            'Attendance, duty schedules, announcements, and scholar updates in one place.',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: colors.textSecondary,
-              fontSize: 15,
-              height: 1.6,
+              fontSize: 14,
+              height: 1.55,
             ),
           ),
-          const SizedBox(height: 38),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'WHAT SHOULD WE CALL YOU?',
-              style: TextStyle(
-                color: colors.textMuted,
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.3,
+
+          const SizedBox(height: 32),
+
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: colors.surface.withValues(alpha: 0.72),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: colors.border,
               ),
             ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _nameController,
-            autofocus: true,
-            textCapitalization: TextCapitalization.words,
-            textInputAction: TextInputAction.done,
-            onSubmitted: (_) {
-              _next();
-            },
-            style: TextStyle(
-              color: colors.textPrimary,
-              fontSize: 17,
-              fontWeight: FontWeight.w600,
-            ),
-            decoration: const InputDecoration(
-              hintText: 'Enter your preferred name',
-              prefixIcon: Icon(
-                Icons.person_outline_rounded,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'WHAT SHOULD WE CALL YOU?',
+                  style: TextStyle(
+                    color: colors.textMuted,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 11),
+                TextField(
+                  controller: _nameController,
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.words,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) {
+                    _next();
+                  },
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  decoration: const InputDecoration(
+                    hintText: 'Enter your preferred name',
+                    prefixIcon: Icon(
+                      Icons.person_outline_rounded,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -486,7 +625,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       key: const ValueKey('days-step'),
       padding: const EdgeInsets.fromLTRB(
         28,
-        42,
+        34,
         28,
         20,
       ),
@@ -497,24 +636,30 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             colors: colors,
             icon: Icons.calendar_month_rounded,
           ),
-          const SizedBox(height: 24),
+
+          const SizedBox(height: 22),
+
           Text(
-            'Select your duty days',
+            'Choose your duty days',
             style: TextStyle(
               color: colors.textPrimary,
               fontSize: 29,
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 12),
+
+          const SizedBox(height: 10),
+
           Text(
-            'MobileSched will use these days to calculate your live attendance status.',
+            'AWS HUB uses these days to calculate your attendance status and schedule reminders.',
             style: TextStyle(
               color: colors.textSecondary,
               height: 1.55,
             ),
           ),
-          const SizedBox(height: 30),
+
+          const SizedBox(height: 26),
+
           ...List.generate(
             7,
             (index) {
@@ -524,7 +669,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               );
 
               return Padding(
-                padding: const EdgeInsets.only(bottom: 11),
+                padding: const EdgeInsets.only(
+                  bottom: 10,
+                ),
                 child: Material(
                   color: Colors.transparent,
                   child: InkWell(
@@ -540,14 +687,18 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       });
                     },
                     child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 240),
+                      duration: const Duration(
+                        milliseconds: 220,
+                      ),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 18,
-                        vertical: 17,
+                        vertical: 16,
                       ),
                       decoration: BoxDecoration(
                         color: selected
-                            ? colors.primary.withValues(alpha: 0.13)
+                            ? colors.primary.withValues(
+                                alpha: 0.13,
+                              )
                             : colors.surface,
                         borderRadius: BorderRadius.circular(18),
                         border: Border.all(
@@ -558,7 +709,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                         boxShadow: selected
                             ? [
                                 BoxShadow(
-                                  color: colors.primary.withValues(alpha: 0.10),
+                                  color: colors.primary.withValues(
+                                    alpha: 0.10,
+                                  ),
                                   blurRadius: 16,
                                 ),
                               ]
@@ -611,7 +764,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       key: const ValueKey('schedule-step'),
       padding: const EdgeInsets.fromLTRB(
         28,
-        42,
+        34,
         28,
         20,
       ),
@@ -622,7 +775,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             colors: colors,
             icon: Icons.schedule_rounded,
           ),
-          const SizedBox(height: 24),
+
+          const SizedBox(height: 22),
+
           Text(
             'Set your schedule',
             style: TextStyle(
@@ -631,15 +786,19 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 12),
+
+          const SizedBox(height: 10),
+
           Text(
-            'Choose your regular Time In and Time Out schedule. You can update this later.',
+            'Choose your regular Time In and Time Out. You can update these anytime in Settings.',
             style: TextStyle(
               color: colors.textSecondary,
               height: 1.55,
             ),
           ),
-          const SizedBox(height: 36),
+
+          const SizedBox(height: 30),
+
           _buildTimeCard(
             colors: colors,
             title: 'TIME IN',
@@ -651,7 +810,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               );
             },
           ),
-          const SizedBox(height: 18),
+
+          const SizedBox(height: 16),
+
           _buildTimeCard(
             colors: colors,
             title: 'TIME OUT',
@@ -663,14 +824,20 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               );
             },
           ),
-          const SizedBox(height: 26),
+
+          const SizedBox(height: 24),
+
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: colors.primary.withValues(alpha: 0.08),
+              color: colors.primary.withValues(
+                alpha: 0.08,
+              ),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: colors.primary.withValues(alpha: 0.20),
+                color: colors.primary.withValues(
+                  alpha: 0.20,
+                ),
               ),
             ),
             child: Row(
@@ -684,7 +851,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Your attendance status will be calculated using this schedule.',
+                    'Your attendance status and reminders will use this regular duty schedule.',
                     style: TextStyle(
                       color: colors.textSecondary,
                       fontSize: 13,
@@ -708,10 +875,17 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       width: 62,
       height: 62,
       decoration: BoxDecoration(
-        color: colors.primary.withValues(alpha: 0.12),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            colors.primary.withValues(alpha: 0.20),
+            colors.secondary.withValues(alpha: 0.12),
+          ],
+        ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: colors.primary.withValues(alpha: 0.22),
+          color: colors.primary.withValues(alpha: 0.24),
         ),
       ),
       child: Icon(
@@ -753,7 +927,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  color: colors.primary.withValues(alpha: 0.13),
+                  color: colors.primary.withValues(
+                    alpha: 0.13,
+                  ),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Icon(
