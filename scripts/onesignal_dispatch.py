@@ -77,8 +77,9 @@ def _send_push(
     key: str,
     title: str,
     body: str,
-    filters: list[dict],
     event_key: str,
+    filters: list[dict] | None = None,
+    included_segments: list[str] | None = None,
     data: dict | None = None,
 ) -> None:
     payload = {
@@ -87,11 +88,16 @@ def _send_push(
         "name": f"AWS HUB - {event_key}",
         "headings": {"en": title},
         "contents": {"en": body},
-        "filters": filters,
         "url": APP_URL,
         "idempotency_key": _idempotency_key(event_key),
         "data": data or {},
     }
+
+    if filters:
+        payload["filters"] = filters
+
+    if included_segments:
+        payload["included_segments"] = included_segments
 
     request = urllib.request.Request(
         ONESIGNAL_URL,
@@ -143,26 +149,21 @@ def send_duty_reminders(key: str, now: dt.datetime) -> None:
         target_time = target.strftime("%H:%M")
         date_key = target.strftime("%Y-%m-%d")
 
-        filters = _and_filters(
-            {
-                "field": "tag",
-                "key": "aws_hub_pwa",
-                "relation": "=",
-                "value": "true",
-            },
-            {
-                "field": "tag",
-                "key": f"duty_{weekday}",
-                "relation": "=",
-                "value": "true",
-            },
-            {
-                "field": "tag",
-                "key": f"time_in_{weekday}",
-                "relation": "=",
-                "value": target_time,
-            },
-        )
+        slot_value = f"{weekday}@{target_time}"
+        filters = []
+
+        for slot in range(1, 7):
+            if filters:
+                filters.append({"operator": "OR"})
+
+            filters.append(
+                {
+                    "field": "tag",
+                    "key": f"duty_slot_{slot}",
+                    "relation": "=",
+                    "value": slot_value,
+                }
+            )
 
         _send_push(
             key=key,
@@ -206,14 +207,7 @@ def send_recent_announcements(key: str, now: dt.datetime) -> None:
             key=key,
             title=title[:80],
             body=message,
-            filters=[
-                {
-                    "field": "tag",
-                    "key": "aws_hub_pwa",
-                    "relation": "=",
-                    "value": "true",
-                }
-            ],
+            included_segments=["Subscribed Users"],
             event_key=f"announcement:{announcement_id}",
             data={"type": "announcement", "id": announcement_id},
         )
@@ -265,14 +259,7 @@ def send_monthly_birthdays(key: str, now: dt.datetime) -> None:
         key=key,
         title=f"🎉 {month_name} Birthday Celebrants",
         body=body,
-        filters=[
-            {
-                "field": "tag",
-                "key": "aws_hub_pwa",
-                "relation": "=",
-                "value": "true",
-            }
-        ],
+        included_segments=["Subscribed Users"],
         event_key=f"birthday-month:{now.year}-{now.month:02d}",
         data={"type": "birthday-month", "month": now.month},
     )
