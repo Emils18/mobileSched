@@ -11,6 +11,7 @@ import datetime as dt
 import json
 import os
 import sys
+import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
@@ -223,6 +224,10 @@ def _month_number(value: object) -> int:
 
 
 def send_monthly_birthdays(key: str, now: dt.datetime) -> None:
+    # Keep the monthly idempotency key safely inside OneSignal's 30-day window.
+    if now.day > 28:
+        return
+
     rows = _supabase_rows(
         "celebrations",
         "select=id,name,month,department&order=name.asc",
