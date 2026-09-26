@@ -12,17 +12,23 @@ class WebPushProfileService {
     required List<int> dutyDays,
     required TimeOfDay Function(int weekday) timeInForDay,
   }) async {
-    final tags = <String, String>{
-      'aws_hub_pwa': 'true',
-      'aws_hub_timezone': 'Asia/Manila',
-    };
+    final sortedDays = dutyDays.toSet().toList()..sort();
 
-    for (var weekday = 1; weekday <= 7; weekday++) {
-      final enabled = dutyDays.contains(weekday);
-      final time = timeInForDay(weekday);
+    // OneSignal Free currently allows 6 Data Tags per user.
+    // Store up to six duty slots as "<weekday>@<HH:mm>".
+    final tags = <String, String>{};
 
-      tags['duty_$weekday'] = enabled ? 'true' : 'false';
-      tags['time_in_$weekday'] = enabled ? _formatTime(time) : '';
+    for (var slot = 1; slot <= 6; slot++) {
+      if (slot <= sortedDays.length) {
+        final weekday = sortedDays[slot - 1];
+        final time = timeInForDay(weekday);
+
+        tags['duty_slot_$slot'] =
+            '$weekday@${_formatTime(time)}';
+      } else {
+        // Empty values remove stale slots in OneSignal.
+        tags['duty_slot_$slot'] = '';
+      }
     }
 
     bridge.syncOneSignalTags(jsonEncode(tags));
