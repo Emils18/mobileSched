@@ -3079,18 +3079,41 @@ class _SettingsSheetContentState extends State<_SettingsSheetContent> {
                             SizedBox(
                               width: double.infinity,
                               child: OutlinedButton.icon(
-                                onPressed: _notifEnabled && !kIsWeb
+                                onPressed: _notifEnabled
                                     ? () async {
+                                        if (kIsWeb) {
+                                          await const WebPushProfileService()
+                                              .showTestNotification();
+
+                                          if (!context.mounted) return;
+
+                                          ScaffoldMessenger.of(context)
+                                            ..hideCurrentSnackBar()
+                                            ..showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'Test notification requested.',
+                                                ),
+                                              ),
+                                            );
+
+                                          return;
+                                        }
+
                                         final sent = await _notifService
                                             .showTestNotification();
+
                                         if (!context.mounted) return;
+
                                         ScaffoldMessenger.of(context)
                                           ..hideCurrentSnackBar()
                                           ..showSnackBar(
                                             SnackBar(
-                                              content: Text(sent
-                                                  ? 'Notification sent successfully.'
-                                                  : 'Enable notifications first.'),
+                                              content: Text(
+                                                sent
+                                                    ? 'Notification sent successfully.'
+                                                    : 'Enable notifications first.',
+                                              ),
                                             ),
                                           );
                                       }
