@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="/mobileSched/">
+
+  <meta charset="UTF-8">
+
+  <meta
+    http-equiv="X-UA-Compatible"
+    content="IE=Edge"
+  >
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+  >
+
+  <meta
+    name="description"
+    content="AWS HUB attendance, duty schedule, announcements and scholar updates."
+  >
+
+  <meta
+    name="theme-color"
+    content="#103F87"
+  >
+
+  <meta
+    name="mobile-web-app-capable"
+    content="yes"
+  >
+
+  <meta
+    name="apple-mobile-web-app-capable"
+    content="yes"
+  >
+
+  <meta
+    name="apple-mobile-web-app-status-bar-style"
+    content="black-translucent"
+  >
+
+  <meta
+    name="apple-mobile-web-app-title"
+    content="AWS HUB"
+  >
+
+  <link
+    rel="apple-touch-icon"
+    sizes="180x180"
+    href="icons/apple-touch-icon.png"
+  >
+
+  <link
+    rel="icon"
+    type="image/png"
+    href="favicon.png"
+  >
+
+  <link
+    rel="manifest"
+    href="manifest.json"
+  >
+
+  <title>AWS HUB</title>
+
+  <!-- OneSignal Web SDK -->
+  <script
+    src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js"
+    defer
+  ></script>
+
+  <style>
+    #aws-notification-button {
+      display: none;
+
+      position: fixed;
+
+      left: 18px;
+      right: 18px;
+
+      bottom: calc(
+        18px + env(safe-area-inset-bottom)
+      );
+
+      max-width: 440px;
+
+      margin: 0 auto;
+
+      z-index: 999999;
+
+      border: none;
+
+      border-radius: 18px;
+
+      padding: 16px 20px;
+
+      background: linear-gradient(
+        135deg,
+        #103F87,
+        #2D8DCC
+      );
+
+      color: #FEF8F2;
+
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+
+      font-size: 15px;
+
+      font-weight: 800;
+
+      box-shadow:
+        0 14px 38px
+        rgba(16, 63, 135, 0.40);
+
+      cursor: pointer;
+
+      -webkit-tap-highlight-color:
+        transparent;
+
+      touch-action: manipulation;
+    }
+
+    #aws-notification-button:active {
+      transform: scale(0.97);
+    }
+
+    #aws-notification-button:disabled {
+      opacity: 0.72;
+    }
+
+    #aws-notification-status {
+      display: none;
+
+      position: fixed;
+
+      left: 18px;
+      right: 18px;
+
+      bottom: calc(
+        88px + env(safe-area-inset-bottom)
+      );
+
+      max-width: 440px;
+
+      margin: 0 auto;
+
+      padding: 10px 14px;
+
+      z-index: 999999;
+
+      border-radius: 14px;
+
+      background: rgba(
+        16,
+        63,
+        135,
+        0.95
+      );
+
+      color: white;
+
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+
+      font-size: 11px;
+
+      line-height: 1.4;
+
+      word-break: break-word;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="aws-notification-status"></div>
+
+  <button
+    id="aws-notification-button"
+    type="button"
+  >
+    Enable Notifications
+  </button>
+
+  <script>
+    window.OneSignalDeferred =
+      window.OneSignalDeferred || [];
+
+    window.OneSignalDeferred.push(
+      async function (OneSignal) {
+        const button =
+          document.getElementById(
+            "aws-notification-button"
+          );
+
+        const status =
+          document.getElementById(
+            "aws-notification-status"
+          );
+
+        function showStatus(message) {
+          console.log(
+            "[AWS HUB Push]",
+            message
+          );
+
+          if (!status) {
+            return;
+          }
+
+          status.textContent =
+            message;
+
+          status.style.display =
+            "block";
+        }
+
+        function hideStatus() {
+          if (status) {
+            status.style.display =
+              "none";
+          }
+        }
+
+        try {
+          // Useful while we are testing.
+          OneSignal.Debug.setLogLevel(
+            "trace"
+          );
+
+          await OneSignal.init({
+            appId:
+              "e9e26912-3ff7-4fac-92e6-ec24f88922a4",
+
+            serviceWorkerPath:
+              "/mobileSched/push/onesignal/OneSignalSDKWorker.js",
+
+            serviceWorkerParam: {
+              scope:
+                "/mobileSched/push/onesignal/"
+            },
+
+            notifyButton: {
+              enable: false
+            }
+          });
+
+          console.log(
+            "[AWS HUB Push] OneSignal initialized"
+          );
+
+        } catch (error) {
+          console.error(
+            "[AWS HUB Push] Initialization failed:",
+            error
+          );
+
+          showStatus(
+            "OneSignal initialization failed."
+          );
+
+          return;
+        }
+
+        if (!button) {
+          return;
+        }
+
+        const userAgent =
+          navigator.userAgent || "";
+
+        const isIOS =
+          /iPad|iPhone|iPod/i.test(
+            userAgent
+          ) ||
+          (
+            navigator.platform ===
+              "MacIntel" &&
+            navigator.maxTouchPoints >
+              1
+          );
+
+        const isStandalone =
+          window.matchMedia(
+            "(display-mode: standalone)"
+          ).matches ||
+          window.navigator.standalone ===
+            true;
+
+        const pushSupported =
+          OneSignal.Notifications
+            .isPushSupported();
+
+        console.log(
+          "[AWS HUB Push] iOS:",
+          isIOS
+        );
+
+        console.log(
+          "[AWS HUB Push] Standalone:",
+          isStandalone
+        );
+
+        console.log(
+          "[AWS HUB Push] Supported:",
+          pushSupported
+        );
+
+        if (
+          !isIOS ||
+          !isStandalone ||
+          !pushSupported
+        ) {
+          button.style.display =
+            "none";
+
+          return;
+        }
+
+        function getPushState() {
+          return {
+            permission:
+              OneSignal.Notifications
+                .permissionNative,
+
+            optedIn:
+              OneSignal.User
+                .PushSubscription
+                .optedIn,
+
+            id:
+              OneSignal.User
+                .PushSubscription
+                .id,
+
+            token:
+              OneSignal.User
+                .PushSubscription
+                .token
+          };
+        }
+
+        function updateButton() {
+          const state =
+            getPushState();
+
+          console.log(
+            "[AWS HUB Push] State:",
+            state
+          );
+
+          const reallySubscribed =
+            state.optedIn === true &&
+            !!state.id &&
+            !!state.token;
+
+          if (reallySubscribed) {
+            button.style.display =
+              "none";
+
+            showStatus(
+              "Notifications are enabled. Subscription ID: " +
+              state.id
+            );
+
+            setTimeout(
+              hideStatus,
+              5000
+            );
+
+            return;
+          }
+
+          button.style.display =
+            "block";
+
+          if (
+            state.permission ===
+            "denied"
+          ) {
+            button.disabled =
+              true;
+
+            button.textContent =
+              "Notifications Blocked in iPhone Settings";
+
+            showStatus(
+              "iPhone notification permission is blocked."
+            );
+
+            return;
+          }
+
+          button.disabled =
+            false;
+
+          button.textContent =
+            "Enable Notifications";
+        }
+
+        OneSignal.User
+          .PushSubscription
+          .addEventListener(
+            "change",
+            function (event) {
+              console.log(
+                "[AWS HUB Push] Subscription changed:",
+                event
+              );
+
+              updateButton();
+            }
+          );
+
+        OneSignal.Notifications
+          .addEventListener(
+            "permissionChange",
+            function (permission) {
+              console.log(
+                "[AWS HUB Push] Permission changed:",
+                permission
+              );
+
+              updateButton();
+            }
+          );
+
+        updateButton();
+
+        button.addEventListener(
+          "click",
+          async function () {
+            button.disabled =
+              true;
+
+            button.textContent =
+              "Enabling Notifications...";
+
+            showStatus(
+              "Requesting iPhone notification permission..."
+            );
+
+            try {
+              /*
+                optIn() is enough.
+
+                OneSignal says optIn() subscribes
+                the current push subscription and
+                can trigger the permission prompt
+                when permission is required.
+              */
+              await OneSignal.User
+                .PushSubscription
+                .optIn();
+
+              // Give Safari/OneSignal time
+              // to create the push token.
+              for (
+                let attempt = 0;
+                attempt < 10;
+                attempt++
+              ) {
+                await new Promise(
+                  resolve =>
+                    setTimeout(
+                      resolve,
+                      700
+                    )
+                );
+
+                const state =
+                  getPushState();
+
+                console.log(
+                  "[AWS HUB Push] Waiting:",
+                  state
+                );
+
+                if (
+                  state.optedIn ===
+                    true &&
+                  state.id &&
+                  state.token
+                ) {
+                  showStatus(
+                    "SUCCESS - iPhone subscribed. ID: " +
+                    state.id
+                  );
+
+                  button.textContent =
+                    "Notifications Enabled";
+
+                  setTimeout(
+                    function () {
+                      button.style.display =
+                        "none";
+                    },
+                    800
+                  );
+
+                  return;
+                }
+              }
+
+              const finalState =
+                getPushState();
+
+              console.error(
+                "[AWS HUB Push] No subscription created:",
+                finalState
+              );
+
+              button.disabled =
+                false;
+
+              button.textContent =
+                "Try Enabling Notifications Again";
+
+              showStatus(
+                "Permission may be allowed, but OneSignal did not create a subscription. Check OneSignal Web configuration."
+              );
+
+            } catch (error) {
+              console.error(
+                "[AWS HUB Push] Enable error:",
+                error
+              );
+
+              button.disabled =
+                false;
+
+              button.textContent =
+                "Try Enabling Notifications Again";
+
+              showStatus(
+                "Notification setup failed: " +
+                String(error)
+              );
+            }
+          }
+        );
+      }
+    );
+  </script>
+
+  <script
+    src="flutter_bootstrap.js"
+    async
+  ></script>
+
+</body>
+</html>
