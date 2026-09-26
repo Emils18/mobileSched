@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import 'web_push_profile_stub.dart'
@@ -23,7 +25,7 @@ class WebPushProfileService {
       tags['time_in_$weekday'] = enabled ? _formatTime(time) : '';
     }
 
-    bridge.syncOneSignalTags(tags);
+    bridge.syncOneSignalTags(jsonEncode(tags));
   }
 
   Future<void> setEnabled(bool enabled) async {
