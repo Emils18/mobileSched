@@ -1,3 +1,3 @@
-void syncOneSignalTags(Map<String, String> tags) {}
+void syncOneSignalTags(String tagsJson) {}
 
 void setOneSignalPushEnabled(bool enabled) {}
