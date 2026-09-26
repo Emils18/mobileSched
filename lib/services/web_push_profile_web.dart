@@ -1,11 +1,11 @@
 import 'dart:js_util' as js_util;
 
-void syncOneSignalTags(Map<String, String> tags) {
+void syncOneSignalTags(String tagsJson) {
   try {
     js_util.callMethod<void>(
       js_util.globalThis,
       'awsHubSyncOneSignalTags',
-      [tags],
+      [tagsJson],
     );
   } catch (_) {
     // OneSignal is initialized asynchronously; the JS bridge queues work.
