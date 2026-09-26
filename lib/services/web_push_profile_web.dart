@@ -1,12 +1,14 @@
-import 'dart:js_util' as js_util;
+import 'dart:js_interop';
+
+@JS('awsHubSyncOneSignalTags')
+external void _syncOneSignalTags(JSString tagsJson);
+
+@JS('awsHubSetOneSignalPushEnabled')
+external void _setOneSignalPushEnabled(JSBoolean enabled);
 
 void syncOneSignalTags(String tagsJson) {
   try {
-    js_util.callMethod<void>(
-      js_util.globalThis,
-      'awsHubSyncOneSignalTags',
-      [tagsJson],
-    );
+    _syncOneSignalTags(tagsJson.toJS);
   } catch (_) {
     // OneSignal is initialized asynchronously; the JS bridge queues work.
   }
@@ -14,11 +16,7 @@ void syncOneSignalTags(String tagsJson) {
 
 void setOneSignalPushEnabled(bool enabled) {
   try {
-    js_util.callMethod<void>(
-      js_util.globalThis,
-      'awsHubSetOneSignalPushEnabled',
-      [enabled],
-    );
+    _setOneSignalPushEnabled(enabled.toJS);
   } catch (_) {
     // Keep web settings from affecting native platforms or crashing startup.
   }
