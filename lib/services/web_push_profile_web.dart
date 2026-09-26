@@ -6,6 +6,9 @@ external void _syncOneSignalTags(JSString tagsJson);
 @JS('awsHubSetOneSignalPushEnabled')
 external void _setOneSignalPushEnabled(JSBoolean enabled);
 
+@JS('awsHubShowTestNotification')
+external void _showOneSignalTestNotification();
+
 void syncOneSignalTags(String tagsJson) {
   try {
     _syncOneSignalTags(tagsJson.toJS);
@@ -19,5 +22,13 @@ void setOneSignalPushEnabled(bool enabled) {
     _setOneSignalPushEnabled(enabled.toJS);
   } catch (_) {
     // Keep web settings from affecting native platforms or crashing startup.
+  }
+}
+
+void showOneSignalTestNotification() {
+  try {
+    _showOneSignalTestNotification();
+  } catch (_) {
+    // Keep presentation test failures from crashing the settings sheet.
   }
 }
