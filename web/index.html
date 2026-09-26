@@ -170,11 +170,14 @@
     window.OneSignalDeferred =
       window.OneSignalDeferred || [];
 
-    window.awsHubSyncOneSignalTags = function (tags) {
+    window.awsHubSyncOneSignalTags = function (tagsJson) {
       window.OneSignalDeferred.push(
         async function (OneSignal) {
           try {
-            await OneSignal.User.addTags(tags || {});
+            const tags =
+              JSON.parse(tagsJson || "{}");
+
+            await OneSignal.User.addTags(tags);
           } catch (error) {
             console.error(
               "AWS HUB OneSignal tag sync error:",
