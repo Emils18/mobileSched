@@ -32,6 +32,10 @@ class WebPushProfileService {
     bridge.setOneSignalPushEnabled(enabled);
   }
 
+  Future<void> showTestNotification() async {
+    bridge.showOneSignalTestNotification();
+  }
+
   String _formatTime(TimeOfDay time) {
     final hour = time.hour.toString().padLeft(2, '0');
     final minute = time.minute.toString().padLeft(2, '0');
