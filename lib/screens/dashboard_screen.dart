@@ -1,4 +1,6 @@
 import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -15,6 +17,7 @@ import '../widgets/premium_button.dart';
 import '../widgets/status_chip.dart';
 import '../widgets/hub_updates_section.dart';
 import '../services/theme_service.dart';
+import '../services/web_push_profile_service.dart';
 import '../theme/app_theme.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -119,6 +122,14 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Future<void> _scheduleSavedReminders() async {
     try {
+      if (kIsWeb) {
+        await WebPushProfileService().syncSchedule(
+          dutyDays: _service.getDutyDays(),
+          timeInForDay: _service.getScheduledTimeInForDay,
+        );
+        return;
+      }
+
       await NotificationService().scheduleReminders(
         dutyDays: _service.getDutyDays(),
         timeIn: _service.getScheduledTimeIn(),
@@ -409,7 +420,9 @@ void _showAllowanceBreakdownDialog() {
         if (!proceed) return;
       }
       final log = await _service.timeIn();
-      await NotificationService().cancelTodayTimeInReminders();
+      if (!kIsWeb) {
+        await NotificationService().cancelTodayTimeInReminders();
+      }
       if (!context.mounted) return;
       _showFeedback("Local log saved (${log.status})");
 
@@ -492,7 +505,9 @@ void _showAllowanceBreakdownDialog() {
       final log = await _service.timeOut(
         accController.text.trim(),
       );
-      await NotificationService().cancelTodayTimeOutReminders();
+      if (!kIsWeb) {
+        await NotificationService().cancelTodayTimeOutReminders();
+      }
       if (!context.mounted) return;
       _showFeedback("Local log saved (${log.status})");
 
@@ -2375,7 +2390,7 @@ class _SettingsSheetContentState extends State<_SettingsSheetContent> {
     _tempDays = List<int>.from(widget.dutyDays);
     _tempIn = widget.schedIn;
     _tempOut = widget.schedOut;
-    _notifEnabled = _notifService.isEnabled;
+    _notifEnabled = kIsWeb ? true : _notifService.isEnabled;
     _isBrokenSchedule = widget.service.isBrokenScheduleEnabled();
   }
 
@@ -3033,14 +3048,30 @@ class _SettingsSheetContentState extends State<_SettingsSheetContent> {
                               icon: Icons.notifications_active_outlined,
                               value: _notifEnabled,
                               onChanged: (val) async {
-                                await _notifService.setEnabled(val);
-                                if (val) {
-                                  await _notifService.scheduleReminders(
-                                    dutyDays: _tempDays,
-                                    timeIn: _tempIn,
-                                    timeOut: _tempOut,
-                                  );
+                                if (kIsWeb) {
+                                  await const WebPushProfileService()
+                                      .setEnabled(val);
+
+                                  if (val) {
+                                    await const WebPushProfileService()
+                                        .syncSchedule(
+                                      dutyDays: _tempDays,
+                                      timeInForDay:
+                                          widget.service.getScheduledTimeInForDay,
+                                    );
+                                  }
+                                } else {
+                                  await _notifService.setEnabled(val);
+
+                                  if (val) {
+                                    await _notifService.scheduleReminders(
+                                      dutyDays: _tempDays,
+                                      timeIn: _tempIn,
+                                      timeOut: _tempOut,
+                                    );
+                                  }
                                 }
+
                                 setState(() => _notifEnabled = val);
                               },
                             ),
@@ -3048,7 +3079,7 @@ class _SettingsSheetContentState extends State<_SettingsSheetContent> {
                             SizedBox(
                               width: double.infinity,
                               child: OutlinedButton.icon(
-                                onPressed: _notifEnabled
+                                onPressed: _notifEnabled && !kIsWeb
                                     ? () async {
                                         final sent = await _notifService
                                             .showTestNotification();
@@ -3171,11 +3202,19 @@ class _SettingsSheetContentState extends State<_SettingsSheetContent> {
                     await widget.service.setScheduledTimeIn(_tempIn);
                     await widget.service.setScheduledTimeOut(_tempOut);
 
-                    await _notifService.scheduleReminders(
-                      dutyDays: _tempDays,
-                      timeIn: _tempIn,
-                      timeOut: _tempOut,
-                    );
+                    if (kIsWeb) {
+                      await const WebPushProfileService().syncSchedule(
+                        dutyDays: _tempDays,
+                        timeInForDay:
+                            widget.service.getScheduledTimeInForDay,
+                      );
+                    } else {
+                      await _notifService.scheduleReminders(
+                        dutyDays: _tempDays,
+                        timeIn: _tempIn,
+                        timeOut: _tempOut,
+                      );
+                    }
 
                     widget.onSaved();
 
