@@ -1,0 +1,121 @@
+<!doctype html>
+<html>
+<head>
+  <base href="/mobileSched/">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#103F87">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="AWS Debug">
+  <link rel="manifest" href="ios-push-debug-manifest.json">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <title>AWS HUB iOS Push Debug</title>
+  <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+  <style>
+    :root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#13233a;background:#FEF8F2}
+    body{margin:0;padding:24px;min-height:100vh;box-sizing:border-box}
+    .card{max-width:520px;margin:0 auto;background:#fff;border-radius:24px;padding:22px;box-shadow:0 14px 40px rgba(16,63,135,.14)}
+    h1{margin:0 0 6px;color:#103F87;font-size:26px}
+    p{line-height:1.45}
+    .row{padding:12px 0;border-bottom:1px solid #eee}
+    .label{font-weight:700}.value{word-break:break-word;margin-top:4px}
+    button{width:100%;padding:14px 16px;border:0;border-radius:14px;margin-top:12px;font-weight:800;font-size:15px}
+    .primary{background:#103F87;color:#fff}.secondary{background:#2D8DCC;color:#fff}.warn{background:#E5791E;color:#fff}
+    #log{white-space:pre-wrap;background:#0f172a;color:#e2e8f0;padding:14px;border-radius:14px;font-size:12px;min-height:90px}
+    .ok{color:#11823b}.bad{color:#b42318}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>AWS HUB iPhone Push Debug</h1>
+    <p>Open this from the <b>Home Screen app</b>, then run the checks below.</p>
+
+    <div class="row"><div class="label">Standalone</div><div id="standalone" class="value"></div></div>
+    <div class="row"><div class="label">Push Supported</div><div id="supported" class="value"></div></div>
+    <div class="row"><div class="label">iOS Notification Permission</div><div id="permission" class="value"></div></div>
+    <div class="row"><div class="label">OneSignal Opted In</div><div id="opted" class="value"></div></div>
+    <div class="row"><div class="label">Subscription ID</div><div id="subid" class="value">—</div></div>
+
+    <button class="primary" id="enable">1. Enable Notifications</button>
+    <button class="secondary" id="optin">2. Force OneSignal Opt In</button>
+    <button class="warn" id="refresh">Refresh Status</button>
+
+    <p><b>Debug log</b></p>
+    <div id="log">Waiting…</div>
+  </div>
+
+<script>
+  const el = id => document.getElementById(id);
+  const log = (...args) => {
+    const line = args.map(x => typeof x === 'string' ? x : JSON.stringify(x)).join(' ');
+    el('log').textContent = line + "\n" + el('log').textContent;
+    console.log('[AWS PUSH DEBUG]', ...args);
+  };
+
+  const isStandalone = () =>
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true;
+
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  window.OneSignalDeferred.push(async function(OneSignal) {
+    try {
+      await OneSignal.init({
+        appId: "e9e26912-3ff7-4fac-92e6-ec24f88922a4",
+        serviceWorkerPath: "/mobileSched/OneSignalSDKWorker.js",
+        serviceWorkerParam: { scope: "/mobileSched/" },
+        notifyButton: { enable: false }
+      });
+      log('OneSignal initialized');
+
+      async function refresh() {
+        let supported = false;
+        try { supported = OneSignal.Notifications.isPushSupported(); } catch(e) {}
+        const permission = OneSignal.Notifications.permissionNative;
+        const opted = OneSignal.User?.PushSubscription?.optedIn === true;
+        const subId = OneSignal.User?.PushSubscription?.id || '—';
+
+        el('standalone').textContent = isStandalone() ? 'YES ✅' : 'NO ❌';
+        el('supported').textContent = supported ? 'YES ✅' : 'NO ❌';
+        el('permission').textContent = String(permission);
+        el('opted').textContent = opted ? 'YES ✅' : 'NO ❌';
+        el('subid').textContent = subId;
+
+        log('status', {standalone:isStandalone(), supported, permission, opted, subId});
+      }
+
+      el('enable').onclick = async () => {
+        try {
+          log('requestPermission started');
+          const accepted = await OneSignal.Notifications.requestPermission();
+          log('requestPermission result', accepted);
+          await refresh();
+        } catch(e) {
+          log('requestPermission ERROR', String(e));
+        }
+      };
+
+      el('optin').onclick = async () => {
+        try {
+          log('optIn started');
+          await OneSignal.User.PushSubscription.optIn();
+          log('optIn completed');
+          await new Promise(r => setTimeout(r, 1200));
+          await refresh();
+        } catch(e) {
+          log('optIn ERROR', String(e));
+        }
+      };
+
+      el('refresh').onclick = refresh;
+
+      OneSignal.User.PushSubscription.addEventListener('change', refresh);
+      OneSignal.Notifications.addEventListener('permissionChange', refresh);
+      await refresh();
+    } catch(e) {
+      log('INIT ERROR', String(e));
+    }
+  });
+</script>
+</body>
+</html>
