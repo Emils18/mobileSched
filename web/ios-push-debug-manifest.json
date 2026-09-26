@@ -1,0 +1,24 @@
+{
+  "name": "AWS HUB Push Debug",
+  "short_name": "AWS Debug",
+  "id": "./ios-push-debug",
+  "start_url": "./ios-push-debug.html?installed=1",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#FEF8F2",
+  "theme_color": "#103F87",
+  "description": "AWS HUB iPhone push notification diagnostics.",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icons/Icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/Icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
