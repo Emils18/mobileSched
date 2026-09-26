@@ -170,6 +170,45 @@
     window.OneSignalDeferred =
       window.OneSignalDeferred || [];
 
+    window.awsHubSyncOneSignalTags = function (tags) {
+      window.OneSignalDeferred.push(
+        async function (OneSignal) {
+          try {
+            await OneSignal.User.addTags(tags || {});
+          } catch (error) {
+            console.error(
+              "AWS HUB OneSignal tag sync error:",
+              error
+            );
+          }
+        }
+      );
+    };
+
+    window.awsHubSetOneSignalPushEnabled = function (enabled) {
+      window.OneSignalDeferred.push(
+        async function (OneSignal) {
+          try {
+            if (enabled) {
+              const accepted =
+                await OneSignal.Notifications.requestPermission();
+
+              if (accepted) {
+                await OneSignal.User.PushSubscription.optIn();
+              }
+            } else {
+              await OneSignal.User.PushSubscription.optOut();
+            }
+          } catch (error) {
+            console.error(
+              "AWS HUB OneSignal opt-in error:",
+              error
+            );
+          }
+        }
+      );
+    };
+
     window.OneSignalDeferred.push(
       async function (OneSignal) {
 
