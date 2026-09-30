@@ -2380,9 +2380,6 @@ Widget _announcementCard(
         final theme =
             Theme.of(context);
 
-        final colors =
-            theme.colorScheme;
-
         final all =
             snapshot.data ??
                 const <BirthdayCelebrant>[];
