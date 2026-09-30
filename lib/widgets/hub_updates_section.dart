@@ -4,7 +4,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+<<<<<<< HEAD
 
+=======
+>>>>>>> 35f4d88 (Update AWS HUB announcements, birthdays, iPhone PWA and Android APK)
 import '../services/hub_content_service.dart';
 import '../services/notification_service.dart';
 import '../utils/constants.dart';
@@ -47,6 +50,7 @@ class _HubUpdatesSectionState
 
   int _activeBirthdayIndex = 0;
 
+<<<<<<< HEAD
   static const String _seenAnnouncementKey =
       'hub_seen_announcement_latest';
   static const String _seenBirthdayKey =
@@ -63,10 +67,33 @@ class _HubUpdatesSectionState
   String? _lastSeenBirthdaySignature;
   String? _latestAnnouncementId;
   String? _latestBirthdaySignature;
+=======
+static const String _seenAnnouncementKey =
+    'hub_seen_announcement_latest';
+
+static const String _seenBirthdayKey =
+    'hub_seen_birthday_signature';
+
+bool _announcementsExpanded = false;
+bool _birthdaysExpanded = false;
+
+bool _announcementHasUnread = false;
+bool _birthdayHasUnread = false;
+bool _readStateReady = false;
+
+String? _lastSeenAnnouncementId;
+String? _lastSeenBirthdaySignature;
+
+String? _latestAnnouncementId;
+String? _latestBirthdaySignature;
+
+>>>>>>> 35f4d88 (Update AWS HUB announcements, birthdays, iPhone PWA and Android APK)
 
   @override
   void initState() {
     super.initState();
+unawaited(_loadReadState());
+
 
     unawaited(_loadReadState());
 
@@ -96,7 +123,11 @@ class _HubUpdatesSectionState
       },
     );
   }
+Future<void> _loadReadState() async {
+  final prefs =
+      await SharedPreferences.getInstance();
 
+<<<<<<< HEAD
   Future<void> _loadReadState() async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -234,11 +265,50 @@ class _HubUpdatesSectionState
 
     if (mounted &&
         _announcementHasUnread) {
+=======
+  if (!mounted) return;
+
+  setState(() {
+    _lastSeenAnnouncementId =
+        prefs.getString(
+      _seenAnnouncementKey,
+    );
+
+    _lastSeenBirthdaySignature =
+        prefs.getString(
+      _seenBirthdayKey,
+    );
+
+    _readStateReady = true;
+
+    _announcementHasUnread =
+        _latestAnnouncementId != null &&
+            _latestAnnouncementId !=
+                _lastSeenAnnouncementId;
+
+    _birthdayHasUnread =
+        _latestBirthdaySignature != null &&
+            _latestBirthdaySignature !=
+                _lastSeenBirthdaySignature;
+  });
+}
+
+void _updateAnnouncementUnread(
+  List<HubAnnouncement> announcements,
+) {
+  if (announcements.isEmpty) {
+    _latestAnnouncementId = null;
+
+    if (_readStateReady &&
+        _announcementHasUnread &&
+        mounted) {
+>>>>>>> 35f4d88 (Update AWS HUB announcements, birthdays, iPhone PWA and Android APK)
       setState(() {
         _announcementHasUnread = false;
       });
     }
 
+<<<<<<< HEAD
     final prefs =
         await SharedPreferences.getInstance();
 
@@ -262,11 +332,78 @@ class _HubUpdatesSectionState
 
     if (mounted &&
         _birthdayHasUnread) {
+=======
+    return;
+  }
+
+  final byDate =
+      List<HubAnnouncement>.from(
+    announcements,
+  )..sort(
+          (a, b) =>
+              b.publishedAt.compareTo(
+            a.publishedAt,
+          ),
+        );
+
+  _latestAnnouncementId =
+      byDate.first.id;
+
+  if (!_readStateReady) {
+    return;
+  }
+
+  if (_announcementsExpanded) {
+    unawaited(
+      _markAnnouncementsSeen(),
+    );
+
+    return;
+  }
+
+  final unread =
+      _latestAnnouncementId !=
+          _lastSeenAnnouncementId;
+
+  if (mounted &&
+      _announcementHasUnread != unread) {
+    setState(() {
+      _announcementHasUnread = unread;
+    });
+  }
+}
+
+void _updateBirthdayUnread(
+  List<BirthdayCelebrant> celebrants,
+) {
+  final current =
+      _currentMonthCelebrants(
+    celebrants,
+  );
+
+  final ids = current
+      .map(
+        (person) => person.id,
+      )
+      .where(
+        (id) => id.isNotEmpty,
+      )
+      .toList()
+    ..sort();
+
+  if (ids.isEmpty) {
+    _latestBirthdaySignature = null;
+
+    if (_readStateReady &&
+        _birthdayHasUnread &&
+        mounted) {
+>>>>>>> 35f4d88 (Update AWS HUB announcements, birthdays, iPhone PWA and Android APK)
       setState(() {
         _birthdayHasUnread = false;
       });
     }
 
+<<<<<<< HEAD
     final prefs =
         await SharedPreferences.getInstance();
 
@@ -306,6 +443,132 @@ class _HubUpdatesSectionState
     }
   }
 
+=======
+    return;
+  }
+
+  final now =
+      DateTime.now();
+
+  _latestBirthdaySignature =
+      '${now.year}-${now.month}:${ids.join(',')}';
+
+  if (!_readStateReady) {
+    return;
+  }
+
+  if (_birthdaysExpanded) {
+    unawaited(
+      _markBirthdaysSeen(),
+    );
+
+    return;
+  }
+
+  final unread =
+      _latestBirthdaySignature !=
+          _lastSeenBirthdaySignature;
+
+  if (mounted &&
+      _birthdayHasUnread != unread) {
+    setState(() {
+      _birthdayHasUnread = unread;
+    });
+  }
+}
+
+Future<void>
+    _markAnnouncementsSeen() async {
+  final latestId =
+      _latestAnnouncementId;
+
+  if (latestId == null ||
+      latestId.isEmpty) {
+    return;
+  }
+
+  _lastSeenAnnouncementId =
+      latestId;
+
+  if (mounted &&
+      _announcementHasUnread) {
+    setState(() {
+      _announcementHasUnread = false;
+    });
+  }
+
+  final prefs =
+      await SharedPreferences
+          .getInstance();
+
+  await prefs.setString(
+    _seenAnnouncementKey,
+    latestId,
+  );
+}
+
+Future<void>
+    _markBirthdaysSeen() async {
+  final signature =
+      _latestBirthdaySignature;
+
+  if (signature == null ||
+      signature.isEmpty) {
+    return;
+  }
+
+  _lastSeenBirthdaySignature =
+      signature;
+
+  if (mounted &&
+      _birthdayHasUnread) {
+    setState(() {
+      _birthdayHasUnread = false;
+    });
+  }
+
+  final prefs =
+      await SharedPreferences
+          .getInstance();
+
+  await prefs.setString(
+    _seenBirthdayKey,
+    signature,
+  );
+}
+
+void _toggleAnnouncements() {
+  final opening =
+      !_announcementsExpanded;
+
+  setState(() {
+    _announcementsExpanded =
+        opening;
+  });
+
+  if (opening) {
+    unawaited(
+      _markAnnouncementsSeen(),
+    );
+  }
+}
+
+void _toggleBirthdays() {
+  final opening =
+      !_birthdaysExpanded;
+
+  setState(() {
+    _birthdaysExpanded =
+        opening;
+  });
+
+  if (opening) {
+    unawaited(
+      _markBirthdaysSeen(),
+    );
+  }
+}
+>>>>>>> 35f4d88 (Update AWS HUB announcements, birthdays, iPhone PWA and Android APK)
   @override
   void dispose() {
     _announcementSubscription?.cancel();
@@ -319,8 +582,13 @@ class _HubUpdatesSectionState
     List<HubAnnouncement> announcements,
   ) {
     _updateAnnouncementUnread(
+<<<<<<< HEAD
       announcements,
     );
+=======
+  announcements,
+);
+>>>>>>> 35f4d88 (Update AWS HUB announcements, birthdays, iPhone PWA and Android APK)
     final currentIds =
         announcements
             .map((item) => item.id)
@@ -404,8 +672,13 @@ class _HubUpdatesSectionState
     List<BirthdayCelebrant> celebrants,
   ) {
     _updateBirthdayUnread(
+<<<<<<< HEAD
       celebrants,
     );
+=======
+    celebrants,
+  );
+>>>>>>> 35f4d88 (Update AWS HUB announcements, birthdays, iPhone PWA and Android APK)
     final currentMonthCelebrants = _currentMonthCelebrants(celebrants);
     final currentIds = currentMonthCelebrants.map((item) => item.id).toSet();
 
@@ -613,6 +886,7 @@ class _HubUpdatesSectionState
     );
   }
 
+<<<<<<< HEAD
   Widget _buildDisclosureHeader({
     required IconData icon,
     required String title,
@@ -896,13 +1170,383 @@ class _HubUpdatesSectionState
                       ),
                     ),
                   ),
+=======
+Widget _buildDisclosureHeader({
+  required IconData icon,
+  required String title,
+  required String subtitle,
+  required bool expanded,
+  required bool hasUnread,
+  required VoidCallback onTap,
+  required Color accent,
+  int? count,
+}) {
+  final theme =
+      Theme.of(context);
+
+  final colors =
+      theme.colorScheme;
+
+  return GlassCard(
+    padding:
+        const EdgeInsets.symmetric(
+      horizontal: 14,
+      vertical: 12,
+    ),
+    borderRadius:
+        BorderRadius.circular(20),
+    borderColor: hasUnread
+        ? accent.withValues(
+            alpha: 0.48,
+          )
+        : colors.primary.withValues(
+            alpha: 0.16,
+          ),
+    onTap: onTap,
+    child: Row(
+      children: [
+        Container(
+          width: 42,
+          height: 42,
+          decoration:
+              BoxDecoration(
+            gradient:
+                LinearGradient(
+              begin:
+                  Alignment.topLeft,
+              end:
+                  Alignment.bottomRight,
+              colors: [
+                accent,
+                accent.withValues(
+                  alpha: 0.72,
+                ),
               ],
+            ),
+            borderRadius:
+                BorderRadius.circular(
+              14,
+            ),
+          ),
+          child: Icon(
+            icon,
+            color: Colors.white,
+            size: 21,
+          ),
+        ),
+
+        const SizedBox(
+          width: 12,
+        ),
+
+        Expanded(
+          child: Column(
+            crossAxisAlignment:
+                CrossAxisAlignment
+                    .start,
+            children: [
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow:
+                          TextOverflow
+                              .ellipsis,
+                      style: theme
+                          .textTheme
+                          .titleLarge
+                          ?.copyWith(
+                        fontSize: 18,
+                        fontWeight:
+                            FontWeight
+                                .w900,
+                      ),
+                    ),
+                  ),
+
+                  if (hasUnread) ...[
+                    const SizedBox(
+                      width: 8,
+                    ),
+
+                    Container(
+                      width: 9,
+                      height: 9,
+                      decoration:
+                          BoxDecoration(
+                        color: Colors
+                            .redAccent,
+                        shape:
+                            BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors
+                                .redAccent
+                                .withValues(
+                              alpha:
+                                  0.35,
+                            ),
+                            blurRadius:
+                                8,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+
+              const SizedBox(
+                height: 3,
+              ),
+
+              Text(
+                subtitle,
+                maxLines: 1,
+                overflow:
+                    TextOverflow
+                        .ellipsis,
+                style: theme
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(
+                  fontSize: 10,
+                  fontWeight:
+                      hasUnread
+                          ? FontWeight
+                              .w700
+                          : FontWeight
+                              .w500,
+                  color:
+                      hasUnread
+                          ? accent
+                          : null,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        if (count != null &&
+            count > 0) ...[
+          const SizedBox(
+            width: 8,
+          ),
+
+          Container(
+            constraints:
+                const BoxConstraints(
+              minWidth: 28,
+            ),
+            height: 28,
+            alignment:
+                Alignment.center,
+            padding:
+                const EdgeInsets
+                    .symmetric(
+              horizontal: 8,
+            ),
+            decoration:
+                BoxDecoration(
+              color:
+                  accent.withValues(
+                alpha: 0.10,
+              ),
+              borderRadius:
+                  BorderRadius
+                      .circular(
+                18,
+              ),
+              border: Border.all(
+                color:
+                    accent.withValues(
+                  alpha: 0.20,
+                ),
+              ),
+            ),
+            child: Text(
+              '$count',
+              style: TextStyle(
+                color: accent,
+                fontSize: 10,
+                fontWeight:
+                    FontWeight.w900,
+              ),
+            ),
+          ),
+        ],
+
+        const SizedBox(
+          width: 8,
+        ),
+
+        AnimatedRotation(
+          turns:
+              expanded ? 0.5 : 0,
+          duration:
+              const Duration(
+            milliseconds: 180,
+          ),
+          child: Icon(
+            Icons
+                .keyboard_arrow_down_rounded,
+            color: colors.primary,
+            size: 24,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+
+Widget _buildAnnouncements() {
+  return StreamBuilder<
+      List<HubAnnouncement>>(
+    stream: _announcements,
+    builder: (context, snapshot) {
+      final items =
+          List<HubAnnouncement>.from(
+        snapshot.data ??
+            const <
+                HubAnnouncement>[],
+      )..sort(
+              (a, b) =>
+                  b.publishedAt
+                      .compareTo(
+                a.publishedAt,
+              ),
+            );
+
+      final visibleItems =
+          items.take(3).toList();
+
+      final subtitle =
+          _announcementHasUnread
+              ? 'New announcement — tap to open'
+              : items.isEmpty
+                  ? 'Scholar updates and notices'
+                  : '${items.length} ${items.length == 1 ? 'announcement' : 'announcements'} available';
+
+      return Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          _buildDisclosureHeader(
+            icon:
+                Icons.campaign_rounded,
+            title:
+                'Announcements',
+            subtitle: subtitle,
+            expanded:
+                _announcementsExpanded,
+            hasUnread:
+                _announcementHasUnread,
+            onTap:
+                _toggleAnnouncements,
+            accent:
+                Theme.of(context)
+                    .colorScheme
+                    .primary,
+            count: items.isEmpty
+                ? null
+                : items.length,
+          ),
+
+          if (_announcementsExpanded) ...[
+            const SizedBox(
+              height: 14,
+            ),
+
+            if (snapshot
+                        .connectionState ==
+                    ConnectionState
+                        .waiting &&
+                items.isEmpty)
+              _messageCard(
+                Icons
+                    .cloud_download_outlined,
+                'Loading announcements...',
+              )
+            else if (snapshot.hasError)
+              _messageCard(
+                Icons.cloud_off_rounded,
+                'Unable to load announcements.',
+              )
+            else if (items.isEmpty)
+              _messageCard(
+                Icons
+                    .campaign_outlined,
+                'No announcements yet.',
+              )
+            else ...[
+              _announcementCard(
+                visibleItems.first,
+                isLatest: true,
+              ),
+
+              if (visibleItems.length >
+                  1) ...[
+                const SizedBox(
+                  height: 10,
+                ),
+
+                for (final announcement
+                    in visibleItems
+                        .skip(1)) ...[
+                  _compactAnnouncementCard(
+                    announcement,
+                  ),
+
+                  const SizedBox(
+                    height: 8,
+                  ),
+                ],
+>>>>>>> 35f4d88 (Update AWS HUB announcements, birthdays, iPhone PWA and Android APK)
+              ],
+
+              if (items.length > 1)
+                Align(
+                  alignment:
+                      Alignment
+                          .centerRight,
+                  child:
+                      TextButton.icon(
+                    onPressed: () {
+                      _showAllAnnouncements(
+                        items,
+                      );
+                    },
+                    icon:
+                        const Icon(
+                      Icons
+                          .arrow_forward_rounded,
+                      size: 15,
+                    ),
+                    label:
+                        const Text(
+                      'View All',
+                    ),
+                  ),
+                ),
             ],
           ],
+<<<<<<< HEAD
         );
       },
     );
   }
+=======
+        ],
+      );
+    },
+  );
+}
+
+
+>>>>>>> 35f4d88 (Update AWS HUB announcements, birthdays, iPhone PWA and Android APK)
 
 Widget _announcementCard(
   HubAnnouncement announcement, {
@@ -2371,6 +3015,7 @@ Widget _announcementCard(
     return actualDate;
   }
 
+<<<<<<< HEAD
   Widget _buildBirthdays() {
     return StreamBuilder<
         List<BirthdayCelebrant>>(
@@ -2551,14 +3196,221 @@ Widget _announcementCard(
                       'View All',
                     ),
                   ),
+=======
+
+Widget _buildBirthdays() {
+  return StreamBuilder<
+      List<BirthdayCelebrant>>(
+    stream: _celebrants,
+    builder: (context, snapshot) {
+      final theme =
+          Theme.of(context);
+
+      final all =
+          snapshot.data ??
+              const <
+                  BirthdayCelebrant>[];
+
+      final thisMonth =
+          _currentMonthCelebrants(
+        all,
+      );
+
+      final monthName =
+          _fullMonthName(
+        DateTime.now().month,
+      );
+
+      final activeIndex =
+          thisMonth.isEmpty
+              ? 0
+              : _activeBirthdayIndex
+                  .clamp(
+                    0,
+                    thisMonth.length -
+                        1,
+                  )
+                  .toInt();
+
+      final subtitle =
+          _birthdayHasUnread
+              ? 'New birthday update — tap to open'
+              : thisMonth.isEmpty
+                  ? 'No celebrants listed for $monthName yet'
+                  : '${thisMonth.length} ${thisMonth.length == 1 ? 'celebrant' : 'celebrants'} this month';
+
+      return Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          _buildDisclosureHeader(
+            icon:
+                Icons
+                    .celebration_rounded,
+            title:
+                '$monthName Celebrants',
+            subtitle: subtitle,
+            expanded:
+                _birthdaysExpanded,
+            hasUnread:
+                _birthdayHasUnread,
+            onTap:
+                _toggleBirthdays,
+            accent:
+                AppColors.brandOrange,
+            count:
+                thisMonth.isEmpty
+                    ? null
+                    : thisMonth.length,
+          ),
+
+          if (_birthdaysExpanded) ...[
+            const SizedBox(
+              height: 14,
+            ),
+
+            if (snapshot
+                        .connectionState ==
+                    ConnectionState
+                        .waiting &&
+                all.isEmpty)
+              _messageCard(
+                Icons.cake_outlined,
+                'Loading birthday celebrants...',
+              )
+            else if (snapshot.hasError)
+              _messageCard(
+                Icons.cloud_off_rounded,
+                'Unable to load birthday celebrants.',
+              )
+            else if (thisMonth.isEmpty)
+              _messageCard(
+                Icons
+                    .celebration_outlined,
+                'No birthday celebrants for $monthName yet.',
+              )
+            else ...[
+              SizedBox(
+                height: 330,
+                child:
+                    PageView.builder(
+                  controller:
+                      _birthdayPageController,
+                  itemCount:
+                      thisMonth.length,
+                  physics:
+                      const BouncingScrollPhysics(),
+                  onPageChanged:
+                      (index) {
+                    if (!mounted) {
+                      return;
+                    }
+
+                    setState(() {
+                      _activeBirthdayIndex =
+                          index;
+                    });
+                  },
+                  itemBuilder:
+                      (context, index) {
+                    final person =
+                        thisMonth[
+                            index];
+
+                    final isActive =
+                        index ==
+                            activeIndex;
+
+                    return Padding(
+                      padding:
+                          const EdgeInsets
+                              .symmetric(
+                        horizontal: 6,
+                        vertical: 5,
+                      ),
+                      child:
+                          _birthdayGreetingCard(
+                        person,
+                        isActive,
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+              if (thisMonth.length >
+                  1) ...[
+                const SizedBox(
+                  height: 7,
+                ),
+
+                Row(
+                  mainAxisAlignment:
+                      MainAxisAlignment
+                          .center,
+                  children: [
+                    Icon(
+                      Icons
+                          .swipe_rounded,
+                      color: theme
+                          .textTheme
+                          .bodySmall
+                          ?.color,
+                      size: 14,
+                    ),
+
+                    const SizedBox(
+                      width: 6,
+                    ),
+
+                    Text(
+                      '${activeIndex + 1} / ${thisMonth.length}  •  Swipe to view',
+                      style: theme
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(
+                        fontSize: 9,
+                        fontWeight:
+                            FontWeight
+                                .w600,
+                      ),
+                    ),
+                  ],
+>>>>>>> 35f4d88 (Update AWS HUB announcements, birthdays, iPhone PWA and Android APK)
                 ),
               ],
+
+              Align(
+                alignment:
+                    Alignment
+                        .centerRight,
+                child:
+                    TextButton.icon(
+                  onPressed: () {
+                    _showAllCelebrants(
+                      thisMonth,
+                    );
+                  },
+                  icon:
+                      const Icon(
+                    Icons
+                        .arrow_forward_rounded,
+                    size: 15,
+                  ),
+                  label:
+                      const Text(
+                    'View All',
+                  ),
+                ),
+              ),
             ],
           ],
-        );
-      },
-    );
-  }
+        ],
+      );
+    },
+  );
+}
+
 
   void _showAllCelebrants(
     List<BirthdayCelebrant>
