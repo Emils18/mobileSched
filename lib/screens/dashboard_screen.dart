@@ -134,6 +134,10 @@ class _DashboardScreenState extends State<DashboardScreen>
         dutyDays: _service.getDutyDays(),
         timeIn: _service.getScheduledTimeIn(),
         timeOut: _service.getScheduledTimeOut(),
+        timeInReminderMinutes:
+            _service.getTimeInReminderMinutes(),
+        timeOutReminderMinutes:
+            _service.getTimeOutReminderMinutes(),
       );
     } catch (error) {
       debugPrint('Failed to schedule reminders: $error');
@@ -2379,7 +2383,8 @@ class _SettingsSheetContentState extends State<_SettingsSheetContent> {
   late bool _isBrokenSchedule;
 
   final NotificationService _notifService = NotificationService();
-  late bool _notifEnabled;
+  late int _timeInReminderMinutes;
+  late int _timeOutReminderMinutes;
 
   @override
   void initState() {
@@ -2390,7 +2395,10 @@ class _SettingsSheetContentState extends State<_SettingsSheetContent> {
     _tempDays = List<int>.from(widget.dutyDays);
     _tempIn = widget.schedIn;
     _tempOut = widget.schedOut;
-    _notifEnabled = kIsWeb ? true : _notifService.isEnabled;
+    _timeInReminderMinutes =
+        widget.service.getTimeInReminderMinutes();
+    _timeOutReminderMinutes =
+        widget.service.getTimeOutReminderMinutes();
     _isBrokenSchedule = widget.service.isBrokenScheduleEnabled();
   }
 
@@ -2423,6 +2431,137 @@ class _SettingsSheetContentState extends State<_SettingsSheetContent> {
 
     await widget.service.setCustomScheduleForDay(dayNumber, timeIn, timeOut);
     setState(() {});
+  }
+
+  Future<void> _setReminderMinutes({
+    required bool isTimeIn,
+    required int minutes,
+  }) async {
+    if (minutes >= 45) {
+      final bool accepted = await showDialog<bool>(
+            context: context,
+            builder: (dialogContext) {
+              return AlertDialog(
+                title: const Text('Very Early Reminder'),
+                content: Text(
+                  'You selected $minutes minutes before duty. '
+                  'This does not replace the required notification at your '
+                  'actual duty time. AWS HUB will still remind you at '
+                  '${isTimeIn ? 'Time In' : 'Time Out'} and again if the '
+                  'attendance action is still missing.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () =>
+                        Navigator.pop(dialogContext, false),
+                    child: const Text('KEEP CURRENT'),
+                  ),
+                  FilledButton(
+                    onPressed: () =>
+                        Navigator.pop(dialogContext, true),
+                    child: const Text('USE EARLY REMINDER'),
+                  ),
+                ],
+              );
+            },
+          ) ??
+          false;
+
+      if (!accepted || !mounted) {
+        return;
+      }
+    }
+
+    setState(() {
+      if (isTimeIn) {
+        _timeInReminderMinutes = minutes;
+      } else {
+        _timeOutReminderMinutes = minutes;
+      }
+    });
+  }
+
+  Widget _buildReminderPicker({
+    required BuildContext context,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required int value,
+    required bool isTimeIn,
+  }) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        color: colors.surface.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: theme.dividerColor),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: colors.primary.withValues(alpha: 0.11),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: colors.primary, size: 20),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: colors.onSurface,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontSize: 10,
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          DropdownButtonHideUnderline(
+            child: DropdownButton<int>(
+              value: value,
+              borderRadius: BorderRadius.circular(14),
+              items: AttendanceService.reminderMinuteOptions
+                  .map(
+                    (minutes) => DropdownMenuItem<int>(
+                      value: minutes,
+                      child: Text('$minutes min'),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (minutes) {
+                if (minutes == null || minutes == value) {
+                  return;
+                }
+
+                _setReminderMinutes(
+                  isTimeIn: isTimeIn,
+                  minutes: minutes,
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildThemeSelector(
@@ -2661,7 +2800,7 @@ class _SettingsSheetContentState extends State<_SettingsSheetContent> {
         child: Container(
           padding: const EdgeInsets.all(15),
           decoration: BoxDecoration(
-            color: colors.surface.withValues(alpha: 0.75),
+           color: colors.surface.withValues(alpha: 0.75),
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
               color: theme.dividerColor,
@@ -3040,94 +3179,139 @@ class _SettingsSheetContentState extends State<_SettingsSheetContent> {
                               (fn) => setState(fn),
                             ),
                             const SizedBox(height: 12),
-                            _buildSettingsLabel(context, 'NOTIFICATIONS'),
-                            _buildSettingsSwitch(
-                              context: context,
-                              title: 'Enable notifications',
-                              subtitle: 'Turn all AWS HUB alerts on/off.',
-                              icon: Icons.notifications_active_outlined,
-                              value: _notifEnabled,
-                              onChanged: (val) async {
-                                if (kIsWeb) {
-                                  await const WebPushProfileService()
-                                      .setEnabled(val);
-
-                                  if (val) {
-                                    await const WebPushProfileService()
-                                        .syncSchedule(
-                                      dutyDays: _tempDays,
-                                      timeInForDay:
-                                          widget.service.getScheduledTimeInForDay,
-                                    );
-                                  }
-                                } else {
-                                  await _notifService.setEnabled(val);
-
-                                  if (val) {
-                                    await _notifService.scheduleReminders(
-                                      dutyDays: _tempDays,
-                                      timeIn: _tempIn,
-                                      timeOut: _tempOut,
-                                    );
-                                  }
-                                }
-
-                                setState(() => _notifEnabled = val);
-                              },
+                            _buildSettingsLabel(
+                              context,
+                              'REQUIRED DUTY REMINDERS',
                             ),
                             const SizedBox(height: 8),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: colorScheme.primary
+                                    .withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: colorScheme.primary
+                                      .withValues(alpha: 0.22),
+                                ),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Icon(
+                                    Icons.lock_clock_rounded,
+                                    color: colorScheme.primary,
+                                    size: 21,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      'Duty reminders cannot be turned off '
+                                      'inside AWS HUB. The default is 15 '
+                                      'minutes before Time In and Time Out. '
+                                      'The actual duty-time alert and missing '
+                                      'attendance reminders stay active.',
+                                      style: theme.textTheme.bodySmall?.copyWith(
+                                        fontSize: 11,
+                                        height: 1.4,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            if (!kIsWeb) ...[
+                              _buildReminderPicker(
+                                context: context,
+                                title: 'Before Time In',
+                                subtitle:
+                                    'Choose when the first Time In reminder appears.',
+                                icon: Icons.login_rounded,
+                                value: _timeInReminderMinutes,
+                                isTimeIn: true,
+                              ),
+                              const SizedBox(height: 8),
+                              _buildReminderPicker(
+                                context: context,
+                                title: 'Before Time Out',
+                                subtitle:
+                                    'Choose when the first Time Out reminder appears.',
+                                icon: Icons.logout_rounded,
+                                value: _timeOutReminderMinutes,
+                                isTimeIn: false,
+                              ),
+                            ] else ...[
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(13),
+                                decoration: BoxDecoration(
+                                  color: colorScheme.surface
+                                      .withValues(alpha: 0.65),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: theme.dividerColor,
+                                  ),
+                                ),
+                                child: const Text(
+                                  'iPhone PWA duty reminders currently keep '
+                                  'the protected 15-minute timing. Custom '
+                                  'server-side timing will be connected in '
+                                  'the next backend update.',
+                                  style: TextStyle(fontSize: 11, height: 1.4),
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 10),
                             SizedBox(
                               width: double.infinity,
                               child: OutlinedButton.icon(
-                                onPressed: _notifEnabled
-                                    ? () async {
-                                        if (kIsWeb) {
-                                          await const WebPushProfileService()
-                                              .showTestNotification();
+                                onPressed: () async {
+                                  if (kIsWeb) {
+                                    await const WebPushProfileService()
+                                        .showTestNotification();
 
-                                          if (!context.mounted) return;
+                                    if (!context.mounted) return;
 
-                                          ScaffoldMessenger.of(context)
-                                            ..hideCurrentSnackBar()
-                                            ..showSnackBar(
-                                              const SnackBar(
-                                                content: Text(
-                                                  'Test notification requested.',
-                                                ),
-                                              ),
-                                            );
+                                    ScaffoldMessenger.of(context)
+                                      ..hideCurrentSnackBar()
+                                      ..showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Test notification requested.',
+                                          ),
+                                        ),
+                                      );
+                                    return;
+                                  }
 
-                                          return;
-                                        }
+                                  final sent = await _notifService
+                                      .showTestNotification();
 
-                                        final sent = await _notifService
-                                            .showTestNotification();
+                                  if (!context.mounted) return;
 
-                                        if (!context.mounted) return;
-
-                                        ScaffoldMessenger.of(context)
-                                          ..hideCurrentSnackBar()
-                                          ..showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                sent
-                                                    ? 'Notification sent successfully.'
-                                                    : 'Enable notifications first.',
-                                              ),
-                                            ),
-                                          );
-                                      }
-                                    : null,
+                                  ScaffoldMessenger.of(context)
+                                    ..hideCurrentSnackBar()
+                                    ..showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          sent
+                                              ? 'Notification sent successfully.'
+                                              : 'Notification could not be sent.',
+                                        ),
+                                      ),
+                                    );
+                                },
                                 icon: const Icon(
-                                    Icons.notifications_active_rounded,
-                                    size: 18),
+                                  Icons.notifications_active_rounded,
+                                  size: 18,
+                                ),
                                 label: const Text('Test Notification'),
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: colorScheme.primary,
                                   side: BorderSide(
-                                    color: _notifEnabled
-                                        ? colorScheme.primary
-                                        : theme.dividerColor,
+                                    color: colorScheme.primary,
                                   ),
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 16,
@@ -3224,6 +3408,12 @@ class _SettingsSheetContentState extends State<_SettingsSheetContent> {
                     await widget.service.setDutyDays(_tempDays);
                     await widget.service.setScheduledTimeIn(_tempIn);
                     await widget.service.setScheduledTimeOut(_tempOut);
+                    await widget.service.setTimeInReminderMinutes(
+                      _timeInReminderMinutes,
+                    );
+                    await widget.service.setTimeOutReminderMinutes(
+                      _timeOutReminderMinutes,
+                    );
 
                     if (kIsWeb) {
                       await const WebPushProfileService().syncSchedule(
@@ -3236,6 +3426,10 @@ class _SettingsSheetContentState extends State<_SettingsSheetContent> {
                         dutyDays: _tempDays,
                         timeIn: _tempIn,
                         timeOut: _tempOut,
+                        timeInReminderMinutes:
+                            _timeInReminderMinutes,
+                        timeOutReminderMinutes:
+                            _timeOutReminderMinutes,
                       );
                     }
 
