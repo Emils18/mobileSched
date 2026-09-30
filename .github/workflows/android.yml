@@ -1,0 +1,63 @@
+name: Build Android APK
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-apk
+  cancel-in-progress: true
+
+jobs:
+  build-android:
+    name: Build AWS HUB Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.1'
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze code
+        run: flutter analyze --no-fatal-infos
+
+      - name: Build release APK
+        run: flutter build apk --release
+
+      - name: Prepare AWS HUB APK
+        run: cp build/app/outputs/flutter-apk/app-release.apk "AWS HUB.apk"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AWS-HUB-Android-v1.3.2
+          path: AWS HUB.apk
+
+      - name: Update latest APK in repository
+        run: |
+          cp "AWS HUB.apk" MobileSched-Latest.apk
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add MobileSched-Latest.apk
+          if git diff --cached --quiet; then
+            echo "APK is unchanged."
+            exit 0
+          fi
+          git commit -m "build(android): update latest AWS HUB APK [skip ci]"
+          git push origin HEAD:main
