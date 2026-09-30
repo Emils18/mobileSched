@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/hub_content_service.dart';
 import '../services/notification_service.dart';
@@ -46,9 +47,28 @@ class _HubUpdatesSectionState
 
   int _activeBirthdayIndex = 0;
 
+  static const String _seenAnnouncementKey =
+      'hub_seen_announcement_latest';
+  static const String _seenBirthdayKey =
+      'hub_seen_birthday_signature';
+
+  bool _announcementsExpanded = false;
+  bool _birthdaysExpanded = false;
+
+  bool _announcementHasUnread = false;
+  bool _birthdayHasUnread = false;
+  bool _readStateReady = false;
+
+  String? _lastSeenAnnouncementId;
+  String? _lastSeenBirthdaySignature;
+  String? _latestAnnouncementId;
+  String? _latestBirthdaySignature;
+
   @override
   void initState() {
     super.initState();
+
+    unawaited(_loadReadState());
 
     _announcements =
         _service.watchAnnouncements();
@@ -77,6 +97,215 @@ class _HubUpdatesSectionState
     );
   }
 
+  Future<void> _loadReadState() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _lastSeenAnnouncementId =
+          prefs.getString(_seenAnnouncementKey);
+      _lastSeenBirthdaySignature =
+          prefs.getString(_seenBirthdayKey);
+      _readStateReady = true;
+
+      _announcementHasUnread =
+          _latestAnnouncementId != null &&
+              _latestAnnouncementId !=
+                  _lastSeenAnnouncementId;
+
+      _birthdayHasUnread =
+          _latestBirthdaySignature != null &&
+              _latestBirthdaySignature !=
+                  _lastSeenBirthdaySignature;
+    });
+  }
+
+  void _updateAnnouncementUnread(
+    List<HubAnnouncement> announcements,
+  ) {
+    if (announcements.isEmpty) {
+      _latestAnnouncementId = null;
+
+      if (_readStateReady &&
+          _announcementHasUnread &&
+          mounted) {
+        setState(() {
+          _announcementHasUnread = false;
+        });
+      }
+
+      return;
+    }
+
+    final byDate =
+        List<HubAnnouncement>.from(announcements)
+          ..sort(
+            (a, b) =>
+                b.publishedAt.compareTo(a.publishedAt),
+          );
+
+    _latestAnnouncementId = byDate.first.id;
+
+    if (!_readStateReady) {
+      return;
+    }
+
+    if (_announcementsExpanded) {
+      unawaited(_markAnnouncementsSeen());
+      return;
+    }
+
+    final unread =
+        _latestAnnouncementId !=
+            _lastSeenAnnouncementId;
+
+    if (mounted &&
+        _announcementHasUnread != unread) {
+      setState(() {
+        _announcementHasUnread = unread;
+      });
+    }
+  }
+
+  void _updateBirthdayUnread(
+    List<BirthdayCelebrant> celebrants,
+  ) {
+    final current =
+        _currentMonthCelebrants(celebrants);
+
+    final ids = current
+        .map((person) => person.id)
+        .where((id) => id.isNotEmpty)
+        .toList()
+      ..sort();
+
+    if (ids.isEmpty) {
+      _latestBirthdaySignature = null;
+
+      if (_readStateReady &&
+          _birthdayHasUnread &&
+          mounted) {
+        setState(() {
+          _birthdayHasUnread = false;
+        });
+      }
+
+      return;
+    }
+
+    final now = DateTime.now();
+
+    _latestBirthdaySignature =
+        '${now.year}-${now.month}:${ids.join(',')}';
+
+    if (!_readStateReady) {
+      return;
+    }
+
+    if (_birthdaysExpanded) {
+      unawaited(_markBirthdaysSeen());
+      return;
+    }
+
+    final unread =
+        _latestBirthdaySignature !=
+            _lastSeenBirthdaySignature;
+
+    if (mounted &&
+        _birthdayHasUnread != unread) {
+      setState(() {
+        _birthdayHasUnread = unread;
+      });
+    }
+  }
+
+  Future<void> _markAnnouncementsSeen() async {
+    final latestId = _latestAnnouncementId;
+
+    if (latestId == null ||
+        latestId.isEmpty) {
+      return;
+    }
+
+    _lastSeenAnnouncementId = latestId;
+
+    if (mounted &&
+        _announcementHasUnread) {
+      setState(() {
+        _announcementHasUnread = false;
+      });
+    }
+
+    final prefs =
+        await SharedPreferences.getInstance();
+
+    await prefs.setString(
+      _seenAnnouncementKey,
+      latestId,
+    );
+  }
+
+  Future<void> _markBirthdaysSeen() async {
+    final signature =
+        _latestBirthdaySignature;
+
+    if (signature == null ||
+        signature.isEmpty) {
+      return;
+    }
+
+    _lastSeenBirthdaySignature =
+        signature;
+
+    if (mounted &&
+        _birthdayHasUnread) {
+      setState(() {
+        _birthdayHasUnread = false;
+      });
+    }
+
+    final prefs =
+        await SharedPreferences.getInstance();
+
+    await prefs.setString(
+      _seenBirthdayKey,
+      signature,
+    );
+  }
+
+  void _toggleAnnouncements() {
+    final opening =
+        !_announcementsExpanded;
+
+    setState(() {
+      _announcementsExpanded = opening;
+    });
+
+    if (opening) {
+      unawaited(
+        _markAnnouncementsSeen(),
+      );
+    }
+  }
+
+  void _toggleBirthdays() {
+    final opening =
+        !_birthdaysExpanded;
+
+    setState(() {
+      _birthdaysExpanded = opening;
+    });
+
+    if (opening) {
+      unawaited(
+        _markBirthdaysSeen(),
+      );
+    }
+  }
+
   @override
   void dispose() {
     _announcementSubscription?.cancel();
@@ -89,6 +318,9 @@ class _HubUpdatesSectionState
   void _handleAnnouncementUpdates(
     List<HubAnnouncement> announcements,
   ) {
+    _updateAnnouncementUnread(
+      announcements,
+    );
     final currentIds =
         announcements
             .map((item) => item.id)
@@ -171,6 +403,9 @@ class _HubUpdatesSectionState
   void _handleCelebrantUpdates(
     List<BirthdayCelebrant> celebrants,
   ) {
+    _updateBirthdayUnread(
+      celebrants,
+    );
     final currentMonthCelebrants = _currentMonthCelebrants(celebrants);
     final currentIds = currentMonthCelebrants.map((item) => item.id).toSet();
 
@@ -378,23 +613,187 @@ class _HubUpdatesSectionState
     );
   }
 
+  Widget _buildDisclosureHeader({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required bool expanded,
+    required bool hasUnread,
+    required VoidCallback onTap,
+    required Color accent,
+    int? count,
+  }) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
+    return GlassCard(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 14,
+        vertical: 12,
+      ),
+      borderRadius:
+          BorderRadius.circular(20),
+      borderColor: hasUnread
+          ? accent.withValues(alpha: 0.48)
+          : colors.primary.withValues(alpha: 0.16),
+      onTap: onTap,
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  accent,
+                  accent.withValues(alpha: 0.72),
+                ],
+              ),
+              borderRadius:
+                  BorderRadius.circular(14),
+            ),
+            child: Icon(
+              icon,
+              color: Colors.white,
+              size: 21,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        title,
+                        maxLines: 1,
+                        overflow:
+                            TextOverflow.ellipsis,
+                        style: theme
+                            .textTheme
+                            .titleLarge
+                            ?.copyWith(
+                          fontSize: 18,
+                          fontWeight:
+                              FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                    if (hasUnread) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        width: 9,
+                        height: 9,
+                        decoration:
+                            BoxDecoration(
+                          color: Colors.redAccent,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.redAccent
+                                  .withValues(
+                                alpha: 0.35,
+                              ),
+                              blurRadius: 8,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow:
+                      TextOverflow.ellipsis,
+                  style: theme
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(
+                    fontSize: 10,
+                    fontWeight: hasUnread
+                        ? FontWeight.w700
+                        : FontWeight.w500,
+                    color: hasUnread
+                        ? accent
+                        : null,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (count != null &&
+              count > 0) ...[
+            const SizedBox(width: 8),
+            Container(
+              constraints:
+                  const BoxConstraints(
+                minWidth: 28,
+              ),
+              height: 28,
+              alignment: Alignment.center,
+              padding:
+                  const EdgeInsets.symmetric(
+                horizontal: 8,
+              ),
+              decoration: BoxDecoration(
+                color: accent.withValues(
+                  alpha: 0.10,
+                ),
+                borderRadius:
+                    BorderRadius.circular(18),
+                border: Border.all(
+                  color: accent.withValues(
+                    alpha: 0.20,
+                  ),
+                ),
+              ),
+              child: Text(
+                '$count',
+                style: TextStyle(
+                  color: accent,
+                  fontSize: 10,
+                  fontWeight:
+                      FontWeight.w900,
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(width: 8),
+          AnimatedRotation(
+            turns: expanded ? 0.5 : 0,
+            duration:
+                const Duration(
+              milliseconds: 180,
+            ),
+            child: Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: colors.primary,
+              size: 24,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildAnnouncements() {
     return StreamBuilder<
         List<HubAnnouncement>>(
       stream: _announcements,
       builder:
           (context, snapshot) {
-        final theme =
-            Theme.of(context);
-
-        final colors =
-            theme.colorScheme;
-
         final items =
             List<HubAnnouncement>.from(
           snapshot.data ??
-              const <
-                  HubAnnouncement>[],
+              const <HubAnnouncement>[],
         )..sort(
                 (a, b) =>
                     b.publishedAt
@@ -406,265 +805,97 @@ class _HubUpdatesSectionState
         final visibleItems =
             items.take(3).toList();
 
+        final subtitle = _announcementHasUnread
+            ? 'New announcement — tap to open'
+            : items.isEmpty
+                ? 'Scholar updates and notices'
+                : '${items.length} ${items.length == 1 ? 'announcement' : 'announcements'} available';
+
         return Column(
           crossAxisAlignment:
-              CrossAxisAlignment
-                  .start,
+              CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration:
-                      BoxDecoration(
-                    gradient:
-                        LinearGradient(
-                      begin:
-                          Alignment
-                              .topLeft,
-                      end:
-                          Alignment
-                              .bottomRight,
-                      colors: [
-                        colors
-                            .primary,
-                        colors
-                            .secondary,
-                      ],
-                    ),
-                    borderRadius:
-                        BorderRadius
-                            .circular(
-                      14,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: colors
-                            .primary
-                            .withValues(
-                          alpha:
-                              0.22,
-                        ),
-                        blurRadius:
-                            18,
-                        spreadRadius:
-                            -5,
-                      ),
-                    ],
-                  ),
-                  child:
-                      const Icon(
-                    Icons
-                        .campaign_rounded,
-                    color:
-                        Colors.white,
-                    size: 21,
-                  ),
-                ),
-
-                const SizedBox(
-                  width: 12,
-                ),
-
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment
-                            .start,
-                    children: [
-                      Text(
-                        'Announcements',
-                        style: theme
-                            .textTheme
-                            .titleLarge
-                            ?.copyWith(
-                          fontSize:
-                              21,
-                          fontWeight:
-                              FontWeight
-                                  .w900,
-                        ),
-                      ),
-                      const SizedBox(
-                        height: 2,
-                      ),
-                      Text(
-                        items.isEmpty
-                            ? 'Scholar updates and notices'
-                            : '${items.length} ${items.length == 1 ? 'announcement' : 'announcements'} available',
-                        style: theme
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(
-                          fontSize:
-                              10,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                if (items.length >
-                    1)
-                  TextButton(
-                    onPressed: () {
-                      _showAllAnnouncements(
-                        items,
-                      );
-                    },
-                    style:
-                        TextButton
-                            .styleFrom(
-                      padding:
-                          const EdgeInsets
-                              .symmetric(
-                        horizontal:
-                            8,
-                        vertical:
-                            5,
-                      ),
-                      minimumSize:
-                          Size.zero,
-                      tapTargetSize:
-                          MaterialTapTargetSize
-                              .shrinkWrap,
-                    ),
-                    child: Row(
-                      mainAxisSize:
-                          MainAxisSize
-                              .min,
-                      children: [
-                        Text(
-                          'View All',
-                          style:
-                              TextStyle(
-                            color:
-                                colors
-                                    .primary,
-                            fontSize:
-                                10,
-                            fontWeight:
-                                FontWeight
-                                    .w800,
-                          ),
-                        ),
-                        const SizedBox(
-                          width: 3,
-                        ),
-                        Icon(
-                          Icons
-                              .arrow_forward_ios_rounded,
-                          color:
-                              colors
-                                  .primary,
-                          size: 10,
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            )
-                .animate()
-                .fadeIn(
-                  duration:
-                      350.ms,
-                )
-                .slideY(
-                  begin: 0.10,
-                  end: 0,
-                  duration:
-                      350.ms,
-                ),
-
-            const SizedBox(
-              height: 14,
+            _buildDisclosureHeader(
+              icon:
+                  Icons.campaign_rounded,
+              title: 'Announcements',
+              subtitle: subtitle,
+              expanded:
+                  _announcementsExpanded,
+              hasUnread:
+                  _announcementHasUnread,
+              onTap:
+                  _toggleAnnouncements,
+              accent:
+                  Theme.of(context)
+                      .colorScheme
+                      .primary,
+              count:
+                  items.isEmpty
+                      ? null
+                      : items.length,
             ),
 
-            if (snapshot
-                        .connectionState ==
-                    ConnectionState
-                        .waiting &&
-                items.isEmpty)
-              _messageCard(
-                Icons
-                    .cloud_download_outlined,
-                'Loading announcements...',
-              )
-            else if (snapshot
-                .hasError)
-              _messageCard(
-                Icons
-                    .cloud_off_rounded,
-                'Unable to load announcements.',
-              )
-            else if (items.isEmpty)
-              _messageCard(
-                Icons
-                    .campaign_outlined,
-                'No announcements yet.',
-              )
-            else ...[
-              _announcementCard(
-                visibleItems.first,
-                isLatest: true,
-              ),
+            if (_announcementsExpanded) ...[
+              const SizedBox(height: 14),
 
-              if (visibleItems
-                      .length >
-                  1) ...[
-                const SizedBox(
-                  height: 15,
+              if (snapshot
+                          .connectionState ==
+                      ConnectionState.waiting &&
+                  items.isEmpty)
+                _messageCard(
+                  Icons.cloud_download_outlined,
+                  'Loading announcements...',
+                )
+              else if (snapshot.hasError)
+                _messageCard(
+                  Icons.cloud_off_rounded,
+                  'Unable to load announcements.',
+                )
+              else if (items.isEmpty)
+                _messageCard(
+                  Icons.campaign_outlined,
+                  'No announcements yet.',
+                )
+              else ...[
+                _announcementCard(
+                  visibleItems.first,
+                  isLatest: true,
                 ),
 
-                Row(
-                  children: [
-                    Icon(
-                      Icons
-                          .history_rounded,
-                      size: 15,
-                      color: theme
-                          .textTheme
-                          .bodySmall
-                          ?.color,
+                if (visibleItems.length > 1) ...[
+                  const SizedBox(height: 10),
+
+                  for (final announcement
+                      in visibleItems.skip(1)) ...[
+                    _compactAnnouncementCard(
+                      announcement,
                     ),
-                    const SizedBox(
-                      width: 6,
-                    ),
-                    Text(
-                      'PREVIOUS ANNOUNCEMENTS',
-                      style: theme
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(
-                        fontSize:
-                            9,
-                        fontWeight:
-                            FontWeight
-                                .w900,
-                        letterSpacing:
-                            1,
+                    const SizedBox(height: 8),
+                  ],
+                ],
+
+                if (items.length > 1)
+                  Align(
+                    alignment:
+                        Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: () {
+                        _showAllAnnouncements(
+                          items,
+                        );
+                      },
+                      icon: const Icon(
+                        Icons
+                            .arrow_forward_rounded,
+                        size: 15,
+                      ),
+                      label:
+                          const Text(
+                        'View All',
                       ),
                     ),
-                  ],
-                ),
-
-                const SizedBox(
-                  height: 9,
-                ),
-
-                for (final announcement
-                    in visibleItems
-                        .skip(
-                  1,
-                )) ...[
-                  _compactAnnouncementCard(
-                    announcement,
                   ),
-                  const SizedBox(
-                    height: 9,
-                  ),
-                ],
               ],
             ],
           ],
@@ -672,9 +903,6 @@ class _HubUpdatesSectionState
       },
     );
   }
-
-
-
 
 Widget _announcementCard(
   HubAnnouncement announcement, {
@@ -2144,240 +2372,188 @@ Widget _announcementCard(
   }
 
   Widget _buildBirthdays() {
-    return StreamBuilder<List<BirthdayCelebrant>>(
+    return StreamBuilder<
+        List<BirthdayCelebrant>>(
       stream: _celebrants,
-      builder: (context, snapshot) {
-        final theme = Theme.of(context);
-        final colors = theme.colorScheme;
-        final all = snapshot.data ?? const <BirthdayCelebrant>[];
-        final thisMonth = _currentMonthCelebrants(all);
-        final monthName = _fullMonthName(DateTime.now().month);
+      builder:
+          (context, snapshot) {
+        final theme =
+            Theme.of(context);
 
-        final activeIndex = thisMonth.isEmpty
-            ? 0
-            : _activeBirthdayIndex.clamp(0, thisMonth.length - 1).toInt();
+        final colors =
+            theme.colorScheme;
+
+        final all =
+            snapshot.data ??
+                const <BirthdayCelebrant>[];
+
+        final thisMonth =
+            _currentMonthCelebrants(
+          all,
+        );
+
+        final monthName =
+            _fullMonthName(
+          DateTime.now().month,
+        );
+
+        final activeIndex =
+            thisMonth.isEmpty
+                ? 0
+                : _activeBirthdayIndex
+                    .clamp(
+                      0,
+                      thisMonth.length - 1,
+                    )
+                    .toInt();
+
+        final subtitle = _birthdayHasUnread
+            ? 'New birthday update — tap to open'
+            : thisMonth.isEmpty
+                ? 'No celebrants listed for $monthName yet'
+                : '${thisMonth.length} ${thisMonth.length == 1 ? 'celebrant' : 'celebrants'} this month';
 
         return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Container(
-                  width: 46,
-                  height: 46,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        AppColors.brandOrange,
-                        Color(0xFFF3A34D),
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(15),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.brandOrange.withValues(alpha: 0.26),
-                        blurRadius: 20,
-                        spreadRadius: -5,
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.celebration_rounded,
-                    color: Colors.white,
-                    size: 23,
-                  ),
+            _buildDisclosureHeader(
+              icon:
+                  Icons.celebration_rounded,
+              title:
+                  '$monthName Celebrants',
+              subtitle: subtitle,
+              expanded:
+                  _birthdaysExpanded,
+              hasUnread:
+                  _birthdayHasUnread,
+              onTap:
+                  _toggleBirthdays,
+              accent:
+                  AppColors.brandOrange,
+              count:
+                  thisMonth.isEmpty
+                      ? null
+                      : thisMonth.length,
+            ),
+
+            if (_birthdaysExpanded) ...[
+              const SizedBox(height: 14),
+
+              if (snapshot
+                          .connectionState ==
+                      ConnectionState.waiting &&
+                  all.isEmpty)
+                _messageCard(
+                  Icons.cake_outlined,
+                  'Loading birthday celebrants...',
                 )
-                    .animate(onPlay: (controller) => controller.repeat(reverse: true))
-                    .shimmer(
-                      duration: 1900.ms,
-                      color: Colors.white.withValues(alpha: 0.18),
-                    ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '$monthName Celebrants',
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w900,
+              else if (snapshot.hasError)
+                _messageCard(
+                  Icons.cloud_off_rounded,
+                  'Unable to load birthday celebrants.',
+                )
+              else if (thisMonth.isEmpty)
+                _messageCard(
+                  Icons.celebration_outlined,
+                  'No birthday celebrants for $monthName yet.',
+                )
+              else ...[
+                SizedBox(
+                  height: 330,
+                  child: PageView.builder(
+                    controller:
+                        _birthdayPageController,
+                    itemCount:
+                        thisMonth.length,
+                    physics:
+                        const BouncingScrollPhysics(),
+                    onPageChanged:
+                        (index) {
+                      if (!mounted) {
+                        return;
+                      }
+
+                      setState(() {
+                        _activeBirthdayIndex =
+                            index;
+                      });
+                    },
+                    itemBuilder:
+                        (context, index) {
+                      final person =
+                          thisMonth[index];
+
+                      final isActive =
+                          index ==
+                              activeIndex;
+
+                      return Padding(
+                        padding:
+                            const EdgeInsets
+                                .symmetric(
+                          horizontal: 6,
+                          vertical: 5,
                         ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        thisMonth.isEmpty
-                            ? 'No celebrants listed for $monthName yet'
-                            : 'Celebrating our working scholars this month ✨',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          fontSize: 10,
-                          color: thisMonth.isEmpty
-                              ? null
-                              : AppColors.brandOrange,
-                          fontWeight: thisMonth.isEmpty
-                              ? FontWeight.w500
-                              : FontWeight.w700,
+                        child:
+                            _birthdayGreetingCard(
+                          person,
+                          isActive,
                         ),
-                      ),
-                    ],
+                      );
+                    },
                   ),
                 ),
-                if (thisMonth.length > 1)
-                  TextButton(
-                    onPressed: () => _showAllCelebrants(thisMonth),
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.brandOrange,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 5,
+
+                if (thisMonth.length > 1) ...[
+                  const SizedBox(height: 7),
+                  Row(
+                    mainAxisAlignment:
+                        MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.swipe_rounded,
+                        color: theme
+                            .textTheme
+                            .bodySmall
+                            ?.color,
+                        size: 14,
                       ),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'View All',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w900,
-                          ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${activeIndex + 1} / ${thisMonth.length}  •  Swipe to view',
+                        style: theme
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(
+                          fontSize: 9,
+                          fontWeight:
+                              FontWeight.w600,
                         ),
-                        SizedBox(width: 3),
-                        Icon(Icons.arrow_forward_ios_rounded, size: 10),
-                      ],
-                    ),
-                  ),
-                if (thisMonth.isNotEmpty) ...[
-                  const SizedBox(width: 5),
-                  Container(
-                    constraints: const BoxConstraints(minWidth: 30),
-                    height: 30,
-                    alignment: Alignment.center,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    decoration: BoxDecoration(
-                      color: AppColors.brandOrange.withValues(alpha: 0.11),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: AppColors.brandOrange.withValues(alpha: 0.28),
                       ),
-                    ),
-                    child: Text(
-                      '${thisMonth.length}',
-                      style: const TextStyle(
-                        color: AppColors.brandOrange,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
+                    ],
                   ),
                 ],
-              ],
-            )
-                .animate()
-                .fadeIn(duration: 350.ms)
-                .slideY(begin: 0.08, end: 0, duration: 350.ms),
-            const SizedBox(height: 14),
-            if (snapshot.connectionState == ConnectionState.waiting && all.isEmpty)
-              _messageCard(
-                Icons.cake_outlined,
-                'Loading birthday celebrants...',
-              )
-            else if (snapshot.hasError)
-              _messageCard(
-                Icons.cloud_off_rounded,
-                'Unable to load birthday celebrants.',
-              )
-            else if (thisMonth.isEmpty)
-              _messageCard(
-                Icons.celebration_outlined,
-                'No birthday celebrants for $monthName yet.',
-              )
-            else ...[
-              SizedBox(
-                height: 330,
-                child: PageView.builder(
-                  controller: _birthdayPageController,
-                  itemCount: thisMonth.length,
-                  physics: const BouncingScrollPhysics(),
-                  onPageChanged: (index) {
-                    if (!mounted) return;
-                    setState(() => _activeBirthdayIndex = index);
-                  },
-                  itemBuilder: (context, index) {
-                    final person = thisMonth[index];
-                    final isActive = index == activeIndex;
 
-                    return AnimatedScale(
-                      scale: isActive ? 1.0 : 0.965,
-                      duration: const Duration(milliseconds: 260),
-                      curve: Curves.easeOutCubic,
-                      child: AnimatedOpacity(
-                        opacity: isActive ? 1.0 : 0.72,
-                        duration: const Duration(milliseconds: 260),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 5,
-                          ),
-                          child: _birthdayGreetingCard(person, isActive),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              if (thisMonth.length > 1) ...[
-                const SizedBox(height: 7),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.swipe_rounded,
-                      color: theme.textTheme.bodySmall?.color,
-                      size: 14,
+                Align(
+                  alignment:
+                      Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: () {
+                      _showAllCelebrants(
+                        thisMonth,
+                      );
+                    },
+                    icon: const Icon(
+                      Icons
+                          .arrow_forward_rounded,
+                      size: 15,
                     ),
-                    const SizedBox(width: 6),
-                    Text(
-                      '${activeIndex + 1} / ${thisMonth.length}  •  Swipe to view',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    label:
+                        const Text(
+                      'View All',
                     ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    for (int index = 0;
-                        index < thisMonth.length && index < 7;
-                        index++)
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 250),
-                        margin: const EdgeInsets.symmetric(horizontal: 3),
-                        width: index == activeIndex ? 20 : 6,
-                        height: 6,
-                        decoration: BoxDecoration(
-                          gradient: index == activeIndex
-                              ? const LinearGradient(
-                                  colors: [
-                                    AppColors.brandOrange,
-                                    Color(0xFFF3A34D),
-                                  ],
-                                )
-                              : null,
-                          color: index == activeIndex
-                              ? null
-                              : colors.onSurface.withValues(alpha: 0.16),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                      ),
-                  ],
+                  ),
                 ),
               ],
             ],
