@@ -8,7 +8,7 @@ import '../services/google_form_service.dart';
 import '../services/notification_service.dart';
 import '../services/pending_submission_service.dart';
 import '../services/theme_service.dart';
-import 'dashboard_screen.dart';
+import 'main_shell.dart';
 import 'welcome_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -130,7 +130,7 @@ class _SplashScreenState extends State<SplashScreen>
         MaterialPageRoute<void>(
           builder: (_) {
             if (hasName) {
-              return const DashboardScreen();
+              return const MainShell();
             }
 
             return const WelcomeScreen();

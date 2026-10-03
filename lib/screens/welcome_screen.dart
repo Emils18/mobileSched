@@ -5,7 +5,7 @@ import '../services/attendance_service.dart';
 import '../services/theme_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/premium_button.dart';
-import 'dashboard_screen.dart';
+import 'main_shell.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -115,7 +115,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           animation,
           secondaryAnimation,
         ) {
-          return const DashboardScreen();
+          return const MainShell();
         },
         transitionDuration: const Duration(
           milliseconds: 550,
