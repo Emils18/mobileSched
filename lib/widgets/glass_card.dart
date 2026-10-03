@@ -100,6 +100,7 @@ class GlassCard extends StatelessWidget {
 
         child: DecoratedBox(
           decoration: BoxDecoration(
+            color: colors.surface,
             borderRadius: radius,
 
             border: Border.all(
@@ -107,28 +108,6 @@ class GlassCard extends StatelessWidget {
               width: borderColor == null
                   ? 1
                   : 1.4,
-            ),
-
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-
-              colors: [
-                colors.surface.withValues(
-                  alpha: isDark
-                      ? 0.94
-                      : 0.98,
-                ),
-
-                Color.lerp(
-                      colors.surface,
-                      colors.primary,
-                      isDark
-                          ? 0.10
-                          : 0.04,
-                    ) ??
-                    colors.surface,
-              ],
             ),
           ),
 

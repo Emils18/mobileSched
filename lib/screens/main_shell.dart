@@ -14,20 +14,31 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
+  int _refreshTick = 0;
 
-  final List<Widget> _tabs = const [
-    DashboardScreen(),
-    AllowanceScreen(),
-    SettingsScreen(isFirstTime: false),
-  ];
+  void _onSettingsSaved() {
+    if (!mounted) return;
+    setState(() {
+      _refreshTick = _refreshTick + 1;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    final tabs = <Widget>[
+      DashboardScreen(key: ValueKey<int>(_refreshTick)),
+      AllowanceScreen(key: ValueKey<int>(_refreshTick)),
+      SettingsScreen(
+        isFirstTime: false,
+        onSaved: _onSettingsSaved,
+      ),
+    ];
+
     return Scaffold(
       backgroundColor: AppColors.bgDeep,
       body: IndexedStack(
         index: _currentIndex,
-        children: _tabs,
+        children: tabs,
       ),
       bottomNavigationBar: SafeArea(
         top: false,

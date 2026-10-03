@@ -222,7 +222,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final ThemeData theme = Theme.of(context);
 
     final double modalWidth = MediaQuery.sizeOf(context).width - 48;
-    final bool useSingleColumn = modalWidth < 320;
+    final bool useSingleColumn = modalWidth < 460;
     final double cardWidth =
         useSingleColumn ? modalWidth : (modalWidth - 10) / 2;
 
@@ -449,7 +449,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: Container(
           padding: const EdgeInsets.all(15),
           decoration: BoxDecoration(
-           color: colors.surface.withValues(alpha: 0.75),
+            color: colors.surface.withValues(alpha: 0.75),
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
               color: theme.dividerColor,
@@ -589,7 +589,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             _isBrokenSchedule
                                 ? 'Tap a day chip to customize its shift time.'
                                 : 'Select active duty days.',
-                            style: theme.textTheme.bodySmall?.copyWith(fontSize: 10),
+                            style: theme.textTheme.bodySmall
+                                ?.copyWith(fontSize: 10),
                           ),
                           const SizedBox(height: 6),
                           Wrap(
@@ -796,47 +797,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                           ),
                           const SizedBox(height: 10),
-                          if (!kIsWeb) ...[
-                            _buildReminderPicker(
-                              context: context,
-                              title: 'Before Time In',
-                              subtitle:
-                                  'Choose when the first Time In reminder appears.',
-                              icon: Icons.login_rounded,
-                              value: _timeInReminderMinutes,
-                              isTimeIn: true,
-                            ),
-                            const SizedBox(height: 8),
-                            _buildReminderPicker(
-                              context: context,
-                              title: 'Before Time Out',
-                              subtitle:
-                                  'Choose when the first Time Out reminder appears.',
-                              icon: Icons.logout_rounded,
-                              value: _timeOutReminderMinutes,
-                              isTimeIn: false,
-                            ),
-                          ] else ...[
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(13),
-                              decoration: BoxDecoration(
-                                color: colorScheme.surface
-                                    .withValues(alpha: 0.65),
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(
-                                  color: theme.dividerColor,
-                                ),
-                              ),
-                              child: const Text(
-                                'iPhone PWA duty reminders currently keep '
-                                'the protected 15-minute timing. Custom '
-                                'server-side timing will be connected in '
-                                'the next backend update.',
-                                style: TextStyle(fontSize: 11, height: 1.4),
-                              ),
-                            ),
-                          ],
+                          _buildReminderPicker(
+                            context: context,
+                            title: 'Before Time In',
+                            subtitle:
+                                'Choose when the first Time In reminder appears.',
+                            icon: Icons.login_rounded,
+                            value: _timeInReminderMinutes,
+                            isTimeIn: true,
+                          ),
+                          const SizedBox(height: 8),
+                          _buildReminderPicker(
+                            context: context,
+                            title: 'Before Time Out',
+                            subtitle:
+                                'Choose when the first Time Out reminder appears.',
+                            icon: Icons.logout_rounded,
+                            value: _timeOutReminderMinutes,
+                            isTimeIn: false,
+                          ),
                           const SizedBox(height: 10),
                           SizedBox(
                             width: double.infinity,
@@ -932,7 +911,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
               // Save Action Button
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                padding: EdgeInsets.only(
+                  left: 20,
+                  right: 20,
+                  bottom: 80 + MediaQuery.of(context).padding.bottom,
+                ),
                 child: PremiumButton(
                   text: 'SAVE CONFIGURATION',
                   icon: Icons.save_rounded,
@@ -1010,10 +993,98 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                     widget.onSaved?.call();
 
+                    if (context.mounted) {
+                      await showDialog<void>(
+                        context: context,
+                        barrierDismissible: false,
+                        barrierColor:
+                            Colors.black.withValues(alpha: 0.55),
+                        builder: (_) => const _SaveSuccessOverlay(),
+                      );
+                    }
+
                     if (context.mounted && Navigator.canPop(context)) {
                       Navigator.pop(context);
                     }
                   },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SaveSuccessOverlay extends StatefulWidget {
+  const _SaveSuccessOverlay();
+
+  @override
+  State<_SaveSuccessOverlay> createState() => _SaveSuccessOverlayState();
+}
+
+class _SaveSuccessOverlayState extends State<_SaveSuccessOverlay>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _scale;
+  late final Animation<double> _fade;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _scale = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.elasticOut),
+    );
+    _fade = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
+
+    _controller.forward();
+
+    Future.delayed(const Duration(milliseconds: 1000), () {
+      if (mounted) Navigator.of(context).pop();
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: FadeTransition(
+        opacity: _fade,
+        child: ScaleTransition(
+          scale: _scale,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 96,
+                height: 96,
+                decoration: const BoxDecoration(
+                  color: AppColors.success,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.check_rounded,
+                  color: Colors.white,
+                  size: 56,
+                ),
+              ),
+              const SizedBox(height: 18),
+              const Text(
+                'Settings Saved',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ],

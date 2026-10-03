@@ -183,37 +183,20 @@ class MobileSchedTheme {
   // Official cream / navy MobileSched theme.
   // ============================================================
 
-  static const AppPalette light =
-      AppPalette(
-    background: brandCream,
-    backgroundSecondary:
-        Color(0xFFF4ECE4),
-
-    surface:
-        Color(0xF5FFFFFF),
-    surfaceStrong:
-        Color(0xFFFFFFFF),
-
-    border:
-        Color(0x26103F87),
-
-    primary: brandNavy,
+  static const AppPalette light = AppPalette(
+    background: Color(0xFFF7F9FB),
+    backgroundSecondary: Color(0xFFEDF1F5),
+    surface: Color(0xFFFFFFFF),
+    surfaceStrong: Color(0xFFFFFFFF),
+    border: Color(0xFFE5E9EE),
+    primary: brandSky,
     secondary: brandOrange,
-
-    textPrimary:
-        Color(0xFF102844),
-    textSecondary:
-        Color(0xFF40566F),
-    textMuted:
-        Color(0xFF7B8C9E),
-
-    success:
-        Color(0xFF238B57),
-    warning:
-        Color(0xFFC97918),
-    error:
-        Color(0xFFC94747),
-
+    textPrimary: Color(0xFF1F2A37),
+    textSecondary: Color(0xFF4B5563),
+    textMuted: Color(0xFF6B7280),
+    success: Color(0xFF1E8E5A),
+    warning: Color(0xFFD97706),
+    error: Color(0xFFC0392B),
     brightness: Brightness.light,
   );
 

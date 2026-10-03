@@ -146,26 +146,6 @@ class _PremiumButtonState
             ? Colors.white
             : colors.primary;
 
-    final LinearGradient
-        primaryGradient =
-        LinearGradient(
-      begin:
-          Alignment.topLeft,
-
-      end:
-          Alignment.bottomRight,
-
-      colors: [
-        colors.primary,
-
-        Color.lerp(
-              colors.primary,
-              colors.secondary,
-              0.28,
-            ) ??
-            colors.primary,
-      ],
-    );
 
     return Semantics(
       button: true,
@@ -236,14 +216,9 @@ class _PremiumButtonState
 
               decoration:
                   BoxDecoration(
-                gradient:
-                    widget.isPrimary
-                        ? primaryGradient
-                        : null,
-
                 color:
                     widget.isPrimary
-                        ? null
+                        ? colors.primary
                         : colors.surface,
 
                 borderRadius:
