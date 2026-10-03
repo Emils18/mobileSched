@@ -38,6 +38,7 @@ flutter:
   assets:
     - assets/images/mobilesched_logo.png
     - assets/images/mobilesched_branding.png
+    - shorebird.yaml
 
 flutter_launcher_icons:
   android: true
