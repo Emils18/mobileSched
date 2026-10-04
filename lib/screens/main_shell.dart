@@ -106,8 +106,8 @@ class _MainShellState extends State<MainShell> {
                   label: 'Allowance',
                 ),
                 NavigationDestination(
-                  icon: Icon(Icons.tune_outlined),
-                  selectedIcon: Icon(Icons.tune_rounded),
+                  icon: Icon(Icons.settings_outlined),
+                  selectedIcon: Icon(Icons.settings_rounded),
                   label: 'Settings',
                 ),
               ],
