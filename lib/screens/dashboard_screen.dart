@@ -2516,9 +2516,10 @@ Widget _buildTodayLedgerCard() {
     );
   }
 
+
   Widget _buildFormSubmissionBanner() {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.bgDeep,
         borderRadius: BorderRadius.circular(16),
@@ -2538,66 +2539,75 @@ Widget _buildTodayLedgerCard() {
                   style: TextStyle(
                     color: AppColors.textTitle,
                     fontWeight: FontWeight.w800,
-                    fontSize: 13,
+                    fontSize: 14,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: SizedBox(
-                  height: 36,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.success,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
-                    ),
-                    onPressed: () => _submitConfirmation('yes'),
-                    child: const Text("Yes, submitted",
-                        style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white)),
-                  ),
-                ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.success,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
               ),
-              const SizedBox(width: 8),
-              SizedBox(
-                height: 36,
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF2B92D5),
-                    side: const BorderSide(color: Color(0xFF2B92D5)),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8)),
-                  ),
-                  onPressed: () => _submitConfirmation('retry'),
-                  child: const Text("Re-open", style: TextStyle(fontSize: 12)),
-                ),
+              icon: const Icon(Icons.check_circle_outline_rounded,
+                  color: Colors.white, size: 18),
+              onPressed: () => _submitConfirmation('yes'),
+              label: const Text("Yes, submitted",
+                  style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white)),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF2B92D5),
+                side: const BorderSide(color: Color(0xFF2B92D5)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
               ),
-              const SizedBox(width: 8),
-              SizedBox(
-                height: 36,
-                child: TextButton(
-                  onPressed: () => _submitConfirmation('cancel'),
-                  child: const Text("Not yet",
-                      style: TextStyle(
-                          fontSize: 12, color: AppColors.textMuted)),
-                ),
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              onPressed: () => _submitConfirmation('retry'),
+              label: const Text("Re-open form",
+                  style: TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w600)),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.error,
+                side: BorderSide(
+                    color: AppColors.error.withValues(alpha: 0.5)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
               ),
-            ],
+              icon: const Icon(Icons.close_rounded, size: 18),
+              onPressed: () => _submitConfirmation('cancel'),
+              label: const Text("Not yet",
+                  style: TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w600)),
+            ),
           ),
         ],
       ),
     );
   }
-}
-
+    }
 // ===========================================================================
 // VECTOR ART PAINTER: CAMPUS HORIZON CANOPY (Concept 1)
 // ===========================================================================
@@ -2668,6 +2678,7 @@ class _CampusHorizonPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-
-
+    
+    
+    
  
