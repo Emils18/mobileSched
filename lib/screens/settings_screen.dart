@@ -1,13 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../services/attendance_service.dart';
 import '../services/notification_service.dart';
 import '../services/google_form_service.dart';
-import '../services/theme_service.dart';
 import '../services/web_push_profile_service.dart';
-import '../theme/app_theme.dart';
 import '../utils/constants.dart';
-import '../widgets/premium_button.dart';
 
 class SettingsScreen extends StatefulWidget {
   final bool isFirstTime;
@@ -65,7 +63,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final TimeOfDay? timeIn = await showTimePicker(
       context: context,
       initialTime: currentIn,
-      helpText: "Select Time In for ${AppFormatters.getDayName(dayNumber)}",
+      helpText: "Time In for ${AppFormatters.getDayName(dayNumber)}",
     );
 
     if (timeIn == null || !mounted) return;
@@ -73,7 +71,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final TimeOfDay? timeOut = await showTimePicker(
       context: context,
       initialTime: currentOut,
-      helpText: "Select Time Out for ${AppFormatters.getDayName(dayNumber)}",
+      helpText: "Time Out for ${AppFormatters.getDayName(dayNumber)}",
     );
 
     if (timeOut == null || !mounted) return;
@@ -91,24 +89,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
             context: context,
             builder: (dialogContext) {
               return AlertDialog(
-                title: const Text('Very Early Reminder'),
+                backgroundColor: AppColors.bgDeep,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18)),
+                title: const Text('Early Reminder Notice',
+                    style: TextStyle(
+                        color: AppColors.textTitle,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 17)),
                 content: Text(
                   'You selected $minutes minutes before duty. '
-                  'This does not replace the required notification at your '
-                  'actual duty time. AWS HUB will still remind you at '
-                  '${isTimeIn ? 'Time In' : 'Time Out'} and again if the '
-                  'attendance action is still missing.',
+                  'AWS HUB will still remind you when your actual shift starts and ends.',
+                  style: const TextStyle(
+                      color: AppColors.textBody, fontSize: 13, height: 1.4),
                 ),
                 actions: [
                   TextButton(
-                    onPressed: () =>
-                        Navigator.pop(dialogContext, false),
-                    child: const Text('KEEP CURRENT'),
+                    onPressed: () => Navigator.pop(dialogContext, false),
+                    child: const Text('Keep Current',
+                        style: TextStyle(color: AppColors.textMuted)),
                   ),
-                  FilledButton(
-                    onPressed: () =>
-                        Navigator.pop(dialogContext, true),
-                    child: const Text('USE EARLY REMINDER'),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary, elevation: 0),
+                    onPressed: () => Navigator.pop(dialogContext, true),
+                    child: const Text('Use Reminder',
+                        style: TextStyle(color: Colors.white)),
                   ),
                 ],
               );
@@ -116,9 +122,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ) ??
           false;
 
-      if (!accepted || !mounted) {
-        return;
-      }
+      if (!accepted || !mounted) return;
     }
 
     setState(() {
@@ -130,472 +134,169 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
-  Widget _buildReminderPicker({
-    required BuildContext context,
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required int value,
-    required bool isTimeIn,
-  }) {
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-      decoration: BoxDecoration(
-        color: colors.surface.withValues(alpha: 0.72),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.dividerColor),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: colors.primary.withValues(alpha: 0.11),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: colors.primary, size: 20),
-          ),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    color: colors.onSurface,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 13,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontSize: 10,
-                    height: 1.3,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          DropdownButtonHideUnderline(
-            child: DropdownButton<int>(
-              value: value,
-              borderRadius: BorderRadius.circular(14),
-              items: AttendanceService.reminderMinuteOptions
-                  .map(
-                    (minutes) => DropdownMenuItem<int>(
-                      value: minutes,
-                      child: Text('$minutes min'),
-                    ),
-                  )
-                  .toList(),
-              onChanged: (minutes) {
-                if (minutes == null || minutes == value) {
-                  return;
-                }
-
-                _setReminderMinutes(
-                  isTimeIn: isTimeIn,
-                  minutes: minutes,
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildThemeSelector(
-    BuildContext context,
-    StateSetter setModalState,
-  ) {
-    final ThemeService themeService = ThemeService();
-    final AppThemePreset currentTheme = themeService.preset;
-    final ThemeData theme = Theme.of(context);
-
-    final double modalWidth = MediaQuery.sizeOf(context).width - 48;
-    final bool useSingleColumn = modalWidth < 460;
-    final double cardWidth =
-        useSingleColumn ? modalWidth : (modalWidth - 10) / 2;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildSettingsLabel(
-          context,
-          'APP THEME',
-        ),
-        const SizedBox(height: 7),
-        Text(
-          'Choose how AWS HUB looks on your device.',
-          style: theme.textTheme.bodySmall?.copyWith(
-            height: 1.4,
-          ),
-        ),
-        const SizedBox(height: 14),
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: AppThemePreset.values.map((preset) {
-            final AppPalette palette = MobileSchedTheme.palette(preset);
-            final bool isSelected = currentTheme == preset;
-
-            return Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(18),
-                onTap: () async {
-                  await themeService.setPreset(preset);
-
-                  if (!context.mounted) {
-                    return;
-                  }
-
-                  setModalState(() {});
-                },
-                child: Container(
-                  width: cardWidth,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? palette.primary.withValues(alpha: 0.14)
-                        : theme.colorScheme.surface.withValues(alpha: 0.75),
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(
-                      color: isSelected
-                          ? palette.primary
-                          : theme.dividerColor,
-                      width: isSelected ? 1.6 : 1,
-                    ),
-                    boxShadow: isSelected
-                        ? [
-                            BoxShadow(
-                              color: palette.primary.withValues(alpha: 0.16),
-                              blurRadius: 18,
-                              spreadRadius: -4,
-                            ),
-                          ]
-                        : null,
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 39,
-                        height: 39,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              palette.primary,
-                              palette.secondary,
-                            ],
-                          ),
-                          borderRadius: BorderRadius.circular(13),
-                        ),
-                        child: Icon(
-                          themeService.getIcon(preset),
-                          color: Colors.white,
-                          size: 19,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              themeService.getName(preset),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: theme.colorScheme.onSurface,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            const SizedBox(height: 3),
-                            Text(
-                              themeService.getDescription(preset),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                fontSize: 9,
-                                height: 1.2,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (isSelected) ...[
-                        const SizedBox(width: 5),
-                        Icon(
-                          Icons.check_circle_rounded,
-                          color: palette.primary,
-                          size: 19,
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSettingsLabel(
-    BuildContext context,
-    String text,
-  ) {
-    return Text(
-      text,
-      style: TextStyle(
-        color: Theme.of(context)
-            .textTheme
-            .bodyMedium
-            ?.color
-            ?.withValues(alpha: 0.68),
-        fontSize: 11,
-        fontWeight: FontWeight.w900,
-        letterSpacing: 1.2,
-      ),
-    );
-  }
-
-  Widget _buildSettingsSwitch({
-    required BuildContext context,
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required bool value,
-    required Future<void> Function(bool value) onChanged,
-    bool enabled = true,
-  }) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Opacity(
-      opacity: enabled ? 1 : 0.45,
-      child: SwitchListTile(
-        contentPadding: EdgeInsets.zero,
-        value: value,
-        activeThumbColor: colorScheme.primary,
-        onChanged: enabled
-            ? (newValue) {
-                onChanged(newValue);
-              }
-            : null,
-        secondary: Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            color: colorScheme.primary.withValues(alpha: 0.10),
-            borderRadius: BorderRadius.circular(13),
-          ),
-          child: Icon(
-            icon,
-            color: colorScheme.primary,
-            size: 21,
-          ),
-        ),
-        title: Text(
-          title,
-          style: TextStyle(
-            color: colorScheme.onSurface,
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 3),
-          child: Text(
-            subtitle,
-            style: theme.textTheme.bodySmall?.copyWith(
-              fontSize: 11,
-              height: 1.35,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTimePickerBox({
-    required BuildContext context,
-    required String label,
-    required TimeOfDay time,
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
-    final ThemeData theme = Theme.of(context);
-    final ColorScheme colors = theme.colorScheme;
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Container(
-          padding: const EdgeInsets.all(15),
-          decoration: BoxDecoration(
-            color: colors.surface.withValues(alpha: 0.75),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: theme.dividerColor,
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 34,
-                    height: 34,
-                    decoration: BoxDecoration(
-                      color: colors.primary.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(11),
-                    ),
-                    child: Icon(
-                      icon,
-                      color: colors.primary,
-                      size: 18,
-                    ),
-                  ),
-                  const Spacer(),
-                  Icon(
-                    Icons.edit_rounded,
-                    color: colors.onSurface.withValues(alpha: 0.45),
-                    size: 17,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 15),
-              Text(
-                label,
-                style: TextStyle(
-                  color: colors.onSurface.withValues(alpha: 0.55),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1,
-                ),
-              ),
-              const SizedBox(height: 5),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  AppFormatters.formatTimeOfDay(time),
-                  style: TextStyle(
-                    color: colors.onSurface,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+  void _selectPreset(List<int> days) {
+    setState(() {
+      _tempDays
+        ..clear()
+        ..addAll(days);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final timeInStr =
+        MaterialLocalizations.of(context).formatTimeOfDay(_tempIn);
+    final timeOutStr =
+        MaterialLocalizations.of(context).formatTimeOfDay(_tempOut);
 
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        backgroundColor: AppColors.bgDark,
-        appBar: AppBar(
-          backgroundColor: AppColors.bgDark,
-          title: Text(
-            widget.isFirstTime ? 'Welcome to AWS HUB' : 'Settings',
-            style: TextStyle(
-              color: colorScheme.onSurface,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          leading: (widget.isFirstTime || !Navigator.canPop(context))
-              ? null
-              : IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.arrow_back_rounded),
-                ),
-          bottom: TabBar(
-            indicatorColor: colorScheme.primary,
-            labelColor: colorScheme.primary,
-            unselectedLabelColor:
-                colorScheme.onSurface.withValues(alpha: 0.6),
-            labelStyle: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-            ),
-            indicatorSize: TabBarIndicatorSize.tab,
-            tabs: const [
-              Tab(text: 'Schedule'),
-              Tab(text: 'Allowance & Theme'),
-              Tab(text: 'Form'),
-            ],
+    return Scaffold(
+      backgroundColor: AppColors.bgDark,
+      resizeToAvoidBottomInset: false,
+      appBar: AppBar(
+        backgroundColor: AppColors.bgDeep,
+        elevation: 0,
+        centerTitle: false,
+        title: Text(
+          widget.isFirstTime ? 'Initial Setup' : 'Settings',
+          style: const TextStyle(
+            color: AppColors.textTitle,
+            fontWeight: FontWeight.w800,
+            fontSize: 18,
           ),
         ),
-        body: GestureDetector(
-          onTap: () => FocusScope.of(context).unfocus(),
-          child: Column(
-            children: [
-              Expanded(
-                child: TabBarView(
-                  physics: const ClampingScrollPhysics(),
+        leading: (widget.isFirstTime || !Navigator.canPop(context))
+            ? null
+            : IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.arrow_back_rounded,
+                    color: AppColors.textTitle),
+              ),
+        shape: const Border(
+          bottom: BorderSide(color: AppColors.cardBorder, width: 1),
+        ),
+      ),
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // TAB 1: Schedule
-                    SingleChildScrollView(
-                      physics: const ClampingScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                    // 1. SCHOLAR PROFILE
+                    _buildSettingsGroup(
+                      title: "Scholar Profile",
+                      subtitle: "Your personal details for attendance logs",
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildSettingsLabel(context, 'PREFERRED NAME'),
-                          const SizedBox(height: 6),
+                          const Text(
+                            "Preferred Name",
+                            style: TextStyle(
+                              color: AppColors.textTitle,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
                           TextField(
                             controller: _nameController,
                             textCapitalization: TextCapitalization.words,
-                            style: TextStyle(
-                              color: colorScheme.onSurface,
+                            style: const TextStyle(
+                              color: AppColors.textTitle,
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
                             ),
-                            decoration: const InputDecoration(
-                              hintText: 'Enter your preferred name',
-                              prefixIcon: Icon(Icons.person_outline_rounded),
+                            decoration: InputDecoration(
+                              hintText: 'Enter your name',
+                              hintStyle: const TextStyle(
+                                  color: AppColors.textMuted, fontSize: 13),
+                              prefixIcon: const Icon(
+                                  Icons.person_outline_rounded,
+                                  color: AppColors.primary,
+                                  size: 20),
+                              filled: true,
+                              fillColor: AppColors.bgDark,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                    color: AppColors.cardBorder),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                    color: AppColors.cardBorder),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                    color: AppColors.primary, width: 1.5),
+                              ),
                             ),
                           ),
-                          const SizedBox(height: 10),
-                          _buildSettingsLabel(context, 'DUTY DAYS & SHIFTS'),
-                          const SizedBox(height: 4),
-                          Text(
-                            _isBrokenSchedule
-                                ? 'Tap a day chip to customize its shift time.'
-                                : 'Select active duty days.',
-                            style: theme.textTheme.bodySmall
-                                ?.copyWith(fontSize: 10),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+
+                    // 2. DUTY DAYS & SCHEDULE
+                    _buildSettingsGroup(
+                      title: "Duty Schedule",
+                      subtitle: "Days and shift hours you are assigned on duty",
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Presets row
+                          Row(
+                            children: [
+                              const Text(
+                                "Quick Presets:",
+                                style: TextStyle(
+                                  color: AppColors.textMuted,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              ActionChip(
+                                label: const Text('Mon – Fri'),
+                                labelStyle: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.primary),
+                                backgroundColor: AppColors.primary
+                                    .withValues(alpha: 0.08),
+                                side: BorderSide(
+                                    color: AppColors.primary
+                                        .withValues(alpha: 0.2)),
+                                onPressed: () => _selectPreset([1, 2, 3, 4, 5]),
+                              ),
+                              const SizedBox(width: 6),
+                              ActionChip(
+                                label: const Text('Mon – Sat'),
+                                labelStyle: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.primary),
+                                backgroundColor: AppColors.primary
+                                    .withValues(alpha: 0.08),
+                                side: BorderSide(
+                                    color: AppColors.primary
+                                        .withValues(alpha: 0.2)),
+                                onPressed: () =>
+                                    _selectPreset([1, 2, 3, 4, 5, 6]),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 10),
+
+                          // Days chips
                           Wrap(
-                            spacing: 5,
-                            runSpacing: 5,
+                            spacing: 6,
+                            runSpacing: 6,
                             children: List<Widget>.generate(7, (index) {
                               final int dayNumber = index + 1;
                               final bool isSelected =
@@ -610,7 +311,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       ? "${AppFormatters.getDayName(dayNumber)} (${AppFormatters.formatTimeOfDay(dayIn)}-${AppFormatters.formatTimeOfDay(dayOut)})"
                                       : AppFormatters.getDayName(dayNumber);
 
-                              return ChoiceChip(
+                              return FilterChip(
                                 label: Text(shiftLabel),
                                 selected: isSelected,
                                 onSelected: (selected) async {
@@ -619,7 +320,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       await _customizeDaySchedule(dayNumber);
                                       return;
                                     }
-
                                     setState(() {
                                       if (selected) {
                                         if (!_tempDays.contains(dayNumber)) {
@@ -630,7 +330,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                         _tempDays.remove(dayNumber);
                                       }
                                     });
-
                                     if (selected) {
                                       await _customizeDaySchedule(dayNumber);
                                     }
@@ -647,47 +346,68 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     });
                                   }
                                 },
-                                selectedColor: colorScheme.primary
-                                    .withValues(alpha: 0.17),
-                                backgroundColor: colorScheme.surface,
+                                selectedColor: AppColors.primary
+                                    .withValues(alpha: 0.12),
+                                backgroundColor: AppColors.bgDark,
                                 labelStyle: TextStyle(
                                   color: isSelected
-                                      ? colorScheme.primary
-                                      : colorScheme.onSurface
-                                          .withValues(alpha: 0.72),
+                                      ? AppColors.primary
+                                      : AppColors.textBody,
                                   fontWeight: FontWeight.w700,
-                                  fontSize: 11,
+                                  fontSize: 12,
+                                ),
+                                side: BorderSide(
+                                  color: isSelected
+                                      ? AppColors.primary
+                                      : AppColors.cardBorder,
                                 ),
                                 showCheckmark: false,
                               );
                             }),
                           ),
-                          const SizedBox(height: 10),
-                          _buildSettingsSwitch(
-                            context: context,
-                            title: 'Custom / Broken Schedule',
-                            subtitle:
-                                'Turn ON to customize daily shift times per day.',
-                            icon: Icons.splitscreen_rounded,
+                          const SizedBox(height: 14),
+
+                          // Broken schedule switch
+                          SwitchListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text(
+                              "Custom Daily Shifts",
+                              style: TextStyle(
+                                color: AppColors.textTitle,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            subtitle: const Text(
+                              "Enable to set different shift hours for specific days",
+                              style: TextStyle(
+                                color: AppColors.textMuted,
+                                fontSize: 12,
+                              ),
+                            ),
                             value: _isBrokenSchedule,
+                            activeColor: AppColors.primary,
                             onChanged: (val) async {
-                              await _service
-                                  .setBrokenScheduleEnabled(val);
+                              await _service.setBrokenScheduleEnabled(val);
                               setState(() => _isBrokenSchedule = val);
                             },
                           ),
                           const SizedBox(height: 8),
-                          _buildSettingsLabel(
-                              context, 'DEFAULT FALLBACK SCHEDULE'),
-                          const SizedBox(height: 6),
+
+                          // Default Regular Schedule Pickers
+                          const Text(
+                            "Regular Shift Hours",
+                            style: TextStyle(
+                              color: AppColors.textTitle,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
                           Row(
                             children: [
                               Expanded(
-                                child: _buildTimePickerBox(
-                                  context: context,
-                                  label: 'TIME IN',
-                                  time: _tempIn,
-                                  icon: Icons.login_rounded,
+                                child: InkWell(
                                   onTap: () async {
                                     final time = await showTimePicker(
                                       context: context,
@@ -697,15 +417,52 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       setState(() => _tempIn = time);
                                     }
                                   },
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.bgDark,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                          color: AppColors.cardBorder),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Row(
+                                          children: [
+                                            Icon(Icons.login_rounded,
+                                                size: 14,
+                                                color: AppColors.primary),
+                                            SizedBox(width: 5),
+                                            Text(
+                                              "SHIFT START",
+                                              style: TextStyle(
+                                                color: AppColors.textMuted,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          timeInStr,
+                                          style: const TextStyle(
+                                            color: AppColors.textTitle,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: 10),
                               Expanded(
-                                child: _buildTimePickerBox(
-                                  context: context,
-                                  label: 'TIME OUT',
-                                  time: _tempOut,
-                                  icon: Icons.logout_rounded,
+                                child: InkWell(
                                   onTap: () async {
                                     final time = await showTimePicker(
                                       context: context,
@@ -715,6 +472,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       setState(() => _tempOut = time);
                                     }
                                   },
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.bgDark,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                          color: AppColors.cardBorder),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Row(
+                                          children: [
+                                            Icon(Icons.logout_rounded,
+                                                size: 14,
+                                                color: AppColors.secondary),
+                                            SizedBox(width: 5),
+                                            Text(
+                                              "SHIFT END",
+                                              style: TextStyle(
+                                                color: AppColors.textMuted,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          timeOutStr,
+                                          style: const TextStyle(
+                                            color: AppColors.textTitle,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
                               ),
                             ],
@@ -722,101 +520,86 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ],
                       ),
                     ),
+                    const SizedBox(height: 18),
 
-                    // TAB 2: Allowance & Theme
-                    SingleChildScrollView(
-                      physics: const ClampingScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                    // 3. HOURLY ALLOWANCE RATE
+                    _buildSettingsGroup(
+                      title: "Hourly Allowance Rate",
+                      subtitle: "Used to compute your total duty stipend",
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildSettingsLabel(
-                              context, 'HOURLY ALLOWANCE RATE (₱/hr)'),
-                          const SizedBox(height: 6),
+                          const Text(
+                            "Rate per hour (₱/hr)",
+                            style: TextStyle(
+                              color: AppColors.textTitle,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
                           TextField(
                             controller: _hourlyRateController,
-                            keyboardType:
-                                const TextInputType.numberWithOptions(
-                                    decimal: true),
-                            style: TextStyle(
-                              color: colorScheme.onSurface,
+                            keyboardType: const TextInputType.numberWithOptions(
+                                decimal: true),
+                            style: const TextStyle(
+                              color: AppColors.textTitle,
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
                             ),
-                            decoration: const InputDecoration(
-                              hintText: 'Default ₱12.00/hr',
-                              prefixIcon: Icon(Icons.payments_outlined),
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          _buildThemeSelector(
-                            context,
-                            (fn) => setState(fn),
-                          ),
-                          const SizedBox(height: 12),
-                          _buildSettingsLabel(
-                            context,
-                            'REQUIRED DUTY REMINDERS',
-                          ),
-                          const SizedBox(height: 8),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: colorScheme.primary
-                                  .withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: colorScheme.primary
-                                    .withValues(alpha: 0.22),
+                            decoration: InputDecoration(
+                              hintText: 'Default: 12.00',
+                              hintStyle: const TextStyle(
+                                  color: AppColors.textMuted, fontSize: 13),
+                              prefixIcon: const Icon(Icons.payments_outlined,
+                                  color: AppColors.success, size: 20),
+                              filled: true,
+                              fillColor: AppColors.bgDark,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                    color: AppColors.cardBorder),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                    color: AppColors.cardBorder),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                    color: AppColors.primary, width: 1.5),
                               ),
                             ),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Icon(
-                                  Icons.lock_clock_rounded,
-                                  color: colorScheme.primary,
-                                  size: 21,
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    'Duty reminders cannot be turned off '
-                                    'inside AWS HUB. The default is 15 '
-                                    'minutes before Time In and Time Out. '
-                                    'The actual duty-time alert and missing '
-                                    'attendance reminders stay active.',
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      fontSize: 11,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
                           ),
-                          const SizedBox(height: 10),
-                          _buildReminderPicker(
-                            context: context,
-                            title: 'Before Time In',
-                            subtitle:
-                                'Choose when the first Time In reminder appears.',
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+
+                    // 4. DUTY REMINDERS
+                    _buildSettingsGroup(
+                      title: "Duty Reminders",
+                      subtitle: "Notification alerts before your duty shifts",
+                      child: Column(
+                        children: [
+                          _buildReminderRow(
+                            title: "Before Shift Start",
                             icon: Icons.login_rounded,
                             value: _timeInReminderMinutes,
-                            isTimeIn: true,
+                            onChanged: (val) => _setReminderMinutes(
+                                isTimeIn: true, minutes: val),
                           ),
-                          const SizedBox(height: 8),
-                          _buildReminderPicker(
-                            context: context,
-                            title: 'Before Time Out',
-                            subtitle:
-                                'Choose when the first Time Out reminder appears.',
+                          const Divider(
+                              height: 16, color: AppColors.cardBorder),
+                          _buildReminderRow(
+                            title: "Before Shift End",
                             icon: Icons.logout_rounded,
                             value: _timeOutReminderMinutes,
-                            isTimeIn: false,
+                            onChanged: (val) => _setReminderMinutes(
+                                isTimeIn: false, minutes: val),
                           ),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 12),
                           SizedBox(
                             width: double.infinity,
                             child: OutlinedButton.icon(
@@ -824,54 +607,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 if (kIsWeb) {
                                   await const WebPushProfileService()
                                       .showTestNotification();
-
                                   if (!context.mounted) return;
-
-                                  ScaffoldMessenger.of(context)
-                                    ..hideCurrentSnackBar()
-                                    ..showSnackBar(
-                                      const SnackBar(
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
                                         content: Text(
-                                          'Test notification requested.',
-                                        ),
-                                      ),
-                                    );
+                                            'Test notification requested.')),
+                                  );
                                   return;
                                 }
 
                                 final sent = await _notifService
                                     .showTestNotification();
-
                                 if (!context.mounted) return;
-
-                                ScaffoldMessenger.of(context)
-                                  ..hideCurrentSnackBar()
-                                  ..showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        sent
-                                            ? 'Notification sent successfully.'
-                                            : 'Notification could not be sent.',
-                                      ),
-                                    ),
-                                  );
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(sent
+                                        ? 'Test notification sent.'
+                                        : 'Notification could not be sent.'),
+                                  ),
+                                );
                               },
                               icon: const Icon(
-                                Icons.notifications_active_rounded,
-                                size: 18,
-                              ),
-                              label: const Text('Test Notification'),
+                                  Icons.notifications_active_outlined,
+                                  size: 16),
+                              label: const Text("Send Test Notification"),
                               style: OutlinedButton.styleFrom(
-                                foregroundColor: colorScheme.primary,
-                                side: BorderSide(
-                                  color: colorScheme.primary,
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 12,
-                                ),
+                                foregroundColor: AppColors.primary,
+                                side: const BorderSide(
+                                    color: AppColors.cardBorder),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 10),
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
+                                  borderRadius: BorderRadius.circular(10),
                                 ),
                               ),
                             ),
@@ -879,82 +646,82 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ],
                       ),
                     ),
+                    const SizedBox(height: 18),
 
-                    // TAB 3: Google Form Integration
-                    SingleChildScrollView(
-                      physics: const ClampingScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildSettingsLabel(
-                              context, 'GOOGLE FORM INTEGRATION'),
-                          const SizedBox(height: 10),
-                          _buildSettingsSwitch(
-                            context: context,
-                            title: 'Submit to Google Form',
-                            subtitle:
-                                'Automatically open prefilled Google Form when clocking attendance.',
-                            icon: Icons.description_outlined,
-                            value: GoogleFormService().isEnabled,
-                            onChanged: (val) async {
-                              await GoogleFormService().setEnabled(val);
-                              setState(() {});
-                            },
+                    // 5. GOOGLE FORM INTEGRATION
+                    _buildSettingsGroup(
+                      title: "Google Form Integration",
+                      subtitle:
+                          "Automatically open prefilled form when clocking attendance",
+                      child: SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text(
+                          "Auto-Open Google Form",
+                          style: TextStyle(
+                            color: AppColors.textTitle,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
                           ),
-                        ],
+                        ),
+                        subtitle: const Text(
+                          "Prefills date, time, and student details",
+                          style: TextStyle(
+                              color: AppColors.textMuted, fontSize: 12),
+                        ),
+                        value: GoogleFormService().isEnabled,
+                        activeColor: AppColors.primary,
+                        onChanged: (val) async {
+                          await GoogleFormService().setEnabled(val);
+                          setState(() {});
+                        },
                       ),
                     ),
+                    const SizedBox(height: 20),
                   ],
                 ),
               ),
+            ),
 
-              // Save Action Button
-              Padding(
-                padding: EdgeInsets.only(
-                  left: 20,
-                  right: 20,
-                  bottom: 80 + MediaQuery.of(context).padding.bottom,
+            // PINNED SAVE CONFIGURATION BUTTON
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 18),
+              decoration: const BoxDecoration(
+                color: AppColors.bgDeep,
+                border: Border(
+                  top: BorderSide(color: AppColors.cardBorder, width: 1),
                 ),
-                child: PremiumButton(
-                  text: 'SAVE CONFIGURATION',
-                  icon: Icons.save_rounded,
-                  onTap: () async {
+              ),
+              child: SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
                     final String name = _nameController.text.trim();
                     final double? rate =
                         double.tryParse(_hourlyRateController.text.trim());
 
                     if (name.isEmpty) {
-                      ScaffoldMessenger.of(context)
-                        ..hideCurrentSnackBar()
-                        ..showSnackBar(
-                          const SnackBar(
-                            content: Text('Please enter your preferred name.'),
-                          ),
-                        );
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text('Please enter your preferred name.')),
+                      );
                       return;
                     }
 
                     if (_tempDays.isEmpty) {
-                      ScaffoldMessenger.of(context)
-                        ..hideCurrentSnackBar()
-                        ..showSnackBar(
-                          const SnackBar(
-                            content: Text('Select at least one duty day.'),
-                          ),
-                        );
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text('Select at least one duty day.')),
+                      );
                       return;
                     }
 
                     if (!_service.isScheduleValid(_tempIn, _tempOut)) {
-                      ScaffoldMessenger.of(context)
-                        ..hideCurrentSnackBar()
-                        ..showSnackBar(
-                          const SnackBar(
-                            content:
-                                Text('Time Out must be later than Time In.'),
-                          ),
-                        );
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text(
+                                'Shift End must be later than Shift Start.')),
+                      );
                       return;
                     }
 
@@ -967,27 +734,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     await _service.setScheduledTimeIn(_tempIn);
                     await _service.setScheduledTimeOut(_tempOut);
                     await _service.setTimeInReminderMinutes(
-                      _timeInReminderMinutes,
-                    );
+                        _timeInReminderMinutes);
                     await _service.setTimeOutReminderMinutes(
-                      _timeOutReminderMinutes,
-                    );
+                        _timeOutReminderMinutes);
 
                     if (kIsWeb) {
                       await const WebPushProfileService().syncSchedule(
                         dutyDays: _tempDays,
-                        timeInForDay:
-                            _service.getScheduledTimeInForDay,
+                        timeInForDay: _service.getScheduledTimeInForDay,
                       );
                     } else {
                       await _notifService.scheduleReminders(
                         dutyDays: _tempDays,
                         timeIn: _tempIn,
                         timeOut: _tempOut,
-                        timeInReminderMinutes:
-                            _timeInReminderMinutes,
-                        timeOutReminderMinutes:
-                            _timeOutReminderMinutes,
+                        timeInReminderMinutes: _timeInReminderMinutes,
+                        timeOutReminderMinutes: _timeOutReminderMinutes,
                       );
                     }
 
@@ -997,8 +759,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       await showDialog<void>(
                         context: context,
                         barrierDismissible: false,
-                        barrierColor:
-                            Colors.black.withValues(alpha: 0.55),
+                        barrierColor: Colors.black.withValues(alpha: 0.35),
                         builder: (_) => const _SaveSuccessOverlay(),
                       );
                     }
@@ -1007,12 +768,125 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       Navigator.pop(context);
                     }
                   },
+                  icon: const Icon(Icons.check_circle_outline_rounded,
+                      color: Colors.white, size: 20),
+                  label: const Text(
+                    "SAVE SETTINGS",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSettingsGroup({
+    required String title,
+    required String subtitle,
+    required Widget child,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.bgDeep,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.cardBorder),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x04000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: AppColors.textTitle,
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.2,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            subtitle,
+            style: const TextStyle(
+              color: AppColors.textMuted,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 14),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReminderRow({
+    required String title,
+    required IconData icon,
+    required int value,
+    required ValueChanged<int> onChanged,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, color: AppColors.primary, size: 18),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(
+              color: AppColors.textTitle,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        DropdownButtonHideUnderline(
+          child: DropdownButton<int>(
+            value: value,
+            borderRadius: BorderRadius.circular(12),
+            items: AttendanceService.reminderMinuteOptions
+                .map(
+                  (minutes) => DropdownMenuItem<int>(
+                    value: minutes,
+                    child: Text(
+                      '$minutes min before',
+                      style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textTitle),
+                    ),
+                  ),
+                )
+                .toList(),
+            onChanged: (val) {
+              if (val != null && val != value) {
+                onChanged(val);
+              }
+            },
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1028,23 +902,35 @@ class _SaveSuccessOverlayState extends State<_SaveSuccessOverlay>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late final Animation<double> _scale;
+  late final Animation<double> _iconScale;
   late final Animation<double> _fade;
 
   @override
   void initState() {
     super.initState();
+    
+
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 600),
+      duration: const Duration(milliseconds: 450),
     );
-    _scale = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.elasticOut),
+
+    _scale = Tween<double>(begin: 0.82, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
     );
+
+    _iconScale = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.2, 1.0, curve: Curves.elasticOut),
+      ),
+    );
+
     _fade = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
 
     _controller.forward();
 
-    Future.delayed(const Duration(milliseconds: 1000), () {
+    Future.delayed(const Duration(milliseconds: 1100), () {
       if (mounted) Navigator.of(context).pop();
     });
   }
@@ -1062,32 +948,78 @@ class _SaveSuccessOverlayState extends State<_SaveSuccessOverlay>
         opacity: _fade,
         child: ScaleTransition(
           scale: _scale,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 96,
-                height: 96,
-                decoration: const BoxDecoration(
-                  color: AppColors.success,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.check_rounded,
-                  color: Colors.white,
-                  size: 56,
-                ),
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              width: 190,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+              decoration: BoxDecoration(
+                color: AppColors.bgDeep,
+                borderRadius: BorderRadius.circular(26),
+                border: Border.all(color: AppColors.cardBorder, width: 1.2),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x1A000000),
+                    blurRadius: 30,
+                    offset: Offset(0, 10),
+                  ),
+                ],
               ),
-              const SizedBox(height: 18),
-              const Text(
-                'Settings Saved',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: AppColors.success.withValues(alpha: 0.14),
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: ScaleTransition(
+                      scale: _iconScale,
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: const BoxDecoration(
+                          color: AppColors.success,
+                          shape: BoxShape.circle,
+                        ),
+                        alignment: Alignment.center,
+                        child: const Text(
+                          '✓',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.w900,
+                            height: 1.0,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Settings Saved',
+                    style: TextStyle(
+                      color: AppColors.textTitle,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  const Text(
+                    'Preferences updated',
+                    style: TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),

@@ -21,97 +21,63 @@ Future<void> main() async {
         'sb_publishable_YVTSzNoD11FYvW_O6L11cg_0g0v9WgN',
   );
 
-  // Native Android / native iOS notifications.
-  // iPhone PWA notifications are handled by OneSignal.
   if (!kIsWeb &&
       (defaultTargetPlatform == TargetPlatform.android ||
           defaultTargetPlatform == TargetPlatform.iOS)) {
     try {
       await NotificationService().init();
     } catch (error) {
-      debugPrint(
-        'Notification initialization failed: $error',
-      );
+      debugPrint('Notification initialization failed: $error');
     }
   }
 
-  runApp(
-    const MobileSchedApp(),
-  );
+  runApp(const MobileSchedApp());
 }
 
 class MobileSchedApp extends StatefulWidget {
-  const MobileSchedApp({
-    super.key,
-  });
+  const MobileSchedApp({super.key});
 
   @override
-  State<MobileSchedApp> createState() =>
-      _MobileSchedAppState();
+  State<MobileSchedApp> createState() => _MobileSchedAppState();
 }
 
 class _MobileSchedAppState extends State<MobileSchedApp> {
   final ThemeService _themeService = ThemeService();
 
-  void _updateSystemUiOverlay(
-    AppPalette palette,
-  ) {
+  void _updateSystemUiOverlay(AppPalette palette) {
     SystemChrome.setSystemUIOverlayStyle(
       SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness:
-            palette.isDark
-                ? Brightness.light
-                : Brightness.dark,
+            palette.isDark ? Brightness.light : Brightness.dark,
         statusBarBrightness:
-            palette.isDark
-                ? Brightness.dark
-                : Brightness.light,
-        systemNavigationBarColor:
-            palette.background,
+            palette.isDark ? Brightness.dark : Brightness.light,
+        systemNavigationBarColor: palette.background,
         systemNavigationBarIconBrightness:
-            palette.isDark
-                ? Brightness.light
-                : Brightness.dark,
-        systemNavigationBarDividerColor:
-            Colors.transparent,
+            palette.isDark ? Brightness.light : Brightness.dark,
+        systemNavigationBarDividerColor: Colors.transparent,
       ),
     );
   }
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _themeService,
       builder: (context, child) {
         final AppPalette palette =
-            MobileSchedTheme.palette(
-          _themeService.preset,
-        );
+            MobileSchedTheme.palette(_themeService.preset);
 
-        WidgetsBinding.instance
-            .addPostFrameCallback(
-          (_) {
-            _updateSystemUiOverlay(
-              palette,
-            );
-          },
-        );
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _updateSystemUiOverlay(palette);
+        });
 
         return MaterialApp(
           title: 'AWS HUB',
           debugShowCheckedModeBanner: false,
-          theme: MobileSchedTheme.build(
-            _themeService.preset,
-          ),
-          themeAnimationDuration:
-              const Duration(
-            milliseconds: 350,
-          ),
-          themeAnimationCurve:
-              Curves.easeOutCubic,
+          theme: MobileSchedTheme.build(_themeService.preset),
+          themeAnimationDuration: const Duration(milliseconds: 350),
+          themeAnimationCurve: Curves.easeOutCubic,
           home: const SplashScreen(),
         );
       },

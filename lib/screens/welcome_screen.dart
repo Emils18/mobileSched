@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import '../services/attendance_service.dart';
-import '../services/theme_service.dart';
-import '../theme/app_theme.dart';
-import '../widgets/premium_button.dart';
+import '../utils/constants.dart';
 import 'main_shell.dart';
 
 class WelcomeScreen extends StatefulWidget {
@@ -27,15 +25,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     DateTime.saturday,
   ];
 
-  TimeOfDay _timeIn = const TimeOfDay(
-    hour: 16,
-    minute: 30,
-  );
-
-  TimeOfDay _timeOut = const TimeOfDay(
-    hour: 21,
-    minute: 30,
-  );
+  TimeOfDay _timeIn = const TimeOfDay(hour: 16, minute: 30);
+  TimeOfDay _timeOut = const TimeOfDay(hour: 21, minute: 30);
 
   int _step = 0;
 
@@ -48,138 +39,68 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   Future<void> _next() async {
     if (_step == 0) {
       if (_nameController.text.trim().isEmpty) {
-        _showMessage(
-          'Please enter your preferred name.',
-        );
+        _showMessage('Please enter your preferred name.');
         return;
       }
-
       FocusScope.of(context).unfocus();
-
-      setState(() {
-        _step = 1;
-      });
-
+      setState(() => _step = 1);
       return;
     }
 
     if (_step == 1) {
       if (_selectedDays.isEmpty) {
-        _showMessage(
-          'Select at least one duty day.',
-        );
+        _showMessage('Select at least one duty day.');
         return;
       }
-
-      setState(() {
-        _step = 2;
-      });
-
+      setState(() => _step = 2);
       return;
     }
 
-    if (!_attendanceService.isScheduleValid(
-      _timeIn,
-      _timeOut,
-    )) {
-      _showMessage(
-        'Time Out must be later than Time In.',
-      );
+    if (!_attendanceService.isScheduleValid(_timeIn, _timeOut)) {
+      _showMessage('Time Out must be later than Time In.');
       return;
     }
 
-    await _attendanceService.setUserName(
-      _nameController.text.trim(),
-    );
+    await _attendanceService.setUserName(_nameController.text.trim());
+    await _attendanceService.setDutyDays(_selectedDays);
+    await _attendanceService.setScheduledTimeIn(_timeIn);
+    await _attendanceService.setScheduledTimeOut(_timeOut);
 
-    await _attendanceService.setDutyDays(
-      _selectedDays,
-    );
-
-    await _attendanceService.setScheduledTimeIn(
-      _timeIn,
-    );
-
-    await _attendanceService.setScheduledTimeOut(
-      _timeOut,
-    );
-
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
 
     Navigator.of(context).pushReplacement(
       PageRouteBuilder<void>(
-        pageBuilder: (
-          context,
-          animation,
-          secondaryAnimation,
-        ) {
-          return const MainShell();
-        },
-        transitionDuration: const Duration(
-          milliseconds: 550,
-        ),
-        transitionsBuilder: (
-          context,
-          animation,
-          secondaryAnimation,
-          child,
-        ) {
-          return FadeTransition(
-            opacity: animation,
-            child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0, 0.04),
-                end: Offset.zero,
-              ).animate(
-                CurvedAnimation(
-                  parent: animation,
-                  curve: Curves.easeOutCubic,
-                ),
-              ),
-              child: child,
-            ),
-          );
-        },
+        pageBuilder: (_, __, ___) => const MainShell(),
+        transitionDuration: const Duration(milliseconds: 400),
+        transitionsBuilder: (_, animation, __, child) =>
+            FadeTransition(opacity: animation, child: child),
       ),
     );
   }
 
   void _back() {
-    if (_step == 0) {
-      return;
-    }
-
-    setState(() {
-      _step--;
-    });
+    if (_step == 0) return;
+    setState(() => _step--);
   }
 
   void _showMessage(String message) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-        ),
-      );
+      ..showSnackBar(SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ));
   }
 
-  Future<void> _pickTime({
-    required bool isTimeIn,
-  }) async {
+  Future<void> _pickTime({required bool isTimeIn}) async {
     final initialTime = isTimeIn ? _timeIn : _timeOut;
-
     final selected = await showTimePicker(
       context: context,
       initialTime: initialTime,
+      helpText: isTimeIn ? "Select Shift Start (Time In)" : "Select Shift End (Time Out)",
     );
-
-    if (selected == null) {
-      return;
-    }
-
+    if (selected == null) return;
     setState(() {
       if (isTimeIn) {
         _timeIn = selected;
@@ -189,93 +110,70 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     });
   }
 
+  void _selectPreset(List<int> days) {
+    setState(() {
+      _selectedDays
+        ..clear()
+        ..addAll(days);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final colors = MobileSchedTheme.palette(
-      ThemeService().preset,
-    );
-
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomRight,
-            colors: [
-              colors.background,
-              colors.backgroundSecondary,
-            ],
-          ),
-        ),
-        child: Stack(
+      backgroundColor: AppColors.bgDark,
+      body: SafeArea(
+        child: Column(
           children: [
-            Positioned(
-              top: -120,
-              right: -100,
-              child: _backgroundOrb(
-                color: colors.primary,
-                size: 290,
-                opacity: 0.09,
+            // STEP PROGRESS HEADER
+            _buildProgressHeader(),
+
+            // STEP CONTENT
+            Expanded(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 260),
+                child: _buildStep(),
               ),
             ),
-            Positioned(
-              bottom: -140,
-              left: -110,
-              child: _backgroundOrb(
-                color: colors.secondary,
-                size: 300,
-                opacity: 0.07,
+
+            // BOTTOM ACTION BAR
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+              decoration: const BoxDecoration(
+                color: AppColors.bgDeep,
+                border: Border(
+                  top: BorderSide(color: AppColors.cardBorder, width: 1),
+                ),
               ),
-            ),
-            SafeArea(
-              child: Column(
-                children: [
-                  _buildProgressHeader(colors),
-                  Expanded(
-                    child: AnimatedSwitcher(
-                      duration: const Duration(
-                        milliseconds: 400,
-                      ),
-                      switchInCurve: Curves.easeOutCubic,
-                      switchOutCurve: Curves.easeInCubic,
-                      transitionBuilder: (
-                        child,
-                        animation,
-                      ) {
-                        return FadeTransition(
-                          opacity: animation,
-                          child: SlideTransition(
-                            position: Tween<Offset>(
-                              begin: const Offset(0.05, 0),
-                              end: Offset.zero,
-                            ).animate(animation),
-                            child: child,
-                          ),
-                        );
-                      },
-                      child: _buildStep(colors),
+              child: SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton.icon(
+                  onPressed: _next,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      24,
-                      10,
-                      24,
-                      26,
-                    ),
-                    child: PremiumButton(
-                      text: _step == 2
-                          ? 'ENTER AWS HUB'
-                          : 'CONTINUE',
-                      icon: _step == 2
-                          ? Icons.rocket_launch_rounded
-                          : Icons.arrow_forward_rounded,
-                      onTap: _next,
+                  icon: Icon(
+                    _step == 2
+                        ? Icons.check_circle_rounded
+                        : Icons.arrow_forward_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                  label: Text(
+                    _step == 2 ? 'ENTER AWS HUB' : 'CONTINUE',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
                     ),
                   ),
-                ],
+                ),
               ),
             ),
           ],
@@ -284,46 +182,29 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     );
   }
 
-  Widget _backgroundOrb({
-    required Color color,
-    required double size,
-    required double opacity,
-  }) {
-    return IgnorePointer(
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: color.withValues(alpha: opacity),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProgressHeader(AppPalette colors) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        18,
-        18,
-        18,
-        0,
+  // =========================================================================
+  // PROGRESS INDICATOR
+  // =========================================================================
+  Widget _buildProgressHeader() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: const BoxDecoration(
+        color: AppColors.bgDeep,
+        border: Border(bottom: BorderSide(color: AppColors.cardBorder, width: 1)),
       ),
       child: Row(
         children: [
           SizedBox(
-            width: 48,
-            height: 48,
+            width: 40,
+            height: 40,
             child: _step > 0
                 ? IconButton(
                     tooltip: 'Back',
                     onPressed: _back,
-                    style: IconButton.styleFrom(
-                      backgroundColor: colors.surface,
-                    ),
-                    icon: Icon(
+                    icon: const Icon(
                       Icons.arrow_back_rounded,
-                      color: colors.textPrimary,
+                      color: AppColors.textTitle,
+                      size: 20,
                     ),
                   )
                 : null,
@@ -331,78 +212,35 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           Expanded(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(
-                3,
-                (index) {
-                  final active = index <= _step;
-
-                  return AnimatedContainer(
-                    duration: const Duration(
-                      milliseconds: 300,
-                    ),
-                    curve: Curves.easeOutCubic,
-                    width: index == _step ? 34 : 9,
-                    height: 9,
-                    margin: const EdgeInsets.symmetric(
-                      horizontal: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      gradient: index == _step
-                          ? LinearGradient(
-                              colors: [
-                                colors.primary,
-                                colors.secondary,
-                              ],
-                            )
-                          : null,
-                      color: index == _step
-                          ? null
-                          : active
-                              ? colors.primary.withValues(
-                                  alpha: 0.65,
-                                )
-                              : colors.border,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: index == _step
-                          ? [
-                              BoxShadow(
-                                color: colors.primary.withValues(
-                                  alpha: 0.28,
-                                ),
-                                blurRadius: 12,
-                              ),
-                            ]
-                          : null,
-                    ),
-                  );
-                },
-              ),
+              children: List.generate(3, (index) {
+                final bool isActive = index <= _step;
+                final bool isCurrent = index == _step;
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  width: isCurrent ? 28 : 8,
+                  height: 6,
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  decoration: BoxDecoration(
+                    color: isCurrent
+                        ? AppColors.primary
+                        : (isActive
+                            ? AppColors.primary.withValues(alpha: 0.4)
+                            : AppColors.cardBorder),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                );
+              }),
             ),
           ),
           SizedBox(
-            width: 48,
-            height: 48,
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 9,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  color: colors.surface,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: colors.border,
-                  ),
-                ),
-                child: Text(
-                  '${_step + 1}/3',
-                  style: TextStyle(
-                    color: colors.textMuted,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
+            width: 40,
+            child: Text(
+              '${_step + 1} of 3',
+              textAlign: TextAlign.end,
+              style: const TextStyle(
+                color: AppColors.textMuted,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
@@ -411,194 +249,140 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     );
   }
 
-  Widget _buildStep(AppPalette colors) {
+  Widget _buildStep() {
     switch (_step) {
       case 0:
-        return _buildNameStep(colors);
+        return _buildNameStep();
       case 1:
-        return _buildDaysStep(colors);
+        return _buildDaysStep();
       default:
-        return _buildScheduleStep(colors);
+        return _buildScheduleStep();
     }
   }
 
-  Widget _buildNameStep(AppPalette colors) {
+  // =========================================================================
+  // STEP 1: PREFERRED NAME
+  // =========================================================================
+  Widget _buildNameStep() {
     return SingleChildScrollView(
       key: const ValueKey('name-step'),
-      keyboardDismissBehavior:
-          ScrollViewKeyboardDismissBehavior.onDrag,
-      padding: const EdgeInsets.fromLTRB(
-        28,
-        28,
-        28,
-        20,
-      ),
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
       child: Column(
         children: [
-          Hero(
-            tag: 'mobilesched-logo',
-            child: Container(
-              width: 132,
-              height: 132,
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: colors.surface,
-                borderRadius: BorderRadius.circular(34),
-                border: Border.all(
-                  color: colors.primary.withValues(
-                    alpha: 0.30,
-                  ),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: colors.primary.withValues(
-                      alpha: 0.20,
-                    ),
-                    blurRadius: 34,
-                    spreadRadius: -4,
-                    offset: const Offset(0, 14),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(27),
-                child: Image.asset(
-                  'assets/images/mobilesched_logo.png',
-                  fit: BoxFit.cover,
-                  errorBuilder: (
-                    context,
-                    error,
-                    stackTrace,
-                  ) {
-                    return Container(
-                      color: colors.surfaceStrong,
-                      child: Icon(
-                        Icons.hub_rounded,
-                        color: colors.primary,
-                        size: 62,
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-          )
-              .animate()
-              .fadeIn(
-                duration: 450.ms,
-              )
-              .scale(
-                begin: const Offset(0.92, 0.92),
-                end: const Offset(1, 1),
-                curve: Curves.easeOutBack,
-              ),
-
-          const SizedBox(height: 22),
-
+          const SizedBox(height: 10),
+          // App Logo Card
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 6,
-            ),
+            width: 100,
+            height: 100,
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: colors.primary.withValues(
-                alpha: 0.10,
-              ),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: colors.primary.withValues(
-                  alpha: 0.18,
-                ),
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.hub_rounded,
-                  color: colors.primary,
-                  size: 13,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  'WORKING SCHOLAR HUB',
-                  style: TextStyle(
-                    color: colors.primary,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1,
-                  ),
+              color: AppColors.bgDeep,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: AppColors.cardBorder),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x08000000),
+                  blurRadius: 16,
+                  offset: Offset(0, 4),
                 ),
               ],
             ),
-          ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Image.asset(
+                'assets/images/mobilesched_logo.png',
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const Icon(
+                  Icons.school_rounded,
+                  color: AppColors.primary,
+                  size: 48,
+                ),
+              ),
+            ),
+          ).animate().fadeIn(duration: 350.ms),
 
-          const SizedBox(height: 14),
-
-          Text(
+          const SizedBox(height: 24),
+          const Text(
             'Welcome to AWS HUB',
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: colors.textPrimary,
-              fontSize: 30,
+              color: AppColors.textTitle,
+              fontSize: 24,
               fontWeight: FontWeight.w900,
-              letterSpacing: -0.8,
+              letterSpacing: -0.4,
             ),
           ),
-
-          const SizedBox(height: 9),
-
-          Text(
-            'Attendance, duty schedules, announcements, and scholar updates in one place.',
+          const SizedBox(height: 8),
+          const Text(
+            'Your working scholar workspace for attendance, duty shifts, and stipend tracking.',
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: colors.textSecondary,
+              color: AppColors.textBody,
               fontSize: 14,
-              height: 1.55,
+              height: 1.45,
             ),
           ),
-
           const SizedBox(height: 32),
 
+          // Name Input Card
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: colors.surface.withValues(alpha: 0.72),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: colors.border,
-              ),
+              color: AppColors.bgDeep,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: AppColors.cardBorder),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'WHAT SHOULD WE CALL YOU?',
+                const Text(
+                  'Preferred Name',
                   style: TextStyle(
-                    color: colors.textMuted,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.2,
+                    color: AppColors.textTitle,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(height: 11),
+                const SizedBox(height: 4),
+                const Text(
+                  'This name will appear on your duty attendance and logs.',
+                  style: TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 14),
                 TextField(
                   controller: _nameController,
                   autofocus: true,
                   textCapitalization: TextCapitalization.words,
                   textInputAction: TextInputAction.done,
-                  onSubmitted: (_) {
-                    _next();
-                  },
-                  style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                  onSubmitted: (_) => _next(),
+                  style: const TextStyle(
+                    color: AppColors.textTitle,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
                   ),
-                  decoration: const InputDecoration(
-                    hintText: 'Enter your preferred name',
-                    prefixIcon: Icon(
-                      Icons.person_outline_rounded,
+                  decoration: InputDecoration(
+                    hintText: 'E.g. Maria Santos',
+                    hintStyle: const TextStyle(
+                        color: AppColors.textMuted, fontSize: 14),
+                    prefixIcon: const Icon(Icons.person_outline_rounded,
+                        color: AppColors.primary, size: 20),
+                    filled: true,
+                    fillColor: AppColors.bgDark,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AppColors.cardBorder),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AppColors.cardBorder),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                          color: AppColors.primary, width: 1.5),
                     ),
                   ),
                 ),
@@ -610,375 +394,415 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     );
   }
 
-  Widget _buildDaysStep(AppPalette colors) {
-    const dayNames = [
-      'Monday',
-      'Tuesday',
-      'Wednesday',
-      'Thursday',
-      'Friday',
-      'Saturday',
-      'Sunday',
+  // =========================================================================
+  // STEP 2: DUTY DAYS (COMPACT & CLEAN)
+  // =========================================================================
+  Widget _buildDaysStep() {
+    const days = [
+      {'num': DateTime.monday, 'name': 'Monday', 'short': 'Mon'},
+      {'num': DateTime.tuesday, 'name': 'Tuesday', 'short': 'Tue'},
+      {'num': DateTime.wednesday, 'name': 'Wednesday', 'short': 'Wed'},
+      {'num': DateTime.thursday, 'name': 'Thursday', 'short': 'Thu'},
+      {'num': DateTime.friday, 'name': 'Friday', 'short': 'Fri'},
+      {'num': DateTime.saturday, 'name': 'Saturday', 'short': 'Sat'},
+      {'num': DateTime.sunday, 'name': 'Sunday', 'short': 'Sun'},
     ];
 
     return SingleChildScrollView(
       key: const ValueKey('days-step'),
-      padding: const EdgeInsets.fromLTRB(
-        28,
-        34,
-        28,
-        20,
-      ),
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildIntroIcon(
-            colors: colors,
-            icon: Icons.calendar_month_rounded,
-          ),
-
-          const SizedBox(height: 22),
-
-          Text(
-            'Choose your duty days',
-            style: TextStyle(
-              color: colors.textPrimary,
-              fontSize: 29,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-
-          const SizedBox(height: 10),
-
-          Text(
-            'AWS HUB uses these days to calculate your attendance status and schedule reminders.',
-            style: TextStyle(
-              color: colors.textSecondary,
-              height: 1.55,
-            ),
-          ),
-
-          const SizedBox(height: 26),
-
-          ...List.generate(
-            7,
-            (index) {
-              final dayNumber = index + 1;
-              final selected = _selectedDays.contains(
-                dayNumber,
-              );
-
-              return Padding(
-                padding: const EdgeInsets.only(
-                  bottom: 10,
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(18),
-                    onTap: () {
-                      setState(() {
-                        if (selected) {
-                          _selectedDays.remove(dayNumber);
-                        } else {
-                          _selectedDays.add(dayNumber);
-                          _selectedDays.sort();
-                        }
-                      });
-                    },
-                    child: AnimatedContainer(
-                      duration: const Duration(
-                        milliseconds: 220,
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 18,
-                        vertical: 16,
-                      ),
-                      decoration: BoxDecoration(
-                        color: selected
-                            ? colors.primary.withValues(
-                                alpha: 0.13,
-                              )
-                            : colors.surface,
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                          color: selected
-                              ? colors.primary
-                              : colors.border,
-                        ),
-                        boxShadow: selected
-                            ? [
-                                BoxShadow(
-                                  color: colors.primary.withValues(
-                                    alpha: 0.10,
-                                  ),
-                                  blurRadius: 16,
-                                ),
-                              ]
-                            : null,
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            selected
-                                ? Icons.check_circle_rounded
-                                : Icons.circle_outlined,
-                            color: selected
-                                ? colors.primary
-                                : colors.textMuted,
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Text(
-                              dayNames[index],
-                              style: TextStyle(
-                                color: colors.textPrimary,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                          if (selected)
-                            Text(
-                              'Selected',
-                              style: TextStyle(
-                                color: colors.primary,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildScheduleStep(AppPalette colors) {
-    return SingleChildScrollView(
-      key: const ValueKey('schedule-step'),
-      padding: const EdgeInsets.fromLTRB(
-        28,
-        34,
-        28,
-        20,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildIntroIcon(
-            colors: colors,
-            icon: Icons.schedule_rounded,
-          ),
-
-          const SizedBox(height: 22),
-
-          Text(
-            'Set your schedule',
-            style: TextStyle(
-              color: colors.textPrimary,
-              fontSize: 29,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-
-          const SizedBox(height: 10),
-
-          Text(
-            'Choose your regular Time In and Time Out. You can update these anytime in Settings.',
-            style: TextStyle(
-              color: colors.textSecondary,
-              height: 1.55,
-            ),
-          ),
-
-          const SizedBox(height: 30),
-
-          _buildTimeCard(
-            colors: colors,
-            title: 'TIME IN',
-            time: _timeIn,
-            icon: Icons.login_rounded,
-            onTap: () {
-              _pickTime(
-                isTimeIn: true,
-              );
-            },
-          ),
-
-          const SizedBox(height: 16),
-
-          _buildTimeCard(
-            colors: colors,
-            title: 'TIME OUT',
-            time: _timeOut,
-            icon: Icons.logout_rounded,
-            onTap: () {
-              _pickTime(
-                isTimeIn: false,
-              );
-            },
-          ),
-
-          const SizedBox(height: 24),
-
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: colors.primary.withValues(
-                alpha: 0.08,
-              ),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: colors.primary.withValues(
-                  alpha: 0.20,
-                ),
-              ),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  Icons.info_outline_rounded,
-                  color: colors.primary,
-                  size: 20,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Your attendance status and reminders will use this regular duty schedule.',
-                    style: TextStyle(
-                      color: colors.textSecondary,
-                      fontSize: 13,
-                      height: 1.45,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildIntroIcon({
-    required AppPalette colors,
-    required IconData icon,
-  }) {
-    return Container(
-      width: 62,
-      height: 62,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            colors.primary.withValues(alpha: 0.20),
-            colors.secondary.withValues(alpha: 0.12),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: colors.primary.withValues(alpha: 0.24),
-        ),
-      ),
-      child: Icon(
-        icon,
-        color: colors.primary,
-        size: 31,
-      ),
-    );
-  }
-
-  Widget _buildTimeCard({
-    required AppPalette colors,
-    required String title,
-    required TimeOfDay time,
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
-    final formattedTime = MaterialLocalizations.of(
-      context,
-    ).formatTimeOfDay(time);
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(24),
-        child: Container(
-          padding: const EdgeInsets.all(22),
-          decoration: BoxDecoration(
-            color: colors.surface,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: colors.border,
-            ),
-          ),
-          child: Row(
+          Row(
             children: [
               Container(
-                width: 52,
-                height: 52,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
-                  color: colors.primary.withValues(
-                    alpha: 0.13,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
+                  color: AppColors.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(
-                  icon,
-                  color: colors.primary,
-                ),
+                child: const Icon(Icons.calendar_month_rounded,
+                    color: AppColors.primary, size: 22),
               ),
-              const SizedBox(width: 18),
-              Expanded(
+              const SizedBox(width: 14),
+              const Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      title,
+                      'Choose Duty Days',
                       style: TextStyle(
-                        color: colors.textMuted,
-                        fontSize: 11,
+                        color: AppColors.textTitle,
+                        fontSize: 20,
                         fontWeight: FontWeight.w800,
-                        letterSpacing: 1.2,
+                        letterSpacing: -0.3,
                       ),
                     ),
-                    const SizedBox(height: 5),
+                    SizedBox(height: 2),
                     Text(
-                      formattedTime,
+                      'Select active days for attendance alerts',
                       style: TextStyle(
-                        color: colors.textPrimary,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
+                        color: AppColors.textMuted,
+                        fontSize: 12,
                       ),
                     ),
                   ],
                 ),
               ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // QUICK PRESETS ROW (Saves student from tapping 6 times!)
+          Row(
+            children: [
+              const Text(
+                'Quick Presets:',
+                style: TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(width: 8),
+              ActionChip(
+                label: const Text('Mon – Fri'),
+                labelStyle: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary),
+                backgroundColor: AppColors.primary.withValues(alpha: 0.08),
+                side: BorderSide(
+                    color: AppColors.primary.withValues(alpha: 0.2)),
+                onPressed: () => _selectPreset([1, 2, 3, 4, 5]),
+              ),
+              const SizedBox(width: 6),
+              ActionChip(
+                label: const Text('Mon – Sat'),
+                labelStyle: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary),
+                backgroundColor: AppColors.primary.withValues(alpha: 0.08),
+                side: BorderSide(
+                    color: AppColors.primary.withValues(alpha: 0.2)),
+                onPressed: () => _selectPreset([1, 2, 3, 4, 5, 6]),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // Grouped Days List
+          Container(
+            decoration: BoxDecoration(
+              color: AppColors.bgDeep,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.cardBorder),
+            ),
+            child: ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: days.length,
+              separatorBuilder: (_, __) =>
+                  const Divider(height: 1, color: AppColors.cardBorder),
+              itemBuilder: (context, index) {
+                final dayNum = days[index]['num'] as int;
+                final dayName = days[index]['name'] as String;
+                final isSelected = _selectedDays.contains(dayNum);
+
+                return InkWell(
+                  onTap: () {
+                    setState(() {
+                      if (isSelected) {
+                        _selectedDays.remove(dayNum);
+                      } else {
+                        _selectedDays.add(dayNum);
+                        _selectedDays.sort();
+                      }
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(14),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 24,
+                          height: 24,
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? AppColors.primary
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(7),
+                            border: Border.all(
+                              color: isSelected
+                                  ? AppColors.primary
+                                  : AppColors.cardBorder,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: isSelected
+                              ? const Icon(Icons.check_rounded,
+                                  color: Colors.white, size: 16)
+                              : null,
+                        ),
+                        const SizedBox(width: 14),
+                        Text(
+                          dayName,
+                          style: TextStyle(
+                            color: isSelected
+                                ? AppColors.textTitle
+                                : AppColors.textMuted,
+                            fontSize: 14,
+                            fontWeight: isSelected
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                          ),
+                        ),
+                        const Spacer(),
+                        if (isSelected)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.10),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'On Duty',
+                              style: TextStyle(
+                                color: AppColors.primary,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // =========================================================================
+  // STEP 3: SCHEDULE (UNIFIED SHIFT CARD)
+  // =========================================================================
+  Widget _buildScheduleStep() {
+    final timeInStr =
+        MaterialLocalizations.of(context).formatTimeOfDay(_timeIn);
+    final timeOutStr =
+        MaterialLocalizations.of(context).formatTimeOfDay(_timeOut);
+
+    return SingleChildScrollView(
+      key: const ValueKey('schedule-step'),
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
               Container(
-                width: 40,
-                height: 40,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
-                  color: colors.surfaceStrong,
-                  shape: BoxShape.circle,
+                  color: AppColors.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(
-                  Icons.edit_rounded,
-                  color: colors.textMuted,
-                  size: 19,
+                child: const Icon(Icons.schedule_rounded,
+                    color: AppColors.primary, size: 22),
+              ),
+              const SizedBox(width: 14),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Regular Shift Hours',
+                      style: TextStyle(
+                        color: AppColors.textTitle,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'You can customize per-day shifts in Settings later',
+                      style: TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-        ),
+          const SizedBox(height: 24),
+
+          // UNIFIED SHIFT TIMELINE CARD
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: AppColors.bgDeep,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: AppColors.cardBorder),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    // Start Duty Box
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => _pickTime(isTimeIn: true),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: AppColors.bgDark,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.cardBorder),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Row(
+                                children: [
+                                  Icon(Icons.login_rounded,
+                                      size: 15, color: AppColors.primary),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'SHIFT START',
+                                    style: TextStyle(
+                                      color: AppColors.textMuted,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                timeInStr,
+                                style: const TextStyle(
+                                  color: AppColors.textTitle,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              const Text(
+                                'Tap to edit',
+                                style: TextStyle(
+                                  color: AppColors.primary,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+
+                    // End Duty Box
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => _pickTime(isTimeIn: false),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: AppColors.bgDark,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.cardBorder),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Row(
+                                children: [
+                                  Icon(Icons.logout_rounded,
+                                      size: 15, color: AppColors.secondary),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'SHIFT END',
+                                    style: TextStyle(
+                                      color: AppColors.textMuted,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                timeOutStr,
+                                style: const TextStyle(
+                                  color: AppColors.textTitle,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              const Text(
+                                'Tap to edit',
+                                style: TextStyle(
+                                  color: AppColors.primary,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Informational Tip
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.bgDeep,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.cardBorder),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.info_outline_rounded,
+                    color: AppColors.primary, size: 20),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'AWS HUB uses this regular schedule to remind you before shift start and end.',
+                    style: TextStyle(
+                      color: AppColors.textBody,
+                      fontSize: 12,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

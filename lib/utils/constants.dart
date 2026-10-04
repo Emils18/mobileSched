@@ -1,57 +1,36 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  // ============================================================
-  // OFFICIAL MOBILESCHED BRAND COLORS
-  // ============================================================
-
+  // Brand colors
   static const Color brandNavy = Color(0xFF103F87);
   static const Color brandCream = Color(0xFFFEF8F2);
   static const Color brandOrange = Color(0xFFE5791E);
   static const Color brandSky = Color(0xFF2D8DCC);
 
-  // ============================================================
-  // DARK APP FOUNDATION
-  // ============================================================
+  // App foundation — WHITE / LIGHT
+  static const Color bgDeep = Color(0xFFFFFFFF);   // page background
+  static const Color bgDark = Color(0xFFF7F9FB);   // nav bar, alt surface
+  static const Color bgSoft = Color(0xFFEDF1F5);   // secondary surface
 
-  static const Color bgDeep = Color(0xFF07172E);
-  static const Color bgDark = Color(0xFF0B2447);
-  static const Color bgSoft = Color(0xFF103F87);
-
-  // Main accents
+  // Accents
   static const Color primary = brandSky;
   static const Color primaryDark = brandNavy;
   static const Color secondary = brandOrange;
-
-  // Legacy compatibility.
-  // Keep this name so older widgets do not break.
   static const Color accentPurple = brandSky;
 
-  // ============================================================
-  // CARDS
-  // ============================================================
+  // Cards
+  static const Color cardGlass = Color(0xFFFFFFFF);
+  static const Color cardBorder = Color(0xFFE5E9EE);
 
-  static const Color cardGlass = Color(0x14FEF8F2);
-  static const Color cardBorder = Color(0x332D8DCC);
+  // Text
+  static const Color textTitle = Color(0xFF1F2A37);
+  static const Color textBody = Color(0xFF4B5563);
+  static const Color textMuted = Color(0xFF6B7280);
 
-  // ============================================================
-  // TEXT
-  // ============================================================
-
-  static const Color textTitle = brandCream;
-  static const Color textBody = Color(0xFFD8E3EF);
-  static const Color textMuted = Color(0xFF91A6BA);
-
-  // ============================================================
-  // STATUS COLORS
-  // ============================================================
-
-  static const Color success = Color(0xFF35A86B);
-  static const Color error = Color(0xFFE05252);
-  static const Color warning = Color(0xFFF2B544);
-
-  // Keep existing name because birthdays and several
-  // existing widgets already use AppColors.orange.
+  // Status
+  static const Color success = Color(0xFF1E8E5A);
+  static const Color error = Color(0xFFC0392B);
+  static const Color warning = Color(0xFFD97706);
   static const Color orange = brandOrange;
 }
 
@@ -91,18 +70,8 @@ class AppFormatters {
       final date = DateTime.parse(dateString);
 
       const months = [
-        'Jan',
-        'Feb',
-        'Mar',
-        'Apr',
-        'May',
-        'Jun',
-        'Jul',
-        'Aug',
-        'Sep',
-        'Oct',
-        'Nov',
-        'Dec',
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
       ];
 
       return '${months[date.month - 1]} ${date.day}, ${date.year}';
@@ -113,28 +82,13 @@ class AppFormatters {
 
   static String formatFullDate(DateTime date) {
     const weekdays = [
-      'Monday',
-      'Tuesday',
-      'Wednesday',
-      'Thursday',
-      'Friday',
-      'Saturday',
-      'Sunday',
+      'Monday', 'Tuesday', 'Wednesday', 'Thursday',
+      'Friday', 'Saturday', 'Sunday',
     ];
 
     const months = [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December',
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December',
     ];
 
     return '${weekdays[date.weekday - 1]}, '
@@ -156,15 +110,7 @@ class AppFormatters {
   }
 
   static String getDayName(int weekday) {
-    const days = [
-      'Mon',
-      'Tue',
-      'Wed',
-      'Thu',
-      'Fri',
-      'Sat',
-      'Sun',
-    ];
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
     if (weekday < 1 || weekday > 7) {
       return '';
@@ -184,8 +130,7 @@ class AppFormatters {
     }
 
     final hours = difference.inHours;
-    final minutes =
-        difference.inMinutes.remainder(60);
+    final minutes = difference.inMinutes.remainder(60);
 
     if (hours == 0) {
       return '${difference.inMinutes}m';

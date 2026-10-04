@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../models/attendance_model.dart';
 import '../services/attendance_service.dart';
 import '../utils/constants.dart';
-import '../widgets/glass_card.dart';
 
 class AllowanceScreen extends StatefulWidget {
   final List<int>? dutyDays;
@@ -50,6 +49,14 @@ class _AllowanceScreenState extends State<AllowanceScreen> {
     }
   }
 
+  String _getMonthName(int month) {
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return months[month - 1];
+  }
+
   @override
   Widget build(BuildContext context) {
     final logs = widget.history ?? _history;
@@ -59,6 +66,7 @@ class _AllowanceScreenState extends State<AllowanceScreen> {
     final now = DateTime.now();
     final totalDaysInMonth = DateTime(now.year, now.month + 1, 0).day;
     final currentDay = now.day;
+    final monthName = _getMonthName(now.month);
 
     final monthLogs = logs.where((log) {
       return log.timestamp.year == now.year &&
@@ -72,6 +80,9 @@ class _AllowanceScreenState extends State<AllowanceScreen> {
 
     final dailyItems = <Map<String, dynamic>>[];
     double calculatedTotalHours = 0.0;
+    int attendedCount = 0;
+    int missedCount = 0;
+    int dayOffCount = 0;
 
     for (int day = 1; day <= currentDay; day++) {
       final dateObj = DateTime(now.year, now.month, day);
@@ -101,21 +112,29 @@ class _AllowanceScreenState extends State<AllowanceScreen> {
       calculatedTotalHours += dayHours;
       final earnings = dayHours * hourlyRate;
 
-      String statusText;
+      String statusBadge;
+      Color statusColor;
+
       if (dayHours > 0) {
-        statusText =
-            "${dayHours.toStringAsFixed(1)}h • ₱${earnings.toStringAsFixed(2)}";
+        statusBadge = "Attended";
+        statusColor = AppColors.success;
+        attendedCount++;
       } else if (isDuty) {
-        statusText = "Missed (₱0.00)";
+        statusBadge = "Missed";
+        statusColor = AppColors.error;
+        missedCount++;
       } else {
-        statusText = "Day Off";
+        statusBadge = "Day Off";
+        statusColor = AppColors.textMuted;
+        dayOffCount++;
       }
 
       dailyItems.add({
         'day': AppFormatters.formatDate(dateKey),
         'hours': dayHours,
         'earnings': earnings,
-        'statusText': statusText,
+        'statusBadge': statusBadge,
+        'statusColor': statusColor,
         'hasLog': dayHours > 0,
         'isDuty': isDuty,
       });
@@ -124,29 +143,44 @@ class _AllowanceScreenState extends State<AllowanceScreen> {
     final totalEarnings = calculatedTotalHours * hourlyRate;
 
     return Scaffold(
-      backgroundColor: AppColors.bgDeep,
+      backgroundColor: AppColors.bgDark,
       appBar: AppBar(
         title: const Text(
-          "Allowance Tracker",
+          "Scholar Allowance",
           style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
+            color: AppColors.textTitle,
+            fontWeight: FontWeight.w800,
             fontSize: 18,
           ),
         ),
         backgroundColor: AppColors.bgDeep,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+        centerTitle: false,
+        shape: const Border(
+          bottom: BorderSide(color: AppColors.cardBorder, width: 1),
+        ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20.0),
+      body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 8),
-            // Top summary GlassCard
-            GlassCard(
+            // 1. SCHOLAR ALLOWANCE SUMMARY CARD
+            Container(
               padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppColors.bgDeep,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: AppColors.cardBorder),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x06000000),
+                    blurRadius: 10,
+                    offset: Offset(0, 3),
+                  ),
+                ],
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -154,138 +188,258 @@ class _AllowanceScreenState extends State<AllowanceScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
-                        "THIS MONTH",
+                        "TOTAL EARNED THIS MONTH",
                         style: TextStyle(
                           color: AppColors.textMuted,
                           fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.5,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
                         ),
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: AppColors.success.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: AppColors.success.withValues(alpha: 0.3),
-                          ),
+                          color: AppColors.primary.withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          "Day 1-$currentDay/$totalDaysInMonth",
+                          "$monthName (Day $currentDay of $totalDaysInMonth)",
                           style: const TextStyle(
-                            color: AppColors.success,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
+
+                  // Giant clear amount
                   Text(
                     "₱${totalEarnings.toStringAsFixed(2)}",
                     style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 34,
+                      color: AppColors.textTitle,
+                      fontSize: 36,
                       fontWeight: FontWeight.w900,
                       letterSpacing: -0.5,
                     ),
                   ),
                   const SizedBox(height: 12),
+
+                  // Sub-details: Hours worked & hourly rate
                   Row(
                     children: [
-                      const Icon(Icons.timer_outlined,
+                      const Icon(Icons.schedule_rounded,
                           size: 16, color: AppColors.primary),
                       const SizedBox(width: 6),
                       Text(
-                        "${calculatedTotalHours.toStringAsFixed(1)} hrs total",
+                        "${calculatedTotalHours.toStringAsFixed(1)} hours worked",
                         style: const TextStyle(
                           color: AppColors.textBody,
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 14),
+                      Container(
+                          width: 4, height: 4, decoration: const BoxDecoration(
+                              color: AppColors.cardBorder, shape: BoxShape.circle)),
+                      const SizedBox(width: 14),
                       const Icon(Icons.payments_outlined,
-                          size: 16, color: AppColors.secondary),
+                          size: 16, color: AppColors.success),
                       const SizedBox(width: 6),
                       Text(
-                        "₱${hourlyRate.toStringAsFixed(2)}/hr rate",
+                        "₱${hourlyRate.toStringAsFixed(2)} per hour",
                         style: const TextStyle(
                           color: AppColors.textBody,
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                         ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 16),
+                  const Divider(height: 1, color: AppColors.cardBorder),
+                  const SizedBox(height: 14),
+
+                  // Month Progress Counters (Clear for students)
+                  Row(
+                    children: [
+                      _buildSummaryPill(
+                        label: "Attended",
+                        count: attendedCount,
+                        color: AppColors.success,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildSummaryPill(
+                        label: "Days Off",
+                        count: dayOffCount,
+                        color: AppColors.textMuted,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildSummaryPill(
+                        label: "Missed",
+                        count: missedCount,
+                        color: AppColors.error,
                       ),
                     ],
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 16),
-            // Daily list below
-            Expanded(
-              child: ListView.builder(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.only(bottom: 24),
-                itemCount: dailyItems.length,
-                itemBuilder: (context, index) {
-                  final item = dailyItems.reversed.toList()[index];
-                  final bool hasLog = item['hasLog'] as bool;
-                  final bool isDuty = item['isDuty'] as bool;
+            const SizedBox(height: 24),
 
-                  Color borderColor = AppColors.cardBorder;
-                  Color textColor = AppColors.textMuted;
-                  if (hasLog) {
-                    borderColor = AppColors.success.withValues(alpha: 0.5);
-                    textColor = AppColors.success;
-                  } else if (isDuty) {
-                    borderColor = AppColors.error.withValues(alpha: 0.4);
-                    textColor = AppColors.error;
-                  }
+            // 2. DAILY ATTENDANCE & EARNINGS LEDGER
+            const Text(
+              "Daily Attendance & Earnings",
+              style: TextStyle(
+                color: AppColors.textTitle,
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.2,
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // Ledger Grouped Card
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.bgDeep,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.cardBorder),
+              ),
+              child: ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: dailyItems.length,
+                separatorBuilder: (_, __) =>
+                    const Divider(height: 1, color: AppColors.cardBorder),
+                itemBuilder: (context, index) {
+                  // Show most recent day on top
+                  final item = dailyItems.reversed.toList()[index];
+                  final double hours = item['hours'] as double;
+                  final double earnings = item['earnings'] as double;
+                  final String badge = item['statusBadge'] as String;
+                  final Color color = item['statusColor'] as Color;
 
                   return Padding(
-                    padding: const EdgeInsets.only(bottom: 8.0),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: AppColors.cardGlass,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: borderColor),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              item['day'] as String,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 14),
+                    child: Row(
+                      children: [
+                        // Left: Date + Status Badge
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                item['day'] as String,
+                                style: const TextStyle(
+                                  color: AppColors.textTitle,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                ),
                               ),
-                            ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 7,
+                                    height: 7,
+                                    decoration: BoxDecoration(
+                                      color: color,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    badge,
+                                    style: TextStyle(
+                                      color: color,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 8),
-                          Flexible(
-                            child: Text(
-                              item['statusText'] as String,
-                              textAlign: TextAlign.end,
-                              overflow: TextOverflow.ellipsis,
+                        ),
+
+                        // Right: Hours & Earnings
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              hours > 0
+                                  ? "+₱${earnings.toStringAsFixed(2)}"
+                                  : "₱0.00",
                               style: TextStyle(
-                                color: textColor,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
+                                color: hours > 0
+                                    ? AppColors.success
+                                    : AppColors.textMuted,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 15,
                               ),
                             ),
-                          ),
-                        ],
-                      ),
+                            const SizedBox(height: 3),
+                            Text(
+                              hours > 0
+                                  ? "${hours.toStringAsFixed(1)} hrs"
+                                  : "0 hrs",
+                              style: const TextStyle(
+                                color: AppColors.textMuted,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   );
                 },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSummaryPill({
+    required String label,
+    required int count,
+    required Color color,
+  }) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withValues(alpha: 0.20)),
+        ),
+        child: Column(
+          children: [
+            Text(
+              "$count",
+              style: TextStyle(
+                color: color,
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ],

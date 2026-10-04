@@ -12,8 +12,6 @@ import '../services/prefilled_form_service.dart';
 import '../services/pending_submission_service.dart';
 import '../models/attendance_model.dart';
 import '../utils/constants.dart';
-import '../widgets/glass_card.dart';
-import '../widgets/premium_button.dart';
 import '../widgets/status_chip.dart';
 import '../widgets/hub_updates_section.dart';
 import '../services/web_push_profile_service.dart';
@@ -134,196 +132,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
   }
 
-  // ignore: unused_element
-  void _showAllowanceBreakdownDialog() {
-    final logs = _service.getHistory();
-    final now = DateTime.now();
-    final totalDaysInMonth = DateTime(now.year, now.month + 1, 0).day;
-    final currentDay = now.day;
-
-    final monthLogs = logs.where((log) {
-      return log.timestamp.year == now.year &&
-          log.timestamp.month == now.month;
-    }).toList();
-
-    final dayMap = <String, List<AttendanceModel>>{};
-    for (final log in monthLogs) {
-      dayMap.putIfAbsent(log.date, () => []).add(log);
-    }
-
-    final dailyItems = <Map<String, dynamic>>[];
-    double calculatedTotalHours = 0.0;
-
-    for (int day = 1; day <= currentDay; day++) {
-      final dateObj = DateTime(now.year, now.month, day);
-      final monthStr = now.month.toString().padLeft(2, '0');
-      final dayStr = day.toString().padLeft(2, '0');
-      final dateKey = "${now.year}-$monthStr-$dayStr";
-
-      final isDuty = _dutyDays.contains(dateObj.weekday);
-      final dayLogs = dayMap[dateKey] ?? [];
-      dayLogs.sort((a, b) => a.timestamp.compareTo(b.timestamp));
-
-      AttendanceModel? inLog;
-      double dayHours = 0.0;
-
-      for (final log in dayLogs) {
-        if (log.isClockIn) {
-          inLog = log;
-        } else if (log.isClockOut && inLog != null) {
-          final duration = log.timestamp.difference(inLog.timestamp);
-          if (!duration.isNegative) {
-            dayHours += duration.inMinutes / 60.0;
-          }
-          inLog = null;
-        }
-      }
-
-      calculatedTotalHours += dayHours;
-      final earnings = dayHours * _hourlyRate;
-
-      String statusText;
-      if (dayHours > 0) {
-        statusText = "${dayHours.toStringAsFixed(1)}h • ₱${earnings.toStringAsFixed(2)}";
-      } else if (isDuty) {
-        statusText = "Missed (₱0.00)";
-      } else {
-        statusText = "Day Off";
-      }
-
-      dailyItems.add({
-        'day': AppFormatters.formatDate(dateKey),
-        'hours': dayHours,
-        'earnings': earnings,
-        'statusText': statusText,
-        'hasLog': dayHours > 0,
-        'isDuty': isDuty,
-      });
-    }
-
-    final totalEarnings = calculatedTotalHours * _hourlyRate;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.bgDeep,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-            side: const BorderSide(color: AppColors.cardBorder)),
-        title: Row(
-          children: [
-            const Icon(Icons.payments_rounded, color: AppColors.success),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                "Allowance Tracker (Day 1-$currentDay/$totalDaysInMonth)",
-                style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
-              ),
-            ),
-          ],
-        ),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: 360,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text("Rate: ₱${_hourlyRate.toStringAsFixed(2)}/hr • Month Total: ${calculatedTotalHours.toStringAsFixed(1)} hrs",
-                  style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
-              const SizedBox(height: 12),
-              Expanded(
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  child: Column(
-                    children: dailyItems.reversed.map((item) {
-                      final bool hasLog = item['hasLog'] as bool;
-                      final bool isDuty = item['isDuty'] as bool;
-
-                      Color borderColor = AppColors.cardBorder;
-                      Color textColor = AppColors.textMuted;
-                      if (hasLog) {
-                        borderColor = AppColors.success.withValues(alpha: 0.5);
-                        textColor = AppColors.success;
-                      } else if (isDuty) {
-                        borderColor = AppColors.error.withValues(alpha: 0.4);
-                        textColor = AppColors.error;
-                      }
-
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 8.0),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: AppColors.cardGlass,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: borderColor),
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  item['day'] as String,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Flexible(
-                                child: Text(
-                                  item['statusText'] as String,
-                                  textAlign: TextAlign.end,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: textColor,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.success.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text("ACCUMULATED ALLOWANCE",
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11)),
-                    Text("₱${totalEarnings.toStringAsFixed(2)}",
-                        style: const TextStyle(color: AppColors.success, fontWeight: FontWeight.w900, fontSize: 16)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text("Close", style: TextStyle(color: AppColors.primary)),
-          ),
-        ],
-      ),
-    );
-  }
-
-
-
   void _showFeedback(String message, {bool isError = false}) {
     if (!context.mounted) return;
     HapticFeedback.lightImpact();
@@ -332,19 +140,25 @@ class _DashboardScreenState extends State<DashboardScreen>
         content: Row(
           children: [
             Icon(isError ? Icons.error_outline : Icons.check_circle_outline,
-                color: Colors.white),
+                color: Colors.white, size: 20),
             const SizedBox(width: 12),
             Expanded(
-                child: Text(message,
-                    style: const TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.w600))),
+              child: Text(
+                message,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+            ),
           ],
         ),
         backgroundColor: isError ? AppColors.error : AppColors.success,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        margin: const EdgeInsets.all(24),
-        elevation: 10,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+        elevation: 4,
       ),
     );
   }
@@ -355,26 +169,32 @@ class _DashboardScreenState extends State<DashboardScreen>
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.bgDeep,
         shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(20),
             side: const BorderSide(color: AppColors.cardBorder)),
         title: const Text("Repeat Action?",
-            style: TextStyle(color: Colors.white)),
+            style: TextStyle(
+                color: AppColors.textTitle,
+                fontWeight: FontWeight.w800,
+                fontSize: 18)),
         content: Text("You already logged $action today. Add another record?",
-            style: const TextStyle(color: AppColors.textBody)),
+            style: const TextStyle(color: AppColors.textBody, fontSize: 14)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text("Cancel",
-                  style: TextStyle(color: AppColors.textBody))),
+                  style: TextStyle(
+                      color: AppColors.textMuted,
+                      fontWeight: FontWeight.w600))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
+                elevation: 0,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12))),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text("Add Another",
-                style:
-                    TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                style: TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -393,7 +213,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         await NotificationService().cancelTodayTimeInReminders();
       }
       if (!context.mounted) return;
-      _showFeedback("Local log saved (${log.status})");
+      _showFeedback("Attendance logged: Clock In (${log.status})");
 
       if (GoogleFormService().isEnabled) {
         final now = TimeOfDay.fromDateTime(log.timestamp);
@@ -416,28 +236,46 @@ class _DashboardScreenState extends State<DashboardScreen>
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.bgDeep,
         shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(20),
             side: const BorderSide(color: AppColors.cardBorder)),
-        title: const Text("Daily Accomplishment",
-            style: TextStyle(color: Colors.white)),
+        title: const Text("Duty Accomplishment",
+            style: TextStyle(
+                color: AppColors.textTitle,
+                fontWeight: FontWeight.w800,
+                fontSize: 18)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("What did you accomplish today?",
-                style: TextStyle(color: AppColors.textBody, fontSize: 14)),
-            const SizedBox(height: 16),
+            const Text(
+              "Briefly state your tasks or responsibilities completed during this shift.",
+              style: TextStyle(
+                  color: AppColors.textBody, fontSize: 13, height: 1.4),
+            ),
+            const SizedBox(height: 14),
             TextField(
               controller: accController,
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(
+                  color: AppColors.textTitle, fontSize: 14),
               maxLines: 3,
               decoration: InputDecoration(
                 filled: true,
-                fillColor: Colors.black.withValues(alpha: 0.3),
-                hintText: "Enter accomplishment...",
-                hintStyle: const TextStyle(color: AppColors.textMuted),
+                fillColor: AppColors.bgDark,
+                hintText: "E.g., Library cataloging, office filing, desk assistance...",
+                hintStyle: const TextStyle(
+                    color: AppColors.textMuted, fontSize: 13),
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none),
+                    borderSide:
+                        const BorderSide(color: AppColors.cardBorder)),
+                enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide:
+                        const BorderSide(color: AppColors.cardBorder)),
+                focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide:
+                        const BorderSide(color: AppColors.primary, width: 1.5)),
               ),
             ),
           ],
@@ -446,19 +284,22 @@ class _DashboardScreenState extends State<DashboardScreen>
           TextButton(
               onPressed: () => Navigator.pop(context, false),
               child: const Text("Cancel",
-                  style: TextStyle(color: AppColors.textBody))),
+                  style: TextStyle(
+                      color: AppColors.textMuted,
+                      fontWeight: FontWeight.w600))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
+                elevation: 0,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12))),
             onPressed: () {
               if (accController.text.trim().isEmpty) return;
               Navigator.pop(context, true);
             },
-            child: const Text("Submit",
-                style:
-                    TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+            child: const Text("Submit & Clock Out",
+                style: TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -478,7 +319,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         await NotificationService().cancelTodayTimeOutReminders();
       }
       if (!context.mounted) return;
-      _showFeedback("Local log saved (${log.status})");
+      _showFeedback("Attendance logged: Clock Out (${log.status})");
 
       if (GoogleFormService().isEnabled) {
         final now = TimeOfDay.fromDateTime(log.timestamp);
@@ -493,12 +334,9 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
   }
 
- 
-
-
-void _showAbsenceDialog() {
+  void _showAbsenceDialog() {
     final reasonController = TextEditingController();
-   String selectedLeaveType = 'Sick';
+    String selectedLeaveType = 'Sick';
 
     DateTime startDate = DateTime.now();
     DateTime endDate = DateTime.now();
@@ -510,19 +348,25 @@ void _showAbsenceDialog() {
       builder: (ctx) => StatefulBuilder(
         builder: (dialogCtx, setDialogState) {
           final now = DateTime.now();
-          final startStr = "${startDate.year}-${startDate.month.toString().padLeft(2, '0')}-${startDate.day.toString().padLeft(2, '0')}";
-          final endStr = "${endDate.year}-${endDate.month.toString().padLeft(2, '0')}-${endDate.day.toString().padLeft(2, '0')}";
+          final startStr =
+              "${startDate.year}-${startDate.month.toString().padLeft(2, '0')}-${startDate.day.toString().padLeft(2, '0')}";
+          final endStr =
+              "${endDate.year}-${endDate.month.toString().padLeft(2, '0')}-${endDate.day.toString().padLeft(2, '0')}";
 
           return AlertDialog(
             backgroundColor: AppColors.bgDeep,
             shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(20),
                 side: const BorderSide(color: AppColors.cardBorder)),
             title: const Row(
               children: [
-                Icon(Icons.event_busy_rounded, color: AppColors.orange),
+                Icon(Icons.event_busy_rounded, color: AppColors.orange, size: 22),
                 SizedBox(width: 10),
-                Text("Absence Request", style: TextStyle(color: Colors.white, fontSize: 18)),
+                Text("Absence Request",
+                    style: TextStyle(
+                        color: AppColors.textTitle,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800)),
               ],
             ),
             content: SingleChildScrollView(
@@ -530,7 +374,12 @@ void _showAbsenceDialog() {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("TYPE OF LEAVE:", style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.bold)),
+                  const Text("TYPE OF LEAVE",
+                      style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5)),
                   const SizedBox(height: 6),
                   Wrap(
                     spacing: 6,
@@ -545,19 +394,29 @@ void _showAbsenceDialog() {
                             setDialogState(() => selectedLeaveType = type);
                           }
                         },
-                        selectedColor: AppColors.orange.withValues(alpha: 0.2),
-                        backgroundColor: AppColors.cardGlass,
+                        selectedColor: AppColors.orange.withValues(alpha: 0.15),
+                        backgroundColor: AppColors.bgDark,
                         labelStyle: TextStyle(
-                          color: isSelected ? AppColors.orange : Colors.white70,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 11,
+                          color: isSelected ? AppColors.orange : AppColors.textBody,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                        side: BorderSide(
+                          color: isSelected
+                              ? AppColors.orange
+                              : AppColors.cardBorder,
                         ),
                         showCheckmark: false,
                       );
                     }).toList(),
                   ),
                   const SizedBox(height: 14),
-                  const Text("DATES OF ABSENCE:", style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.bold)),
+                  const Text("DATES OF ABSENCE",
+                      style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5)),
                   const SizedBox(height: 6),
                   Row(
                     children: [
@@ -573,19 +432,24 @@ void _showAbsenceDialog() {
                             if (picked != null) {
                               setDialogState(() {
                                 startDate = picked;
-                                if (endDate.isBefore(startDate)) endDate = startDate;
+                                if (endDate.isBefore(startDate)) {
+                                  endDate = startDate;
+                                }
                               });
                             }
                           },
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
+                            foregroundColor: AppColors.textTitle,
                             side: const BorderSide(color: AppColors.cardBorder),
                             padding: const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10)),
                           ),
-                          child: Text("Start: $startStr", style: const TextStyle(fontSize: 11)),
+                          child: Text("From: $startStr",
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                         ),
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: OutlinedButton(
                           onPressed: () async {
@@ -600,30 +464,45 @@ void _showAbsenceDialog() {
                             }
                           },
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
+                            foregroundColor: AppColors.textTitle,
                             side: const BorderSide(color: AppColors.cardBorder),
                             padding: const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10)),
                           ),
-                          child: Text("End: $endStr", style: const TextStyle(fontSize: 11)),
+                          child: Text("To: $endStr",
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 14),
-                  const Text("REASON FOR ABSENCE:", style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.bold)),
+                  const Text("REASON FOR ABSENCE",
+                      style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5)),
                   const SizedBox(height: 6),
                   TextField(
                     controller: reasonController,
-                    style: const TextStyle(color: Colors.white),
+                    style: const TextStyle(
+                        color: AppColors.textTitle, fontSize: 13),
                     maxLines: 2,
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: Colors.black.withValues(alpha: 0.3),
-                      hintText: "Enter detailed reason...",
-                      hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                      fillColor: AppColors.bgDark,
+                      hintText: "State your reason...",
+                      hintStyle: const TextStyle(
+                          color: AppColors.textMuted, fontSize: 12),
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none),
+                          borderSide:
+                              const BorderSide(color: AppColors.cardBorder)),
+                      enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide:
+                              const BorderSide(color: AppColors.cardBorder)),
                     ),
                   ),
                 ],
@@ -632,17 +511,20 @@ void _showAbsenceDialog() {
             actions: [
               TextButton(
                   onPressed: () => Navigator.pop(ctx),
-                  child: const Text("Cancel", style: TextStyle(color: AppColors.textBody))),
+                  child: const Text("Cancel",
+                      style: TextStyle(color: AppColors.textMuted))),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.orange,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12))),
                 onPressed: () async {
                   final reason = reasonController.text.trim();
                   if (reason.isEmpty) return;
                   Navigator.pop(ctx);
 
-                  _showFeedback("Absence Request ($selectedLeaveType) saved.");
+                  _showFeedback("Absence Request ($selectedLeaveType) submitted.");
 
                   if (GoogleFormService().isEnabled) {
                     final url = PrefilledFormService().buildAbsenceUrl(
@@ -655,7 +537,8 @@ void _showAbsenceDialog() {
                   }
                 },
                 child: const Text("Submit & Open Form",
-                    style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                    style: TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold)),
               ),
             ],
           );
@@ -664,9 +547,7 @@ void _showAbsenceDialog() {
     );
   }
 
-
-
-void _showOvertimeDialog() {
+  void _showOvertimeDialog() {
     final reasonController = TextEditingController();
     final supervisorController = TextEditingController();
     final now = DateTime.now();
@@ -682,21 +563,26 @@ void _showOvertimeDialog() {
         builder: (dialogCtx, setDialogState) {
           final startStr = AppFormatters.formatTimeOfDay(timeStart);
           final endStr = AppFormatters.formatTimeOfDay(timeEnd);
-          final startDateStr = "${startDate.year}-${startDate.month.toString().padLeft(2, '0')}-${startDate.day.toString().padLeft(2, '0')}";
-          final endDateStr = "${endDate.year}-${endDate.month.toString().padLeft(2, '0')}-${endDate.day.toString().padLeft(2, '0')}";
+          final startDateStr =
+              "${startDate.year}-${startDate.month.toString().padLeft(2, '0')}-${startDate.day.toString().padLeft(2, '0')}";
+          final endDateStr =
+              "${endDate.year}-${endDate.month.toString().padLeft(2, '0')}-${endDate.day.toString().padLeft(2, '0')}";
 
           return AlertDialog(
             backgroundColor: AppColors.bgDeep,
             shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(20),
                 side: const BorderSide(color: AppColors.cardBorder)),
             title: const Row(
               children: [
-                Icon(Icons.more_time_rounded, color: AppColors.primary),
+                Icon(Icons.more_time_rounded, color: AppColors.primary, size: 22),
                 SizedBox(width: 10),
                 Expanded(
-                  child: Text("Overtime / Work Authorization",
-                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                  child: Text("Overtime Authorization",
+                      style: TextStyle(
+                          color: AppColors.textTitle,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800)),
                 ),
               ],
             ),
@@ -705,8 +591,12 @@ void _showOvertimeDialog() {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("WORK AUTHORIZATION DATES:",
-                      style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.bold)),
+                  const Text("AUTHORIZATION DATES",
+                      style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5)),
                   const SizedBox(height: 6),
                   Row(
                     children: [
@@ -722,19 +612,24 @@ void _showOvertimeDialog() {
                             if (picked != null) {
                               setDialogState(() {
                                 startDate = picked;
-                                if (endDate.isBefore(startDate)) endDate = startDate;
+                                if (endDate.isBefore(startDate)) {
+                                  endDate = startDate;
+                                }
                               });
                             }
                           },
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
+                            foregroundColor: AppColors.textTitle,
                             side: const BorderSide(color: AppColors.cardBorder),
                             padding: const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10)),
                           ),
-                          child: Text("Start: $startDateStr", style: const TextStyle(fontSize: 10)),
+                          child: Text("Start: $startDateStr",
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                         ),
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: OutlinedButton(
                           onPressed: () async {
@@ -744,86 +639,131 @@ void _showOvertimeDialog() {
                               firstDate: startDate,
                               lastDate: DateTime(now.year, now.month + 2),
                             );
-                            if (picked != null) setDialogState(() => endDate = picked);
+                            if (picked != null) {
+                              setDialogState(() => endDate = picked);
+                            }
                           },
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
+                            foregroundColor: AppColors.textTitle,
                             side: const BorderSide(color: AppColors.cardBorder),
                             padding: const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10)),
                           ),
-                          child: Text("End: $endDateStr", style: const TextStyle(fontSize: 10)),
+                          child: Text("End: $endDateStr",
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
-                  const Text("OVERTIME SHIFT TIMES:",
-                      style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.bold)),
+                  const Text("SHIFT TIMES",
+                      style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5)),
                   const SizedBox(height: 6),
                   Row(
                     children: [
                       Expanded(
                         child: OutlinedButton(
                           onPressed: () async {
-                            final picked = await showTimePicker(context: dialogCtx, initialTime: timeStart);
-                            if (picked != null) setDialogState(() => timeStart = picked);
+                            final picked = await showTimePicker(
+                                context: dialogCtx, initialTime: timeStart);
+                            if (picked != null) {
+                              setDialogState(() => timeStart = picked);
+                            }
                           },
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
+                            foregroundColor: AppColors.textTitle,
                             side: const BorderSide(color: AppColors.cardBorder),
                             padding: const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10)),
                           ),
-                          child: Text("Time In: $startStr", style: const TextStyle(fontSize: 11)),
+                          child: Text("In: $startStr",
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                         ),
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: OutlinedButton(
                           onPressed: () async {
-                            final picked = await showTimePicker(context: dialogCtx, initialTime: timeEnd);
-                            if (picked != null) setDialogState(() => timeEnd = picked);
+                            final picked = await showTimePicker(
+                                context: dialogCtx, initialTime: timeEnd);
+                            if (picked != null) {
+                              setDialogState(() => timeEnd = picked);
+                            }
                           },
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
+                            foregroundColor: AppColors.textTitle,
                             side: const BorderSide(color: AppColors.cardBorder),
                             padding: const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10)),
                           ),
-                          child: Text("Time Out: $endStr", style: const TextStyle(fontSize: 11)),
+                          child: Text("Out: $endStr",
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
-                  const Text("SUPERVISOR NAME:",
-                      style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.bold)),
+                  const Text("SUPERVISOR NAME",
+                      style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5)),
                   const SizedBox(height: 6),
                   TextField(
                     controller: supervisorController,
-                    style: const TextStyle(color: Colors.white),
+                    style: const TextStyle(
+                        color: AppColors.textTitle, fontSize: 13),
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: Colors.black.withValues(alpha: 0.3),
+                      fillColor: AppColors.bgDark,
                       hintText: "Enter supervisor name...",
-                      hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                      hintStyle: const TextStyle(
+                          color: AppColors.textMuted, fontSize: 12),
                       border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide:
+                              const BorderSide(color: AppColors.cardBorder)),
+                      enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide:
+                              const BorderSide(color: AppColors.cardBorder)),
                     ),
                   ),
                   const SizedBox(height: 12),
-                  const Text("REASON / TASKS PERFORMED:",
-                      style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.bold)),
+                  const Text("TASKS PERFORMED",
+                      style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5)),
                   const SizedBox(height: 6),
                   TextField(
                     controller: reasonController,
-                    style: const TextStyle(color: Colors.white),
+                    style: const TextStyle(
+                        color: AppColors.textTitle, fontSize: 13),
                     maxLines: 2,
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: Colors.black.withValues(alpha: 0.3),
-                      hintText: "Enter tasks...",
-                      hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                      fillColor: AppColors.bgDark,
+                      hintText: "Describe tasks performed...",
+                      hintStyle: const TextStyle(
+                          color: AppColors.textMuted, fontSize: 12),
                       border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide:
+                              const BorderSide(color: AppColors.cardBorder)),
+                      enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide:
+                              const BorderSide(color: AppColors.cardBorder)),
                     ),
                   ),
                 ],
@@ -832,18 +772,21 @@ void _showOvertimeDialog() {
             actions: [
               TextButton(
                   onPressed: () => Navigator.pop(ctx),
-                  child: const Text("Cancel", style: TextStyle(color: AppColors.textBody))),
+                  child: const Text("Cancel",
+                      style: TextStyle(color: AppColors.textMuted))),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12))),
                 onPressed: () async {
                   final reason = reasonController.text.trim();
                   final supervisor = supervisorController.text.trim();
                   if (reason.isEmpty || supervisor.isEmpty) return;
                   Navigator.pop(ctx);
 
-                  _showFeedback("Overtime Request recorded.");
+                  _showFeedback("Overtime authorization recorded.");
                   _loadData();
 
                   if (GoogleFormService().isEnabled) {
@@ -859,7 +802,8 @@ void _showOvertimeDialog() {
                   }
                 },
                 child: const Text("Submit & Open Form",
-                    style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                    style: TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold)),
               ),
             ],
           );
@@ -890,20 +834,24 @@ void _showOvertimeDialog() {
       builder: (ctx) => StatefulBuilder(
         builder: (dialogCtx, setDialogState) {
           final timeStr = AppFormatters.formatTimeOfDay(incidentTime);
-          final dateStr = "${incidentDate.year}-${incidentDate.month.toString().padLeft(2, '0')}-${incidentDate.day.toString().padLeft(2, '0')}";
+          final dateStr =
+              "${incidentDate.year}-${incidentDate.month.toString().padLeft(2, '0')}-${incidentDate.day.toString().padLeft(2, '0')}";
 
           return AlertDialog(
             backgroundColor: AppColors.bgDeep,
             shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(20),
                 side: const BorderSide(color: AppColors.cardBorder)),
             title: const Row(
               children: [
-                Icon(Icons.receipt_long_rounded, color: AppColors.secondary),
+                Icon(Icons.receipt_long_rounded, color: AppColors.secondary, size: 22),
                 SizedBox(width: 10),
                 Expanded(
-                  child: Text("Clock In/Out Excuse Slip",
-                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                  child: Text("Excuse Slip Request",
+                      style: TextStyle(
+                          color: AppColors.textTitle,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800)),
                 ),
               ],
             ),
@@ -912,31 +860,52 @@ void _showOvertimeDialog() {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("MISSING ACTION:",
-                      style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.bold)),
+                  const Text("MISSING ATTENDANCE ACTION",
+                      style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5)),
                   const SizedBox(height: 6),
                   Row(
                     children: ["Clock In", "Clock Out"].map((action) {
                       final isSelected = selectedAction == action;
-                      return ChoiceChip(
-                        label: Text(action),
-                        selected: isSelected,
-                        onSelected: (selected) {
-                          if (selected) setDialogState(() => selectedAction = action);
-                        },
-                        selectedColor: AppColors.secondary.withValues(alpha: 0.2),
-                        backgroundColor: AppColors.cardGlass,
-                        labelStyle: TextStyle(
-                            color: isSelected ? AppColors.secondary : Colors.white70,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 11),
-                        showCheckmark: false,
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ChoiceChip(
+                          label: Text(action),
+                          selected: isSelected,
+                          onSelected: (selected) {
+                            if (selected) {
+                              setDialogState(() => selectedAction = action);
+                            }
+                          },
+                          selectedColor:
+                              AppColors.secondary.withValues(alpha: 0.15),
+                          backgroundColor: AppColors.bgDark,
+                          labelStyle: TextStyle(
+                              color: isSelected
+                                  ? AppColors.secondary
+                                  : AppColors.textBody,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12),
+                          side: BorderSide(
+                            color: isSelected
+                                ? AppColors.secondary
+                                : AppColors.cardBorder,
+                          ),
+                          showCheckmark: false,
+                        ),
                       );
                     }).toList(),
                   ),
                   const SizedBox(height: 12),
-                  const Text("INCIDENT DATE & TIME:",
-                      style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.bold)),
+                  const Text("INCIDENT DATE & TIME",
+                      style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5)),
                   const SizedBox(height: 6),
                   Row(
                     children: [
@@ -949,72 +918,109 @@ void _showOvertimeDialog() {
                               firstDate: DateTime(now.year, now.month - 1),
                               lastDate: DateTime(now.year, now.month + 2),
                             );
-                            if (picked != null) setDialogState(() => incidentDate = picked);
+                            if (picked != null) {
+                              setDialogState(() => incidentDate = picked);
+                            }
                           },
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
+                            foregroundColor: AppColors.textTitle,
                             side: const BorderSide(color: AppColors.cardBorder),
                             padding: const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10)),
                           ),
-                          child: Text("Date: $dateStr", style: const TextStyle(fontSize: 10)),
+                          child: Text("Date: $dateStr",
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                         ),
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: OutlinedButton(
                           onPressed: () async {
-                            final picked = await showTimePicker(context: dialogCtx, initialTime: incidentTime);
-                            if (picked != null) setDialogState(() => incidentTime = picked);
+                            final picked = await showTimePicker(
+                                context: dialogCtx, initialTime: incidentTime);
+                            if (picked != null) {
+                              setDialogState(() => incidentTime = picked);
+                            }
                           },
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
+                            foregroundColor: AppColors.textTitle,
                             side: const BorderSide(color: AppColors.cardBorder),
                             padding: const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10)),
                           ),
-                          child: Text("Time: $timeStr", style: const TextStyle(fontSize: 11)),
+                          child: Text("Time: $timeStr",
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
-                  const Text("REASON FOR FAILURE:",
-                      style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.bold)),
+                  const Text("REASON",
+                      style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5)),
                   const SizedBox(height: 6),
                   Wrap(
-                    spacing: 5,
-                    runSpacing: 5,
+                    spacing: 6,
+                    runSpacing: 6,
                     children: excuseReasons.map((reason) {
                       final isSelected = selectedReason == reason;
                       return ChoiceChip(
                         label: Text(reason),
                         selected: isSelected,
                         onSelected: (selected) {
-                          if (selected) setDialogState(() => selectedReason = reason);
+                          if (selected) {
+                            setDialogState(() => selectedReason = reason);
+                          }
                         },
-                        selectedColor: AppColors.secondary.withValues(alpha: 0.2),
-                        backgroundColor: AppColors.cardGlass,
+                        selectedColor:
+                            AppColors.secondary.withValues(alpha: 0.15),
+                        backgroundColor: AppColors.bgDark,
                         labelStyle: TextStyle(
-                            color: isSelected ? AppColors.secondary : Colors.white70,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 10),
+                            color: isSelected
+                                ? AppColors.secondary
+                                : AppColors.textBody,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 11),
+                        side: BorderSide(
+                          color: isSelected
+                              ? AppColors.secondary
+                              : AppColors.cardBorder,
+                        ),
                         showCheckmark: false,
                       );
                     }).toList(),
                   ),
                   const SizedBox(height: 12),
-                  const Text("SUPERVISOR VERIFICATION:",
-                      style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.bold)),
+                  const Text("SUPERVISOR VERIFICATION",
+                      style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5)),
                   const SizedBox(height: 6),
                   TextField(
                     controller: supervisorController,
-                    style: const TextStyle(color: Colors.white),
+                    style: const TextStyle(
+                        color: AppColors.textTitle, fontSize: 13),
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: Colors.black.withValues(alpha: 0.3),
+                      fillColor: AppColors.bgDark,
                       hintText: "Enter supervisor name...",
-                      hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                      hintStyle: const TextStyle(
+                          color: AppColors.textMuted, fontSize: 12),
                       border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide:
+                              const BorderSide(color: AppColors.cardBorder)),
+                      enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide:
+                              const BorderSide(color: AppColors.cardBorder)),
                     ),
                   ),
                 ],
@@ -1023,11 +1029,14 @@ void _showOvertimeDialog() {
             actions: [
               TextButton(
                   onPressed: () => Navigator.pop(ctx),
-                  child: const Text("Cancel", style: TextStyle(color: AppColors.textBody))),
+                  child: const Text("Cancel",
+                      style: TextStyle(color: AppColors.textMuted))),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.secondary,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12))),
                 onPressed: () async {
                   final supervisor = supervisorController.text.trim();
                   if (supervisor.isEmpty) return;
@@ -1047,7 +1056,8 @@ void _showOvertimeDialog() {
                   }
                 },
                 child: const Text("Submit & Open Form",
-                    style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                    style: TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold)),
               ),
             ],
           );
@@ -1056,47 +1066,71 @@ void _showOvertimeDialog() {
     );
   }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-  Future<void> _showFormInstructionAndLaunch(
+ 
+Future<void> _showFormInstructionAndLaunch(
       String url, String logId, String type) async {
     await showModalBottomSheet(
       context: context,
       isDismissible: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => GlassCard(
+      builder: (ctx) => Container(
         padding: const EdgeInsets.all(24),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        decoration: const BoxDecoration(
+          color: AppColors.bgDeep,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.open_in_browser,
-                size: 40, color: AppColors.primary),
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.open_in_browser,
+                  size: 28, color: AppColors.primary),
+            ),
             const SizedBox(height: 16),
             const Text(
-              "After submitting the form, return to AWS HUB to confirm.",
-              style: TextStyle(color: Colors.white, fontSize: 16),
+              "Complete Google Form",
+              style: TextStyle(
+                  color: AppColors.textTitle,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              "After submitting your prefilled attendance form, return to AWS HUB to confirm.",
+              style: TextStyle(
+                  color: AppColors.textBody, fontSize: 13, height: 1.4),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 24),
-            PremiumButton(
-              text: "Open Form",
-              icon: Icons.open_in_new,
-              onTap: () async {
-                Navigator.pop(ctx);
-                await _launchFormUrl(url);
-              },
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                ),
+                icon: const Icon(Icons.open_in_new, color: Colors.white, size: 18),
+                label: const Text(
+                  "Open Google Form",
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold),
+                ),
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await _launchFormUrl(url);
+                },
+              ),
             ),
           ],
         ),
@@ -1112,6 +1146,7 @@ void _showOvertimeDialog() {
     if (!context.mounted) return;
     setState(() => _pendingSubmission = pending);
   }
+
 
   Future<void> _launchFormUrl(String url) async {
     final uri = Uri.parse(url);
@@ -1130,14 +1165,14 @@ void _showOvertimeDialog() {
     if (action == 'yes') {
       await _service.updateFormStatus(pending.logId, 'submitted');
       if (!context.mounted) return;
-      _showFeedback("Google Form submitted successfully");
+      _showFeedback("Attendance verified: Form marked submitted.");
     } else if (action == 'retry') {
       await _launchFormUrl(pending.url);
       return;
     } else if (action == 'cancel') {
       await _service.updateFormStatus(pending.logId, 'not_submitted');
       if (!context.mounted) return;
-      _showFeedback("Form marked as not submitted");
+      _showFeedback("Attendance recorded: Form marked pending.");
     }
 
     await PendingSubmissionService().clear();
@@ -1155,10 +1190,10 @@ void _showOvertimeDialog() {
 
     if (!isDutyDay) {
       return {
-        "title": "No Duty Today",
-        "sub": "Enjoy your day off.",
+        "title": "Scheduled Day Off",
+        "sub": "No campus duty scheduled today.",
         "color": AppColors.textMuted,
-        "icon": Icons.weekend,
+        "icon": Icons.weekend_outlined,
         "warn": false,
         "countdown": "",
       };
@@ -1180,36 +1215,33 @@ void _showOvertimeDialog() {
         final diff = now.difference(schedInDT);
         final minutes = diff.inMinutes;
         return {
-          "title": "Late / Missing Time In",
-          "sub": "Shift started at ${AppFormatters.formatTimeOfDay(schedIn)}.",
+          "title": "Shift Overdue (Clock In Required)",
+          "sub": "Duty started at ${AppFormatters.formatTimeOfDay(schedIn)}.",
           "color": AppColors.error,
           "icon": Icons.warning_amber_rounded,
           "warn": true,
-          "countdown": "You are late by $minutes minutes",
+          "countdown": "Late by $minutes min",
         };
       } else {
         final diff = schedInDT.difference(now);
         final minutes = diff.inMinutes;
         if (minutes <= 15 && minutes > 0) {
           return {
-            "title": "Almost Time In",
-            "sub":
-                "Shift starts at ${AppFormatters.formatTimeOfDay(schedIn)}.",
+            "title": "Shift Starting Soon",
+            "sub": "Duty begins at ${AppFormatters.formatTimeOfDay(schedIn)}.",
             "color": AppColors.orange,
             "icon": Icons.alarm,
             "warn": false,
-            "countdown": "Starts in $minutes minutes",
+            "countdown": "Starts in $minutes min",
           };
         } else {
           return {
-            "title": "Duty Later",
-            "sub":
-                "Shift starts at ${AppFormatters.formatTimeOfDay(schedIn)}.",
+            "title": "Duty Later Today",
+            "sub": "Scheduled for ${AppFormatters.formatTimeOfDay(schedIn)}.",
             "color": AppColors.primary,
             "icon": Icons.schedule,
             "warn": false,
-            "countdown":
-                "Starts in ${diff.inHours}h ${(diff.inMinutes % 60)}m",
+            "countdown": "Starts in ${diff.inHours}h ${(diff.inMinutes % 60)}m",
           };
         }
       }
@@ -1220,37 +1252,33 @@ void _showOvertimeDialog() {
         final diff = now.difference(schedOutDT);
         final minutes = diff.inMinutes;
         return {
-          "title": "Missing Time Out",
-          "sub":
-              "Shift ended at ${AppFormatters.formatTimeOfDay(schedOut)}.",
+          "title": "Shift Ended (Clock Out Required)",
+          "sub": "Scheduled end was ${AppFormatters.formatTimeOfDay(schedOut)}.",
           "color": AppColors.error,
-          "icon": Icons.timer_off,
+          "icon": Icons.timer_off_outlined,
           "warn": true,
-          "countdown": "You are late by $minutes minutes",
+          "countdown": "Past shift by $minutes min",
         };
       } else {
         final diff = schedOutDT.difference(now);
         final minutes = diff.inMinutes;
         if (minutes <= 15 && minutes > 0) {
           return {
-            "title": "Time Out Now",
-            "sub":
-                "Shift ends at ${AppFormatters.formatTimeOfDay(schedOut)}.",
+            "title": "Shift Ending Soon",
+            "sub": "Duty ends at ${AppFormatters.formatTimeOfDay(schedOut)}.",
             "color": AppColors.orange,
             "icon": Icons.alarm,
             "warn": false,
-            "countdown": "Ends in $minutes minutes",
+            "countdown": "Ends in $minutes min",
           };
         } else {
           return {
             "title": "Currently On Duty",
-            "sub":
-                "Time out at ${AppFormatters.formatTimeOfDay(schedOut)}.",
-            "color": AppColors.secondary,
-            "icon": Icons.work_outline,
+            "sub": "Duty ends at ${AppFormatters.formatTimeOfDay(schedOut)}.",
+            "color": AppColors.success,
+            "icon": Icons.work_outline_rounded,
             "warn": false,
-            "countdown":
-                "Ends in ${diff.inHours}h ${(diff.inMinutes % 60)}m",
+            "countdown": "Remaining: ${diff.inHours}h ${(diff.inMinutes % 60)}m",
           };
         }
       }
@@ -1259,19 +1287,19 @@ void _showOvertimeDialog() {
     if (hasOut) {
       return {
         "title": "Shift Completed",
-        "sub": "Great job today.",
-        "color": AppColors.textMuted,
-        "icon": Icons.task_alt,
+        "sub": "Thank you for your duty service today.",
+        "color": AppColors.success,
+        "icon": Icons.check_circle_outline_rounded,
         "warn": false,
         "countdown": "",
       };
     }
 
     return {
-      "title": "Unknown",
-      "sub": "",
+      "title": "Working Scholar Hub",
+      "sub": "Campus duty tracking active.",
       "color": AppColors.textMuted,
-      "icon": Icons.help,
+      "icon": Icons.school_outlined,
       "warn": false,
       "countdown": "",
     };
@@ -1282,148 +1310,90 @@ void _showOvertimeDialog() {
     final state = _getDashboardState();
 
     return Scaffold(
-      backgroundColor: AppColors.bgDeep,
-      body: Stack(
-        children: [
-          const SizedBox.shrink(),
-          SafeArea(
-            child: RefreshIndicator(
-              onRefresh: () async => _loadData(),
-              color: AppColors.primary,
-              backgroundColor: AppColors.bgDark,
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(
-                    parent: AlwaysScrollableScrollPhysics()),
-                padding: EdgeInsets.symmetric(
-                  horizontal: MediaQuery.sizeOf(context).width < 380 ? 16 : 24,
-                  vertical: 20,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildHeader(_totalDays)
-                        .animate()
-                        .fadeIn(duration: 300.ms),
+      backgroundColor: AppColors.bgDark,
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: () async => _loadData(),
+          color: AppColors.primary,
+          backgroundColor: AppColors.bgDeep,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics()),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 1. ACADEMIC CAMPUS HEADER
+                _buildAcademicHeader(),
+                const SizedBox(height: 16),
 
-                    const SizedBox(height: 22),
+                // 2. GOOGLE FORM CONFIRMATION PROMPT (if pending)
+                if (_pendingSubmission != null) ...[
+                  _buildFormSubmissionBanner(),
+                  const SizedBox(height: 16),
+                ],
 
-                    _buildHeroCard(state).animate().fadeIn(duration: 400.ms),
-                    const SizedBox(height: 16),
+                // 3. DUTY STATION COMMAND CARD
+                _buildDutyStationCard(state),
+                const SizedBox(height: 14),
 
-                    PremiumButton(
-                      text: "CLOCK IN",
-                      icon: Icons.login_rounded,
-                      onTap: _handleTimeIn,
-                    ).animate().fadeIn(duration: 400.ms, delay: 200.ms),
-                    const SizedBox(height: 16),
-                    PremiumButton(
-                      text: "CLOCK OUT",
-                      icon: Icons.logout_rounded,
-                      onTap: _handleTimeOut,
-                    ).animate().fadeIn(duration: 400.ms, delay: 400.ms),
-                    const SizedBox(height: 24),
+                // 4. STIPEND & HOURS METRIC CARDS (Bento Row)
+                _buildMetricsBentoRow(),
+                const SizedBox(height: 24),
 
-                    if (_pendingSubmission != null)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 16.0),
-                        child: _buildConfirmationCard(),
-                      ),
+                // 5. CAMPUS BULLETIN (Announcements & Birthdays)
+                const HubUpdatesSection(),
+                const SizedBox(height: 24),
 
-                    if (state['warn'])
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 16.0),
-                        child: GlassCard(
-                          padding: const EdgeInsets.all(16),
-                          borderColor: state['color'],
-                          child: Row(
-                            children: [
-                              Icon(Icons.warning_rounded,
-                                  color: state['color']),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                  child: Text(
-                                      "Action Required: ${state['title']}",
-                                      style: TextStyle(
-                                          color: state['color'],
-                                          fontWeight: FontWeight.bold))),
-                            ],
-                          ),
-                        ).animate(onPlay: (c) => c.repeat(reverse: true)).shimmer(
-                            duration: 1500.ms,
-                            color: (state['color'] as Color)
-                                .withValues(alpha: 0.2)),
-                      ),
+                // 6. SCHOLAR ADMINISTRATIVE SERVICES
+                _buildSectionHeader("Scholar Services"),
+                const SizedBox(height: 10),
+                _buildServicesDock(),
+                const SizedBox(height: 24),
 
-                    // TOTAL MONTHLY HOURS & ALLOWANCE CARD
-                    _buildAllowanceCard().animate().fadeIn(duration: 400.ms),
-                    const SizedBox(height: 10),
-
-                    _buildScheduleCard().animate().fadeIn(duration: 400.ms),
-                    const SizedBox(height: 24),
-
-                    const HubUpdatesSection(),
-
-                    const SizedBox(height: 28),
-
-                    // EXCUSE SLIPS & REQUESTS SECTION
-                    const Text("Excuse Slips & Requests",
-                        style: TextStyle(
-                            color: AppColors.textTitle,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 12),
-                    _buildRequestsSection(),
-                    const SizedBox(height: 28),
-
-                    const Text("Today Logs",
-                        style: TextStyle(
-                            color: AppColors.textTitle,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 12),
-                    _buildTodayLogs(),
-                    if (_todayLogs.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              icon: const Icon(Icons.undo, size: 18),
-                              label: const Text("Undo Last"),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: AppColors.textBody,
-                                side: const BorderSide(
-                                    color: AppColors.cardBorder),
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14)),
-                              ),
+                // 7. TODAY'S DUTY LEDGER
+                _buildSectionHeader(
+                  "Today's Activity",
+                  trailing: _todayLogs.isNotEmpty
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            TextButton.icon(
                               onPressed: () async {
                                 await _service.undoLastLog();
                                 _loadData();
                                 _showFeedback("Last log undone.");
                               },
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              icon: const Icon(Icons.delete_outline, size: 18),
-                              label: const Text("Clear Today"),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: AppColors.error,
-                                side: BorderSide(
-                                    color: AppColors.error
-                                        .withValues(alpha: 0.5)),
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14)),
+                              icon: const Icon(Icons.undo_rounded, size: 15),
+                              label: const Text("Undo"),
+                              style: TextButton.styleFrom(
+                                foregroundColor: AppColors.textMuted,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               ),
+                            ),
+                            const SizedBox(width: 8),
+                            TextButton.icon(
                               onPressed: () async {
                                 final confirm = await showDialog<bool>(
                                   context: context,
                                   builder: (ctx) => AlertDialog(
                                     backgroundColor: AppColors.bgDeep,
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(18)),
                                     title: const Text("Clear today's logs?",
-                                        style: TextStyle(color: Colors.white)),
+                                        style: TextStyle(
+                                            color: AppColors.textTitle,
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 17)),
+                                    content: const Text(
+                                        "This will reset all duty records logged today.",
+                                        style: TextStyle(
+                                            color: AppColors.textBody,
+                                            fontSize: 13)),
                                     actions: [
                                       TextButton(
                                           onPressed: () =>
@@ -1431,10 +1401,13 @@ void _showOvertimeDialog() {
                                           child: const Text("Cancel")),
                                       ElevatedButton(
                                         style: ElevatedButton.styleFrom(
-                                            backgroundColor: AppColors.error),
+                                            backgroundColor: AppColors.error,
+                                            elevation: 0),
                                         onPressed: () =>
                                             Navigator.pop(ctx, true),
-                                        child: const Text("Clear"),
+                                        child: const Text("Clear",
+                                            style: TextStyle(
+                                                color: Colors.white)),
                                       ),
                                     ],
                                   ),
@@ -1442,46 +1415,123 @@ void _showOvertimeDialog() {
                                 if (confirm == true) {
                                   await _service.clearTodayLogs();
                                   _loadData();
-                                  _showFeedback("Today logs cleared.");
+                                  _showFeedback("Today's logs cleared.");
                                 }
                               },
+                              icon: const Icon(Icons.delete_outline_rounded,
+                                  size: 15, color: AppColors.error),
+                              label: const Text("Clear",
+                                  style: TextStyle(color: AppColors.error)),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
-                    const SizedBox(height: 32),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text("Recent History",
-                            style: TextStyle(
-                                color: AppColors.textTitle,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700)),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                                color: AppColors.primary.withValues(alpha: 0.3)),
-                          ),
-                          child: const Text("🗓️ 1-Month Retention",
-                              style: TextStyle(
-                                  color: AppColors.primary,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold)),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    _buildHistorySection(),
-                    const SizedBox(height: 40),
-                  ],
+                          ],
+                        )
+                      : null,
                 ),
+                const SizedBox(height: 10),
+                _buildTodayLedgerCard(),
+                const SizedBox(height: 24),
+
+                // 8. RECENT HISTORY (1-Month Retention)
+                _buildSectionHeader(
+                  "Recent History",
+                  trailing: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text("1-Month Retention",
+                        style: TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700)),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                _buildHistoryLedgerCard(),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // =========================================================================
+  // 1. CAMPUS HEADER
+  // =========================================================================
+  
+
+Widget _buildAcademicHeader() {
+    final greeting = AppFormatters.getGreeting();
+    final displayName = _userName?.trim().isNotEmpty == true
+        ? _userName!.trim()
+        : 'Scholar';
+    final initial =
+        displayName.isNotEmpty ? displayName[0].toUpperCase() : 'S';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: AppColors.bgDeep,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.cardBorder),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.25)),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              initial,
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w900,
+                fontSize: 18,
               ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$greeting, $displayName',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.textTitle,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Total days present: $_totalDays',
+                  style: const TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -1489,59 +1539,165 @@ void _showOvertimeDialog() {
     );
   }
 
-  Widget _buildAllowanceCard() {
-    return GlassCard(
-      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 18),
+
+
+  // =========================================================================
+  // 2. DUTY STATION COMMAND CARD
+  // =========================================================================
+  Widget _buildDutyStationCard(Map<String, dynamic> state) {
+    final Color badgeColor = state['color'] as Color;
+    final now = DateTime.now();
+    final schedIn = _service.getScheduledTimeInForDay(now.weekday);
+    final schedOut = _service.getScheduledTimeOutForDay(now.weekday);
+    final isDuty = _dutyDays.contains(now.weekday);
+
+    final shiftText = isDuty
+        ? "Scheduled: ${AppFormatters.formatTimeOfDay(schedIn)} – ${AppFormatters.formatTimeOfDay(schedOut)}"
+        : "No scheduled shift for today";
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.bgDeep,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: state['warn'] == true
+              ? badgeColor.withValues(alpha: 0.5)
+              : AppColors.cardBorder,
+          width: state['warn'] == true ? 1.5 : 1,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x06000000),
+            blurRadius: 10,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Station Header: Live status + Countdown pill
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: badgeColor,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    state['title'] as String,
+                    style: TextStyle(
+                      color: badgeColor,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+              if ((state['countdown'] as String).isNotEmpty)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: badgeColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    state['countdown'] as String,
+                    style: TextStyle(
+                      color: badgeColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          // Subtitle / Shift Schedule info
+          Text(
+            state['sub'] as String,
+            style: const TextStyle(
+              color: AppColors.textTitle,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.2,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              const Icon(Icons.schedule_rounded,
+                  color: AppColors.textMuted, size: 14),
+              const SizedBox(width: 6),
+              Text(
+                shiftText,
+                style: const TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 18),
+          const Divider(height: 1, color: AppColors.cardBorder),
+          const SizedBox(height: 14),
+
+          // TACTILE ATTENDANCE CONTROLS (Side-by-Side)
           Row(
             children: [
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text("MONTHLY HOURS",
-                        style: TextStyle(
-                            color: AppColors.textMuted,
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.7)),
-                    const SizedBox(height: 6),
-                    Text("${_monthlyHours.toStringAsFixed(1)} hrs",
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800)),
-                  ],
+                child: SizedBox(
+                  height: 48,
+                  child: ElevatedButton.icon(
+                    onPressed: _handleTimeIn,
+                    icon: const Icon(Icons.login_rounded, size: 18),
+                    label: const Text(
+                      "Clock In",
+                      style: TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.w700),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
                 ),
               ),
-              Container(height: 36, width: 1, color: AppColors.cardBorder),
-              const SizedBox(width: 14),
+              const SizedBox(width: 10),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                        "ESTIMATED ALLOWANCE (@₱${_hourlyRate.toStringAsFixed(0)}/hr)",
-                        style: const TextStyle(
-                            color: AppColors.textMuted,
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.7)),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Text("₱${_monthlyAllowance.toStringAsFixed(2)}",
-                            style: const TextStyle(
-                                color: AppColors.success,
-                                fontSize: 20,
-                                fontWeight: FontWeight.w800)),
-                        const SizedBox(width: 6),
-                        const Icon(Icons.info_outline_rounded,
-                            color: AppColors.textMuted, size: 16),
-                      ],
+                child: SizedBox(
+                  height: 48,
+                  child: OutlinedButton.icon(
+                    onPressed: _handleTimeOut,
+                    icon: const Icon(Icons.logout_rounded, size: 18),
+                    label: const Text(
+                      "Clock Out",
+                      style: TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.w700),
                     ),
-                  ],
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.textTitle,
+                      side: const BorderSide(color: AppColors.cardBorder),
+                      backgroundColor: AppColors.bgDark,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -1551,80 +1707,115 @@ void _showOvertimeDialog() {
     );
   }
 
- Widget _buildRequestsSection() {
+  // =========================================================================
+  // 3. STIPEND & HOURS METRIC BENTO CARDS
+  // =========================================================================
+
+Widget _buildMetricsBentoRow() {
     return Row(
       children: [
+        // Box 1: Total Hours
         Expanded(
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: _showAbsenceDialog,
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.bgDeep,
               borderRadius: BorderRadius.circular(16),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.cardGlass,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.cardBorder),
-                ),
-                child: const Column(
+              border: Border.all(color: AppColors.cardBorder),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Icon(Icons.event_busy_rounded, color: AppColors.orange, size: 24),
-                    SizedBox(height: 6),
-                    Text("Absence", style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+                    const Text(
+                      "TOTAL HOURS",
+                      style: TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    Icon(Icons.schedule_rounded,
+                        color: AppColors.primary.withValues(alpha: 0.7),
+                        size: 18),
                   ],
                 ),
-              ),
+                const SizedBox(height: 8),
+                Text(
+                  "${_monthlyHours.toStringAsFixed(1)} hrs",
+                  style: const TextStyle(
+                    color: AppColors.textTitle,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.4,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                const Text(
+                  "This month",
+                  style: TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
         const SizedBox(width: 10),
+
+        // Box 2: Allowance
         Expanded(
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: _showOvertimeDialog,
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.bgDeep,
               borderRadius: BorderRadius.circular(16),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.cardGlass,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.cardBorder),
-                ),
-                child: const Column(
-                  children: [
-                    Icon(Icons.more_time_rounded, color: AppColors.primary, size: 24),
-                    SizedBox(height: 6),
-                    Text("Overtime", style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
-                  ],
-                ),
-              ),
+              border: Border.all(color: AppColors.cardBorder),
             ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: _showWorkAuthDialog,
-              borderRadius: BorderRadius.circular(16),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.cardGlass,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.cardBorder),
-                ),
-                child: const Column(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Icon(Icons.receipt_long_rounded, color: AppColors.secondary, size: 24),
-                    SizedBox(height: 6),
-                    Text("Excuse Slip", style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+                    const Text(
+                      "ALLOWANCE",
+                      style: TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const Icon(Icons.payments_outlined,
+                        color: AppColors.success, size: 18),
                   ],
                 ),
-              ),
+                const SizedBox(height: 8),
+                Text(
+                  "₱${_monthlyAllowance.toStringAsFixed(2)}",
+                  style: const TextStyle(
+                    color: AppColors.success,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.4,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  "₱${_hourlyRate.toStringAsFixed(2)} per hour",
+                  style: const TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -1632,598 +1823,383 @@ void _showOvertimeDialog() {
     );
   }
 
+  // =========================================================================
+  // 4. SCHOLAR ADMINISTRATIVE SERVICES
+  // =========================================================================
+  Widget _buildServicesDock() {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: AppColors.bgDeep,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.cardBorder),
+      ),
+      child: Row(
+        children: [
+          _buildServiceItem(
+            icon: Icons.event_busy_rounded,
+            title: "Absence",
+            color: AppColors.orange,
+            onTap: _showAbsenceDialog,
+          ),
+          Container(width: 1, height: 32, color: AppColors.cardBorder),
+          _buildServiceItem(
+            icon: Icons.more_time_rounded,
+            title: "Overtime",
+            color: AppColors.primary,
+            onTap: _showOvertimeDialog,
+          ),
+          Container(width: 1, height: 32, color: AppColors.cardBorder),
+          _buildServiceItem(
+            icon: Icons.receipt_long_rounded,
+            title: "Excuse Slip",
+            color: AppColors.secondary,
+            onTap: _showWorkAuthDialog,
+          ),
+        ],
+      ),
+    );
+  }
 
+  Widget _buildServiceItem({
+    required IconData icon,
+    required String title,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: color, size: 22),
+              const SizedBox(height: 6),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: AppColors.textTitle,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
+  // =========================================================================
+  // 5. DUTY LEDGER (TODAY)
+  // =========================================================================
+  Widget _buildTodayLedgerCard() {
+    if (_todayLogs.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+        decoration: BoxDecoration(
+          color: AppColors.bgDeep,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.cardBorder),
+        ),
+        child: const Center(
+          child: Column(
+            children: [
+              Icon(Icons.history_toggle_off_rounded,
+                  color: AppColors.textMuted, size: 30),
+              SizedBox(height: 8),
+              Text(
+                "No duty logs recorded yet today.",
+                style: TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.bgDeep,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.cardBorder),
+      ),
+      child: ListView.separated(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: _todayLogs.length,
+        separatorBuilder: (_, __) =>
+            const Divider(height: 1, color: AppColors.cardBorder),
+        itemBuilder: (context, index) {
+          final log = _todayLogs.reversed.toList()[index];
+          final bool isTimeIn = log.type == 'in';
+          final actionColor =
+              isTimeIn ? AppColors.success : AppColors.primary;
 
+          return Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: actionColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        isTimeIn ? "Clock In" : "Clock Out",
+                        style: TextStyle(
+                          color: actionColor,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      AppFormatters.formatTime(log.timestamp),
+                      style: const TextStyle(
+                        color: AppColors.textTitle,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const Spacer(),
+                    StatusChip(status: log.status),
+                  ],
+                ),
+                if (log.accomplishment?.trim().isNotEmpty == true) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.bgDark,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.cardBorder),
+                    ),
+                    child: Text(
+                      '“${log.accomplishment!.trim()}”',
+                      style: const TextStyle(
+                        color: AppColors.textBody,
+                        fontSize: 12,
+                        fontStyle: FontStyle.italic,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
 
+  // =========================================================================
+  // 6. RECENT HISTORY LEDGER (1-MONTH)
+  // =========================================================================
+  Widget _buildHistoryLedgerCard() {
+    if (_history.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        decoration: BoxDecoration(
+          color: AppColors.bgDeep,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.cardBorder),
+        ),
+        child: const Center(
+          child: Text(
+            "No historical duty records found.",
+            style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+          ),
+        ),
+      );
+    }
 
-  Widget _buildConfirmationCard() {
-    return GlassCard(
-      padding: const EdgeInsets.all(20),
-      borderColor: AppColors.orange.withValues(alpha: 0.5),
-      hasGlow: true,
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.bgDeep,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.cardBorder),
+      ),
+      child: ListView.separated(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: _history.length,
+        separatorBuilder: (_, __) =>
+            const Divider(height: 1, color: AppColors.cardBorder),
+        itemBuilder: (context, index) {
+          final log = _history[index];
+          final bool isTimeIn = log.type == 'in';
+          final actionColor =
+              isTimeIn ? AppColors.success : AppColors.primary;
+
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: actionColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    isTimeIn
+                        ? Icons.login_rounded
+                        : Icons.logout_rounded,
+                    color: actionColor,
+                    size: 16,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        AppFormatters.formatDate(log.date),
+                        style: const TextStyle(
+                          color: AppColors.textTitle,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        "${isTimeIn ? 'In at' : 'Out at'} ${AppFormatters.formatTime(log.timestamp)}",
+                        style: const TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                StatusChip(status: log.status),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // =========================================================================
+  // HELPER: SECTION HEADERS & NOTICES
+  // =========================================================================
+  Widget _buildSectionHeader(String title, {Widget? trailing}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            color: AppColors.textTitle,
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.2,
+          ),
+        ),
+        if (trailing != null) trailing,
+      ],
+    );
+  }
+
+  Widget _buildFormSubmissionBanner() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.bgDeep,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.orange.withValues(alpha: 0.4)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Row(
             children: [
-              Icon(
-                Icons.assignment_turned_in_outlined,
-                color: AppColors.orange,
-                size: 24,
-              ),
-              SizedBox(width: 10),
+              Icon(Icons.assignment_turned_in_outlined,
+                  color: AppColors.orange, size: 20),
+              SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Did you submit the Google Form?',
+                  "Did you submit the attendance form?",
                   style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                    color: AppColors.textTitle,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 18),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () => _submitConfirmation('yes'),
-              icon: const Icon(
-                Icons.check_circle_outline_rounded,
-                size: 19,
-              ),
-              label: const Text('Yes, submitted'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.success,
-                side: const BorderSide(
-                  color: AppColors.success,
-                ),
-                padding: const EdgeInsets.symmetric(
-                  vertical: 14,
-                  horizontal: 16,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-            ),
-          ),
           const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () => _submitConfirmation('retry'),
-              icon: const Icon(
-                Icons.refresh_rounded,
-                size: 19,
-              ),
-              label: const Text('Open form again'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                side: const BorderSide(
-                  color: AppColors.primary,
-                ),
-                padding: const EdgeInsets.symmetric(
-                  vertical: 14,
-                  horizontal: 16,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () => _submitConfirmation('cancel'),
-              icon: const Icon(
-                Icons.close_rounded,
-                size: 19,
-              ),
-              label: const Text('Not submitted'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.error,
-                side: const BorderSide(
-                  color: AppColors.error,
-                ),
-                padding: const EdgeInsets.symmetric(
-                  vertical: 14,
-                  horizontal: 16,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-
-  Widget _buildHeader(int totalDays) {
-    final greeting = AppFormatters.getGreeting();
-    final displayName = _userName?.trim().isNotEmpty == true
-        ? _userName!.trim()
-        : 'User';
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '$greeting, $displayName',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppColors.textBody,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Total days present: $totalDays',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppColors.textMuted,
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildHeroCard(Map<String, dynamic> state) {
-    Color badgeColor = state['color'] as Color;
-    return GlassCard(
-      hasGlow: state['warn'],
-      borderColor: state['warn']
-          ? badgeColor.withValues(alpha: 0.5)
-          : AppColors.cardBorder,
-      padding: const EdgeInsets.all(28),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: badgeColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                      color: badgeColor.withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                          color: badgeColor,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(color: badgeColor, blurRadius: 4)
-                          ]),
-                    ).animate(onPlay: (controller) => controller.repeat())
-                        .fadeIn(duration: 1.seconds)
-                        .then()
-                        .fadeOut(duration: 1.seconds),
-                    const SizedBox(width: 8),
-                    Text("Live Status",
+              Expanded(
+                child: SizedBox(
+                  height: 36,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.success,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () => _submitConfirmation('yes'),
+                    child: const Text("Yes, submitted",
                         style: TextStyle(
-                            color: badgeColor,
                             fontSize: 12,
-                            fontWeight: FontWeight.w700)),
-                  ],
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white)),
+                  ),
                 ),
               ),
-              Icon(state['icon'],
-                  color: Colors.white.withValues(alpha: 0.2), size: 48),
+              const SizedBox(width: 8),
+              SizedBox(
+                height: 36,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    side: const BorderSide(color: AppColors.primary),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () => _submitConfirmation('retry'),
+                  child: const Text("Re-open", style: TextStyle(fontSize: 12)),
+                ),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                height: 36,
+                child: TextButton(
+                  onPressed: () => _submitConfirmation('cancel'),
+                  child: const Text("Not yet",
+                      style: TextStyle(
+                          fontSize: 12, color: AppColors.textMuted)),
+                ),
+              ),
             ],
-          ),
-          const SizedBox(height: 24),
-          Text(state['title'],
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: -0.5)),
-          const SizedBox(height: 8),
-          Text(state['sub'],
-              style: const TextStyle(color: AppColors.textBody, fontSize: 15)),
-          if (state['countdown'].isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 8.0),
-              child: Text(state['countdown'],
-                  style: TextStyle(
-                      color: badgeColor,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600)),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildScheduleCard() {
-    final now = DateTime.now();
-    final weekday = now.weekday;
-    final schedIn = _service.getScheduledTimeInForDay(weekday);
-    final schedOut = _service.getScheduledTimeOutForDay(weekday);
-
-    return GlassCard(
-      padding: const EdgeInsets.symmetric(
-        vertical: 18,
-        horizontal: 18,
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildScheduleItem(
-              label: 'SCHEDULED IN',
-              value: AppFormatters.formatTimeOfDay(schedIn),
-              icon: Icons.login_rounded,
-              alignment: CrossAxisAlignment.start,
-            ),
-          ),
-          Container(
-            height: 44,
-            width: 1,
-            margin: const EdgeInsets.symmetric(horizontal: 14),
-            color: AppColors.cardBorder,
-          ),
-          Expanded(
-            child: _buildScheduleItem(
-              label: 'SCHEDULED OUT',
-              value: AppFormatters.formatTimeOfDay(schedOut),
-              icon: Icons.logout_rounded,
-              alignment: CrossAxisAlignment.end,
-            ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildScheduleItem({
-    required String label,
-    required String value,
-    required IconData icon,
-    required CrossAxisAlignment alignment,
-  }) {
-    return Column(
-      crossAxisAlignment: alignment,
-      children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (alignment == CrossAxisAlignment.start) ...[
-              Icon(
-                icon,
-                color: AppColors.primary,
-                size: 16,
-              ),
-              const SizedBox(width: 6),
-            ],
-            Flexible(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppColors.textMuted,
-                  fontSize: 9,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.7,
-                ),
-              ),
-            ),
-            if (alignment == CrossAxisAlignment.end) ...[
-              const SizedBox(width: 6),
-              Icon(
-                icon,
-                color: AppColors.primary,
-                size: 16,
-              ),
-            ],
-          ],
-        ),
-        const SizedBox(height: 7),
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: alignment == CrossAxisAlignment.start
-              ? Alignment.centerLeft
-              : Alignment.centerRight,
-          child: Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 17,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTodayLogs() {
-    if (_todayLogs.isEmpty) {
-      return const GlassCard(
-        padding: EdgeInsets.all(24),
-        child: Center(
-          child: Column(
-            children: [
-              Icon(
-                Icons.history_toggle_off_rounded,
-                color: AppColors.textMuted,
-                size: 34,
-              ),
-              SizedBox(height: 10),
-              Text(
-                'No logs yet today.',
-                style: TextStyle(
-                  color: AppColors.textBody,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Column(
-      children: _todayLogs.reversed.map((log) {
-        final bool isTimeIn = log.type == 'in';
-
-        final Color actionColor = isTimeIn
-            ? AppColors.success
-            : AppColors.orange;
-
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: GlassCard(
-            padding: const EdgeInsets.all(17),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 42,
-                      height: 42,
-                      decoration: BoxDecoration(
-                        color: actionColor.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Icon(
-                        isTimeIn
-                            ? Icons.login_rounded
-                            : Icons.logout_rounded,
-                        color: actionColor,
-                        size: 21,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            isTimeIn ? 'Clock In' : 'Clock Out',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            AppFormatters.formatTime(log.timestamp),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: AppColors.textBody,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                if (log.accomplishment?.trim().isNotEmpty == true) ...[
-                  const SizedBox(height: 12),
-                  Text(
-                    log.accomplishment!.trim(),
-                    style: const TextStyle(
-                      color: AppColors.textMuted,
-                      fontSize: 12,
-                      height: 1.4,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 14),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    if (log.formStatus != null)
-                      _buildFormStatusChip(log.formStatus!),
-                    StatusChip(status: log.status),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildFormStatusChip(String formStatus) {
-    Color color;
-    String text;
-    switch (formStatus) {
-      case 'submitted':
-        color = AppColors.success;
-        text = "Form Submitted";
-        break;
-      case 'pending':
-        color = AppColors.orange;
-        text = "Form Pending";
-        break;
-      case 'not_submitted':
-        color = AppColors.error;
-        text = "Form Not Submitted";
-        break;
-      default:
-        color = AppColors.textMuted;
-        text = "Unknown";
-    }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-            color: color, fontSize: 10, fontWeight: FontWeight.bold),
-      ),
-    );
-  }
-
-  Widget _buildHistorySection() {
-    if (_history.isEmpty) {
-      return const GlassCard(
-        padding: EdgeInsets.all(24),
-        child: Center(
-          child: Text(
-            'No records found.',
-            style: TextStyle(
-              color: AppColors.textMuted,
-              fontSize: 14,
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Column(
-      children: _history.map((log) {
-        final bool isTimeIn = log.type == 'in';
-
-        final Color actionColor = isTimeIn
-            ? AppColors.success
-            : AppColors.orange;
-
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: GlassCard(
-            padding: const EdgeInsets.all(17),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: actionColor.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(13),
-                      ),
-                      child: Icon(
-                        isTimeIn
-                            ? Icons.login_rounded
-                            : Icons.logout_rounded,
-                        color: actionColor,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            AppFormatters.formatDate(log.date),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            AppFormatters.formatTime(log.timestamp),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: AppColors.textBody,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                if (log.accomplishment?.trim().isNotEmpty == true) ...[
-                  const SizedBox(height: 12),
-                  Text(
-                    '“${log.accomplishment!.trim()}”',
-                    style: const TextStyle(
-                      color: AppColors.textMuted,
-                      fontSize: 11,
-                      fontStyle: FontStyle.italic,
-                      height: 1.4,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 13),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    if (log.formStatus != null)
-                      _buildFormStatusChip(log.formStatus!),
-                    StatusChip(status: log.status),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      }).toList(),
     );
   }
 }
-
