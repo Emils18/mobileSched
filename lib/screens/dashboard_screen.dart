@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
 import 'package:url_launcher/url_launcher.dart';
 import '../services/attendance_service.dart';
 import '../services/notification_service.dart';
@@ -132,6 +131,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   void _showFeedback(String message, {bool isError = false}) {
     if (!context.mounted) return;
+    HapticFeedback.lightImpact();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -184,7 +184,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                       fontWeight: FontWeight.w600))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
+                backgroundColor: const Color(0xFF2B92D5),
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12))),
@@ -272,7 +272,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide:
-                        const BorderSide(color: AppColors.primary, width: 1.5)),
+                        const BorderSide(color: Color(0xFF2B92D5), width: 1.5)),
               ),
             ),
           ],
@@ -286,7 +286,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                       fontWeight: FontWeight.w600))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
+                backgroundColor: const Color(0xFF2B92D5),
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12))),
@@ -572,7 +572,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 side: const BorderSide(color: AppColors.cardBorder)),
             title: const Row(
               children: [
-                Icon(Icons.more_time_rounded, color: AppColors.primary, size: 22),
+                Icon(Icons.more_time_rounded, color: Color(0xFF2B92D5), size: 22),
                 SizedBox(width: 10),
                 Expanded(
                   child: Text("Overtime Authorization",
@@ -773,7 +773,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                       style: TextStyle(color: AppColors.textMuted))),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
+                    backgroundColor: const Color(0xFF2B92D5),
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12))),
@@ -1082,11 +1082,11 @@ class _DashboardScreenState extends State<DashboardScreen>
               width: 52,
               height: 52,
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.12),
+                color: const Color(0xFF2B92D5).withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: const Icon(Icons.open_in_browser_rounded,
-                  size: 26, color: AppColors.primary),
+                  size: 26, color: Color(0xFF2B92D5)),
             ),
             const SizedBox(height: 16),
             const Text(
@@ -1109,7 +1109,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               height: 48,
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
+                  backgroundColor: const Color(0xFF2B92D5),
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
@@ -1234,7 +1234,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           return {
             "title": "Duty Later Today",
             "sub": "Scheduled for ${AppFormatters.formatTimeOfDay(schedIn)}.",
-            "color": AppColors.primary,
+            "color": const Color(0xFF2B92D5),
             "icon": Icons.schedule_rounded,
             "warn": false,
             "countdown": "Starts in ${diff.inHours}h ${(diff.inMinutes % 60)}m",
@@ -1306,157 +1306,207 @@ class _DashboardScreenState extends State<DashboardScreen>
     final state = _getDashboardState();
 
     return Scaffold(
-      backgroundColor: AppColors.bgDark,
+      backgroundColor: const Color(0xFFF4F8FC), // Soft daylight campus canvas
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async => _loadData(),
-          color: AppColors.primary,
+          color: const Color(0xFF2B92D5),
           backgroundColor: AppColors.bgDeep,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(
                 parent: BouncingScrollPhysics()),
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 1. CAMPUS AGENDA HEADER
-                _buildAgendaHeader(),
-                const SizedBox(height: 14),
-
-                // 2. HORIZONTAL WEEKLY DUTY STRIP (From Reference Image 2)
-                _buildWeeklyDutyStrip(),
-                const SizedBox(height: 16),
-
-                // 3. GOOGLE FORM SUBMISSION PROMPT (if pending)
-                if (_pendingSubmission != null) ...[
-                  _buildFormSubmissionBanner(),
-                  const SizedBox(height: 16),
-                ],
-
-                // 4. DUTY STATION COMMAND CARD
-                _buildDutyStationCard(state),
-                const SizedBox(height: 14),
-
-                // 5. SCHOLAR METRIC PODS (From Reference Image 1)
-                _buildScholarMetricPods(),
-                const SizedBox(height: 24),
-
-                // 6. CAMPUS BULLETIN (Announcements & Birthdays)
-                const HubUpdatesSection(),
-                const SizedBox(height: 24),
-
-                // 7. SCHOLAR ADMINISTRATIVE SERVICES
-                _buildSectionHeader("Scholar Services"),
-                const SizedBox(height: 10),
-                _buildServicesDock(),
-                const SizedBox(height: 24),
-
-                // 8. TODAY'S DUTY LEDGER
-                _buildSectionHeader(
-                  "Today's Activity",
-                  trailing: _todayLogs.isNotEmpty
-                      ? Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            TextButton.icon(
-                              onPressed: () async {
-                                await _service.undoLastLog();
-                                _loadData();
-                                _showFeedback("Last log undone.");
-                              },
-                              icon: const Icon(Icons.undo_rounded, size: 15),
-                              label: const Text("Undo"),
-                              style: TextButton.styleFrom(
-                                foregroundColor: AppColors.textMuted,
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 4),
-                                minimumSize: Size.zero,
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            TextButton.icon(
-                              onPressed: () async {
-                                final confirm = await showDialog<bool>(
-                                  context: context,
-                                  builder: (ctx) => AlertDialog(
-                                    backgroundColor: AppColors.bgDeep,
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(18)),
-                                    title: const Text("Clear today's logs?",
-                                        style: TextStyle(
-                                            color: AppColors.textTitle,
-                                            fontWeight: FontWeight.w800,
-                                            fontSize: 17)),
-                                    content: const Text(
-                                        "This will reset all duty records logged today.",
-                                        style: TextStyle(
-                                            color: AppColors.textBody,
-                                            fontSize: 13)),
-                                    actions: [
-                                      TextButton(
-                                          onPressed: () =>
-                                              Navigator.pop(ctx, false),
-                                          child: const Text("Cancel")),
-                                      ElevatedButton(
-                                        style: ElevatedButton.styleFrom(
-                                            backgroundColor: AppColors.error,
-                                            elevation: 0),
-                                        onPressed: () =>
-                                            Navigator.pop(ctx, true),
-                                        child: const Text("Clear",
-                                            style: TextStyle(
-                                                color: Colors.white)),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                                if (confirm == true) {
-                                  await _service.clearTodayLogs();
-                                  _loadData();
-                                  _showFeedback("Today's logs cleared.");
-                                }
-                              },
-                              icon: const Icon(Icons.delete_outline_rounded,
-                                  size: 15, color: AppColors.error),
-                              label: const Text("Clear",
-                                  style: TextStyle(color: AppColors.error)),
-                              style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 4),
-                                minimumSize: Size.zero,
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                            ),
-                          ],
-                        )
-                      : null,
-                ),
-                const SizedBox(height: 10),
-                _buildTodayLedgerCard(),
-                const SizedBox(height: 24),
-
-                // 9. RECENT HISTORY (1-Month Retention)
-                _buildSectionHeader(
-                  "Recent History",
-                  trailing: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.10),
-                      borderRadius: BorderRadius.circular(8),
+                // =======================================================
+                // 1. LIGHT SKY HORIZON CANOPY (Top Layer - Concept 1)
+                // =======================================================
+                Stack(
+                  children: [
+                    // Vector Hills / Horizon Art Painter
+                    Container(
+                      width: double.infinity,
+                      height: 190,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF2B92D5), // Bright Scholar Sky Blue
+                      ),
+                      child: CustomPaint(
+                        painter: _CampusHorizonPainter(),
+                      ),
                     ),
-                    child: const Text("1-Month Retention",
-                        style: TextStyle(
-                            color: AppColors.primary,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700)),
+
+                    // Canopy Content (Greeting + Day Strip)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildBrightSkyHeader(),
+                          const SizedBox(height: 14),
+                          _buildWeeklyDutyStripBrightSky(),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+
+                // =======================================================
+                // 2. ILLUSTRATED DUTY PASS (Concept 2 - Card Bridge)
+                // =======================================================
+                Transform.translate(
+                  offset: const Offset(0, -22),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: _buildIllustratedDutyPass(state),
                   ),
                 ),
-                const SizedBox(height: 10),
-                _buildHistoryLedgerCard(),
-                const SizedBox(height: 20),
+
+                // =======================================================
+                // 3. LOWER CONTENT CANVAS
+                // =======================================================
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // GOOGLE FORM PROMPT (if pending)
+                      if (_pendingSubmission != null) ...[
+                        _buildFormSubmissionBanner(),
+                        const SizedBox(height: 16),
+                      ],
+
+                      // LEARNUP SOFT PASTEL METRIC PODS
+                      _buildLearnUpMetricPods(),
+                      const SizedBox(height: 24),
+
+                      // CAMPUS BULLETIN
+                      const HubUpdatesSection(),
+                      const SizedBox(height: 24),
+
+                      // SCHOLAR ADMINISTRATIVE SERVICES
+                      _buildSectionHeader("Scholar Services"),
+                      const SizedBox(height: 10),
+                      _buildServicesDock(),
+                      const SizedBox(height: 24),
+
+                      // TODAY'S DUTY LEDGER
+                      _buildSectionHeader(
+                        "Today's Activity",
+                        trailing: _todayLogs.isNotEmpty
+                            ? Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  TextButton.icon(
+                                    onPressed: () async {
+                                      await _service.undoLastLog();
+                                      _loadData();
+                                      _showFeedback("Last log undone.");
+                                    },
+                                    icon: const Icon(Icons.undo_rounded,
+                                        size: 15),
+                                    label: const Text("Undo"),
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: AppColors.textMuted,
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 4),
+                                      minimumSize: Size.zero,
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  TextButton.icon(
+                                    onPressed: () async {
+                                      final confirm = await showDialog<bool>(
+                                        context: context,
+                                        builder: (ctx) => AlertDialog(
+                                          backgroundColor: AppColors.bgDeep,
+                                          shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(18)),
+                                          title: const Text(
+                                              "Clear today's logs?",
+                                              style: TextStyle(
+                                                  color: AppColors.textTitle,
+                                                  fontWeight: FontWeight.w800,
+                                                  fontSize: 17)),
+                                          content: const Text(
+                                              "This will reset all duty records logged today.",
+                                              style: TextStyle(
+                                                  color: AppColors.textBody,
+                                                  fontSize: 13)),
+                                          actions: [
+                                            TextButton(
+                                                onPressed: () =>
+                                                    Navigator.pop(ctx, false),
+                                                child: const Text("Cancel")),
+                                            ElevatedButton(
+                                              style: ElevatedButton.styleFrom(
+                                                  backgroundColor:
+                                                      AppColors.error,
+                                                  elevation: 0),
+                                              onPressed: () =>
+                                                  Navigator.pop(ctx, true),
+                                              child: const Text("Clear",
+                                                  style: TextStyle(
+                                                      color: Colors.white)),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                      if (confirm == true) {
+                                        await _service.clearTodayLogs();
+                                        _loadData();
+                                        _showFeedback("Today's logs cleared.");
+                                      }
+                                    },
+                                    icon: const Icon(
+                                        Icons.delete_outline_rounded,
+                                        size: 15,
+                                        color: AppColors.error),
+                                    label: const Text("Clear",
+                                        style:
+                                            TextStyle(color: AppColors.error)),
+                                    style: TextButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 4),
+                                      minimumSize: Size.zero,
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : null,
+                      ),
+                      const SizedBox(height: 10),
+                      _buildTodayLedgerCard(),
+                      const SizedBox(height: 24),
+
+                      // RECENT HISTORY (1-Month Retention)
+                      _buildSectionHeader(
+                        "Recent History",
+                        trailing: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color:
+                                const Color(0xFF2B92D5).withValues(alpha: 0.10),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text("1-Month Retention",
+                              style: TextStyle(
+                                  color: Color(0xFF2B92D5),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700)),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      _buildHistoryLedgerCard(),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -1466,9 +1516,9 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   // =========================================================================
-  // 1. CAMPUS AGENDA HEADER (LearnUp Style)
+  // 1. BRIGHT SKY HEADER
   // =========================================================================
-  Widget _buildAgendaHeader() {
+  Widget _buildBrightSkyHeader() {
     final greeting = AppFormatters.getGreeting();
     final displayName = _userName?.trim().isNotEmpty == true
         ? _userName!.trim()
@@ -1478,21 +1528,26 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     return Row(
       children: [
-        // Squircle Profile Pod
+        // Squircle Profile Pod with white border
         Container(
-          width: 48,
-          height: 48,
+          width: 46,
+          height: 46,
           decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-                color: AppColors.primary.withValues(alpha: 0.22), width: 1.2),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(15),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.10),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
           ),
           alignment: Alignment.center,
           child: Text(
             initial,
             style: const TextStyle(
-              color: AppColors.primary,
+              color: Color(0xFF2B92D5),
               fontWeight: FontWeight.w900,
               fontSize: 20,
             ),
@@ -1508,17 +1563,17 @@ class _DashboardScreenState extends State<DashboardScreen>
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  color: AppColors.textTitle,
+                  color: Colors.white,
                   fontSize: 18,
                   fontWeight: FontWeight.w900,
-                  letterSpacing: -0.4,
+                  letterSpacing: -0.3,
                 ),
               ),
               const SizedBox(height: 2),
               Text(
                 'Total days present: $_totalDays',
-                style: const TextStyle(
-                  color: AppColors.textMuted,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.88),
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
@@ -1531,9 +1586,9 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   // =========================================================================
-  // 2. HORIZONTAL WEEKLY DUTY STRIP (From Reference Image 2 - MyTask)
+  // 2. WEEKLY DUTY STRIP (ON LIGHT SKY)
   // =========================================================================
-  Widget _buildWeeklyDutyStrip() {
+  Widget _buildWeeklyDutyStripBrightSky() {
     final now = DateTime.now();
     final todayWeekday = now.weekday;
 
@@ -1548,18 +1603,10 @@ class _DashboardScreenState extends State<DashboardScreen>
     ];
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
       decoration: BoxDecoration(
-        color: AppColors.bgDeep,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.cardBorder),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x04000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
+        color: Colors.black.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1573,56 +1620,53 @@ class _DashboardScreenState extends State<DashboardScreen>
           return Expanded(
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 2),
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              padding: const EdgeInsets.symmetric(vertical: 6),
               decoration: BoxDecoration(
-                color: isToday ? AppColors.primary : Colors.transparent,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: isToday
-                      ? AppColors.primary
-                      : (isAssignedDuty
-                          ? AppColors.orange.withValues(alpha: 0.3)
-                          : Colors.transparent),
-                ),
+                color: isToday ? Colors.white : Colors.transparent,
+                borderRadius: BorderRadius.circular(10),
+                boxShadow: isToday
+                    ? [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.12),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ]
+                    : null,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Dot indicator for duty days (Zero emojis!)
                   Container(
                     width: 5,
                     height: 5,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: isToday
-                          ? Colors.white
-                          : (isAssignedDuty
-                              ? AppColors.orange
-                              : Colors.transparent),
+                      color: isAssignedDuty
+                          ? (isToday ? AppColors.orange : const Color(0xFFFFB066))
+                          : Colors.transparent,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 3),
                   Text(
                     short,
                     style: TextStyle(
                       color: isToday
-                          ? Colors.white
-                          : (isAssignedDuty
-                              ? AppColors.textTitle
-                              : AppColors.textMuted),
+                          ? const Color(0xFF2B92D5)
+                          : Colors.white,
                       fontSize: 13,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 1),
                   Text(
                     label,
                     style: TextStyle(
                       color: isToday
-                          ? Colors.white.withValues(alpha: 0.85)
-                          : AppColors.textMuted,
+                          ? const Color(0xFF2B92D5)
+                          : Colors.white.withValues(alpha: 0.8),
                       fontSize: 10,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],
@@ -1635,200 +1679,353 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   // =========================================================================
-  // 3. DUTY STATION COMMAND CARD
+  // 3. ILLUSTRATED DUTY PASS (Concept 2 - Vector Waves in Card)
   // =========================================================================
-  Widget _buildDutyStationCard(Map<String, dynamic> state) {
+Widget _buildIllustratedDutyPass(Map<String, dynamic> state) {
     final Color badgeColor = state['color'] as Color;
-    final now = DateTime.now();
+    final now = _currentTime;
     final schedIn = _service.getScheduledTimeInForDay(now.weekday);
     final schedOut = _service.getScheduledTimeOutForDay(now.weekday);
     final isDuty = _dutyDays.contains(now.weekday);
+
+    final inLog = _todayLogs.where((l) => l.type == 'in').firstOrNull;
+    final bool hasIn = inLog != null;
+    final bool hasOut = _todayLogs.any((l) => l.type == 'out');
+
+    // Live Elapsed Shift Counter (Ticks live every second when on duty!)
+    String liveElapsedText = "";
+    if (hasIn && !hasOut) {
+      final elapsed = now.difference(inLog.timestamp);
+      final hours = elapsed.inHours.toString().padLeft(2, '0');
+      final minutes = (elapsed.inMinutes % 60).toString().padLeft(2, '0');
+      final seconds = (elapsed.inSeconds % 60).toString().padLeft(2, '0');
+      liveElapsedText = "$hours:$minutes:$seconds on duty";
+    }
 
     final shiftText = isDuty
         ? "${AppFormatters.formatTimeOfDay(schedIn)} – ${AppFormatters.formatTimeOfDay(schedOut)}"
         : "Off Duty";
 
-    return Container(
-      padding: const EdgeInsets.all(18),
+    final bool isShiftActive = hasIn && !hasOut;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
       decoration: BoxDecoration(
         color: AppColors.bgDeep,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: state['warn'] == true
-              ? badgeColor.withValues(alpha: 0.5)
-              : AppColors.cardBorder,
-          width: state['warn'] == true ? 1.5 : 1,
+          color: isShiftActive
+              ? AppColors.orange.withValues(alpha: 0.6)
+              : (state['warn'] == true
+                  ? badgeColor.withValues(alpha: 0.5)
+                  : AppColors.cardBorder),
+          width: isShiftActive || state['warn'] == true ? 1.6 : 1,
         ),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x06000000),
-            blurRadius: 12,
-            offset: Offset(0, 4),
+            color: isShiftActive
+                ? AppColors.orange.withValues(alpha: 0.16)
+                : const Color(0x120C2340),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              // Squircle Status Pod
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: badgeColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(13),
-                ),
-                child: Icon(state['icon'] as IconData,
-                    color: badgeColor, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      state['title'] as String,
-                      style: TextStyle(
-                        color: badgeColor,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 13,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      state['sub'] as String,
-                      style: const TextStyle(
-                        color: AppColors.textTitle,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.2,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // Dark Time Capsule Badge (From Reference 2 - MyTask)
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1E293B),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  shiftText,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 11,
-                    letterSpacing: 0.2,
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top Row: University Badge + DUTY STATION + Dynamic Live Status
+            Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: isShiftActive
+                        ? AppColors.orange.withValues(alpha: 0.12)
+                        : const Color(0xFF2B92D5).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    isShiftActive ? Icons.work_history_rounded : Icons.school_rounded,
+                    color: isShiftActive ? AppColors.orange : const Color(0xFF2B92D5),
+                    size: 18,
                   ),
                 ),
-              ),
-            ],
-          ),
-
-          if ((state['countdown'] as String).isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: badgeColor.withValues(alpha: 0.09),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                state['countdown'] as String,
-                style: TextStyle(
-                  color: badgeColor,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
+                const SizedBox(width: 10),
+                Text(
+                  isShiftActive ? "ACTIVE SHIFT" : "DUTY STATION",
+                  style: TextStyle(
+                    color: isShiftActive ? AppColors.orange : AppColors.textTitle,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 12,
+                    letterSpacing: 1.0,
+                  ),
                 ),
-              ),
+                const Spacer(),
+                // Dynamic Status Pill
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: (isShiftActive ? AppColors.orange : badgeColor).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isShiftActive) ...[
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppColors.orange,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                      ],
+                      Text(
+                        isShiftActive ? "Shift in Progress" : (state['title'] as String),
+                        style: TextStyle(
+                          color: isShiftActive ? AppColors.orange : badgeColor,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 14),
+
+            // Live Time / Shift Display
+            Row(
+              children: [
+                Icon(
+                  isShiftActive ? Icons.timer_outlined : Icons.schedule_rounded,
+                  color: isShiftActive ? AppColors.orange : const Color(0xFF2B92D5),
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  isShiftActive ? liveElapsedText : shiftText,
+                  style: TextStyle(
+                    color: isShiftActive ? AppColors.textTitle : AppColors.textTitle,
+                    fontSize: isShiftActive ? 20 : 17,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: isShiftActive ? 0.2 : -0.3,
+                  ),
+                ),
+                const Spacer(),
+                if (!isShiftActive && (state['countdown'] as String).isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E293B),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      state['countdown'] as String,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+
+            const SizedBox(height: 16),
+            const Divider(height: 1, color: AppColors.cardBorder),
+            const SizedBox(height: 14),
+
+            // DYNAMIC DUAL-TIER ATTENDANCE ACTIONS
+            Row(
+              children: [
+                // CLOCK IN BUTTON
+                Expanded(
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: _handleTimeIn,
+                      borderRadius: BorderRadius.circular(16),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 250),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: hasIn
+                              ? const Color(0xFFEFF6FF)
+                              : const Color(0xFF2B92D5),
+                          borderRadius: BorderRadius.circular(16),
+                          border: hasIn
+                              ? Border.all(color: const Color(0xFFBFDBFE))
+                              : null,
+                          boxShadow: hasIn
+                              ? null
+                              : [
+                                  BoxShadow(
+                                    color: const Color(0xFF2B92D5).withValues(alpha: 0.35),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 34,
+                              height: 34,
+                              decoration: BoxDecoration(
+                                color: hasIn ? const Color(0xFFDBEAFE) : Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                hasIn ? Icons.check_rounded : Icons.login_rounded,
+                                color: const Color(0xFF2B92D5),
+                                size: 18,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    hasIn ? "Clocked In" : "Clock In",
+                                    style: TextStyle(
+                                      color: hasIn ? const Color(0xFF1D4ED8) : Colors.white,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  Text(
+                                    hasIn
+                                        ? "At ${AppFormatters.formatTime(inLog.timestamp)}"
+                                        : "Start shift",
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: hasIn ? const Color(0xFF60A5FA) : Colors.white70,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+
+                // CLOCK OUT BUTTON (Glows active Campus Orange when on duty!)
+                Expanded(
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: _handleTimeOut,
+                      borderRadius: BorderRadius.circular(16),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 250),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: isShiftActive
+                              ? AppColors.orange
+                              : AppColors.bgDark,
+                          borderRadius: BorderRadius.circular(16),
+                          border: isShiftActive
+                              ? null
+                              : Border.all(color: AppColors.cardBorder, width: 1.2),
+                          boxShadow: isShiftActive
+                              ? [
+                                  BoxShadow(
+                                    color: AppColors.orange.withValues(alpha: 0.38),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 34,
+                              height: 34,
+                              decoration: BoxDecoration(
+                                color: isShiftActive
+                                    ? Colors.white
+                                    : AppColors.orange.withValues(alpha: 0.12),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.logout_rounded,
+                                color: AppColors.orange,
+                                size: 18,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    hasOut ? "Clocked Out" : "Clock Out",
+                                    style: TextStyle(
+                                      color: isShiftActive ? Colors.white : AppColors.textTitle,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  Text(
+                                    hasOut ? "Completed" : "End shift",
+                                    style: TextStyle(
+                                      color: isShiftActive ? Colors.white70 : AppColors.textMuted,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
-
-          const SizedBox(height: 18),
-          const Divider(height: 1, color: AppColors.cardBorder),
-          const SizedBox(height: 14),
-
-          // TACTILE ATTENDANCE CONTROLS
-          Row(
-            children: [
-              Expanded(
-                child: SizedBox(
-                  height: 48,
-                  child: ElevatedButton.icon(
-                    onPressed: _handleTimeIn,
-                    icon: const Icon(Icons.login_rounded, size: 18),
-                    label: const Text(
-                      "Clock In",
-                      style: TextStyle(
-                          fontSize: 14, fontWeight: FontWeight.w700),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14)),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: SizedBox(
-                  height: 48,
-                  child: OutlinedButton.icon(
-                    onPressed: _handleTimeOut,
-                    icon: const Icon(Icons.logout_rounded,
-                        size: 18, color: AppColors.secondary),
-                    label: const Text(
-                      "Clock Out",
-                      style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textTitle),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppColors.cardBorder),
-                      backgroundColor: AppColors.bgDark,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14)),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
 
   // =========================================================================
-  // 4. SCHOLAR METRIC PODS (LearnUp Style)
+  // 4. LEARNUP PASTEL METRIC PODS (Ice-Blue & Mint)
   // =========================================================================
-  Widget _buildScholarMetricPods() {
+  Widget _buildLearnUpMetricPods() {
     return Row(
       children: [
-        // Pod 1: Hours
+        // Pod 1: Hours (Soft Ice-Blue Container)
         Expanded(
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.bgDeep,
+              color: const Color(0xFFEDF6FD), // Soft Ice-Blue (LearnUp)
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: AppColors.cardBorder),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x04000000),
-                  blurRadius: 8,
-                  offset: Offset(0, 2),
-                ),
-              ],
+              border: Border.all(
+                  color: const Color(0xFF2B92D5).withValues(alpha: 0.15)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1837,19 +2034,19 @@ class _DashboardScreenState extends State<DashboardScreen>
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Container(
-                      width: 36,
-                      height: 36,
+                      width: 34,
+                      height: 34,
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(11),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: const Icon(Icons.schedule_rounded,
-                          color: AppColors.primary, size: 18),
+                          color: Color(0xFF2B92D5), size: 18),
                     ),
                     const Text(
                       "HOURS",
                       style: TextStyle(
-                        color: AppColors.textMuted,
+                        color: Color(0xFF2B92D5),
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.5,
@@ -1873,8 +2070,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                   child: LinearProgressIndicator(
                     value: (_monthlyHours / 50.0).clamp(0.0, 1.0),
                     minHeight: 5,
-                    color: AppColors.primary,
-                    backgroundColor: AppColors.cardBorder,
+                    color: const Color(0xFF2B92D5),
+                    backgroundColor: Colors.white,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -1892,21 +2089,15 @@ class _DashboardScreenState extends State<DashboardScreen>
         ),
         const SizedBox(width: 12),
 
-        // Pod 2: Allowance
+        // Pod 2: Allowance (Soft Mint-Cream Container)
         Expanded(
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.bgDeep,
+              color: const Color(0xFFF0FAF4), // Soft Mint (LearnUp)
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: AppColors.cardBorder),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x04000000),
-                  blurRadius: 8,
-                  offset: Offset(0, 2),
-                ),
-              ],
+              border: Border.all(
+                  color: AppColors.success.withValues(alpha: 0.20)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1915,11 +2106,11 @@ class _DashboardScreenState extends State<DashboardScreen>
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Container(
-                      width: 36,
-                      height: 36,
+                      width: 34,
+                      height: 34,
                       decoration: BoxDecoration(
-                        color: AppColors.success.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(11),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: const Icon(Icons.payments_outlined,
                           color: AppColors.success, size: 18),
@@ -1927,7 +2118,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     const Text(
                       "ALLOWANCE",
                       style: TextStyle(
-                        color: AppColors.textMuted,
+                        color: AppColors.success,
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.5,
@@ -1950,7 +2141,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   padding:
                       const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                   decoration: BoxDecoration(
-                    color: AppColors.success.withValues(alpha: 0.09),
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
@@ -2000,7 +2191,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           _buildServicePod(
             icon: Icons.more_time_rounded,
             title: "Overtime",
-            color: AppColors.primary,
+            color: const Color(0xFF2B92D5),
             onTap: _showOvertimeDialog,
           ),
           Container(width: 1, height: 36, color: AppColors.cardBorder),
@@ -2058,7 +2249,9 @@ class _DashboardScreenState extends State<DashboardScreen>
   // =========================================================================
   // 6. TODAY'S DUTY LEDGER
   // =========================================================================
-  Widget _buildTodayLedgerCard() {
+
+
+Widget _buildTodayLedgerCard() {
     if (_todayLogs.isEmpty) {
       return Container(
         width: double.infinity,
@@ -2072,7 +2265,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           child: Column(
             children: [
               Icon(Icons.history_toggle_off_rounded,
-                  color: AppColors.textMuted, size: 30),
+                  color: AppColors.textMuted, size: 28),
               SizedBox(height: 8),
               Text(
                 "No duty logs recorded yet today.",
@@ -2088,80 +2281,119 @@ class _DashboardScreenState extends State<DashboardScreen>
       );
     }
 
+    final reversedLogs = _todayLogs.reversed.toList();
+
     return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: AppColors.bgDeep,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.cardBorder),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x040C2340),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
-      child: ListView.separated(
+      child: ListView.builder(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        itemCount: _todayLogs.length,
-        separatorBuilder: (_, __) =>
-            const Divider(height: 1, color: AppColors.cardBorder),
+        itemCount: reversedLogs.length,
         itemBuilder: (context, index) {
-          final log = _todayLogs.reversed.toList()[index];
+          final log = reversedLogs[index];
           final bool isTimeIn = log.type == 'in';
-          final actionColor =
-              isTimeIn ? AppColors.success : AppColors.primary;
+          final actionColor = isTimeIn ? AppColors.success : const Color(0xFF2B92D5);
+          final bool isLast = index == reversedLogs.length - 1;
 
-          return Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
+          return IntrinsicHeight(
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                // Timeline Rail & Node
+                Column(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
+                      width: 22,
+                      height: 22,
                       decoration: BoxDecoration(
-                        color: actionColor.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(8),
+                        color: actionColor.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: actionColor, width: 2),
                       ),
-                      child: Text(
-                        isTimeIn ? "Clock In" : "Clock Out",
-                        style: TextStyle(
-                          color: actionColor,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 12,
+                      child: Icon(
+                        isTimeIn ? Icons.login_rounded : Icons.logout_rounded,
+                        size: 11,
+                        color: actionColor,
+                      ),
+                    ),
+                    if (!isLast)
+                      Expanded(
+                        child: Container(
+                          width: 2,
+                          margin: const EdgeInsets.symmetric(vertical: 4),
+                          color: AppColors.cardBorder,
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      AppFormatters.formatTime(log.timestamp),
-                      style: const TextStyle(
-                        color: AppColors.textTitle,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const Spacer(),
-                    StatusChip(status: log.status),
                   ],
                 ),
-                if (log.accomplishment?.trim().isNotEmpty == true) ...[
-                  const SizedBox(height: 8),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: AppColors.bgDark,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppColors.cardBorder),
-                    ),
-                    child: Text(
-                      log.accomplishment!.trim(),
-                      style: const TextStyle(
-                        color: AppColors.textBody,
-                        fontSize: 12,
-                        height: 1.35,
-                      ),
+                const SizedBox(width: 12),
+
+                // Duty Details Card
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(bottom: isLast ? 0 : 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              isTimeIn ? "Clock In" : "Clock Out",
+                              style: TextStyle(
+                                color: actionColor,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 13,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              AppFormatters.formatTime(log.timestamp),
+                              style: const TextStyle(
+                                color: AppColors.textTitle,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const Spacer(),
+                            StatusChip(status: log.status),
+                          ],
+                        ),
+                        if (log.accomplishment?.trim().isNotEmpty == true) ...[
+                          const SizedBox(height: 6),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: AppColors.bgDark,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: AppColors.cardBorder),
+                            ),
+                            child: Text(
+                              log.accomplishment!.trim(),
+                              style: const TextStyle(
+                                color: AppColors.textBody,
+                                fontSize: 12,
+                                height: 1.35,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
-                ],
+                ),
               ],
             ),
           );
@@ -2169,6 +2401,9 @@ class _DashboardScreenState extends State<DashboardScreen>
       ),
     );
   }
+
+
+
 
   // =========================================================================
   // 7. RECENT HISTORY LEDGER (1-MONTH)
@@ -2208,7 +2443,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           final log = _history[index];
           final bool isTimeIn = log.type == 'in';
           final actionColor =
-              isTimeIn ? AppColors.success : AppColors.primary;
+              isTimeIn ? AppColors.success : const Color(0xFF2B92D5);
 
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -2336,8 +2571,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                 height: 36,
                 child: OutlinedButton(
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.primary,
-                    side: const BorderSide(color: AppColors.primary),
+                    foregroundColor: const Color(0xFF2B92D5),
+                    side: const BorderSide(color: Color(0xFF2B92D5)),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8)),
                   ),
@@ -2362,3 +2597,77 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 }
+
+// ===========================================================================
+// VECTOR ART PAINTER: CAMPUS HORIZON CANOPY (Concept 1)
+// ===========================================================================
+
+
+
+class _CampusHorizonPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    // 1. Daylight Sky Base
+    final skyPaint = Paint()..color = const Color(0xFF2B92D5);
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), skyPaint);
+
+    // 2. Micro Isometric Cube (Far Background)
+    _drawAws3DCube(canvas, Offset(size.width * 0.45, size.height * 0.18), size: 16, opacity: 0.14);
+
+    // 3. Medium Isometric Cube (Floating Left)
+    _drawAws3DCube(canvas, Offset(size.width * 0.12, size.height * 0.40), size: 30, opacity: 0.22);
+
+    // 4. Hero Master 3D Cube (Floating Right - True Brand Geometry)
+    _drawAws3DCube(canvas, Offset(size.width * 0.86, size.height * 0.46), size: 54, opacity: 0.32, hasBevel: true);
+  }
+
+  void _drawAws3DCube(Canvas canvas, Offset center, {required double size, required double opacity, bool hasBevel = false}) {
+    final double h = size * 0.577; // 30-degree isometric ratio
+
+    // TOP FACE: Warm Campus Orange (Sunlit)
+    final topPath = Path()
+      ..moveTo(center.dx, center.dy - size)
+      ..lineTo(center.dx + size, center.dy - (size - h))
+      ..lineTo(center.dx, center.dy + h - (size - h))
+      ..lineTo(center.dx - size, center.dy - (size - h))
+      ..close();
+    canvas.drawPath(topPath, Paint()..color = AppColors.orange.withValues(alpha: opacity * 1.3));
+
+    // LEFT FACE: Scholar Sky Blue
+    final leftPath = Path()
+      ..moveTo(center.dx - size, center.dy - (size - h))
+      ..lineTo(center.dx, center.dy + h - (size - h))
+      ..lineTo(center.dx, center.dy + size)
+      ..lineTo(center.dx - size, center.dy + (size - h))
+      ..close();
+    canvas.drawPath(leftPath, Paint()..color = Colors.white.withValues(alpha: opacity));
+
+    // RIGHT FACE: Deep Royal Navy (Shaded side)
+    final rightPath = Path()
+      ..moveTo(center.dx + size, center.dy - (size - h))
+      ..lineTo(center.dx, center.dy + h - (size - h))
+      ..lineTo(center.dx, center.dy + size)
+      ..lineTo(center.dx + size, center.dy + (size - h))
+      ..close();
+    canvas.drawPath(rightPath, Paint()..color = const Color(0xFF103A70).withValues(alpha: opacity * 0.9));
+
+    // High-End 3D White Bevel Edges
+    if (hasBevel) {
+      final edgePaint = Paint()
+        ..color = Colors.white.withValues(alpha: opacity * 1.4)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2;
+
+      canvas.drawLine(center, Offset(center.dx, center.dy + size), edgePaint);
+      canvas.drawLine(center, Offset(center.dx - size, center.dy - (size - h)), edgePaint);
+      canvas.drawLine(center, Offset(center.dx + size, center.dy - (size - h)), edgePaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+
+
+ 

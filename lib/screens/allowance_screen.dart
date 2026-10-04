@@ -149,8 +149,9 @@ class _AllowanceScreenState extends State<AllowanceScreen> {
           "Scholar Allowance",
           style: TextStyle(
             color: AppColors.textTitle,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w900,
             fontSize: 18,
+            letterSpacing: -0.3,
           ),
         ),
         backgroundColor: AppColors.bgDeep,
@@ -171,43 +172,46 @@ class _AllowanceScreenState extends State<AllowanceScreen> {
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: AppColors.bgDeep,
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: AppColors.cardBorder),
                 boxShadow: const [
                   BoxShadow(
                     color: Color(0x06000000),
-                    blurRadius: 10,
-                    offset: Offset(0, 3),
+                    blurRadius: 12,
+                    offset: Offset(0, 4),
                   ),
                 ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // RESPONSIVE HEADER ROW (No Collision)
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      const Text(
-                        "TOTAL EARNED THIS MONTH",
-                        style: TextStyle(
-                          color: AppColors.textMuted,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.5,
+                      const Expanded(
+                        child: Text(
+                          "EARNED THIS MONTH",
+                          style: TextStyle(
+                            color: AppColors.textMuted,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                          ),
                         ),
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
+                            horizontal: 9, vertical: 4),
                         decoration: BoxDecoration(
                           color: AppColors.primary.withValues(alpha: 0.10),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          "$monthName (Day $currentDay of $totalDaysInMonth)",
+                          "$monthName • Day $currentDay of $totalDaysInMonth",
                           style: const TextStyle(
                             color: AppColors.primary,
-                            fontSize: 12,
+                            fontSize: 11,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -216,7 +220,7 @@ class _AllowanceScreenState extends State<AllowanceScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  // Giant clear amount
+                  // Prominent allowance figure
                   Text(
                     "₱${totalEarnings.toStringAsFixed(2)}",
                     style: const TextStyle(
@@ -226,36 +230,48 @@ class _AllowanceScreenState extends State<AllowanceScreen> {
                       letterSpacing: -0.5,
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
 
-                  // Sub-details: Hours worked & hourly rate
+                  // Sub-details: Hours worked & hourly rate with squircle pods
                   Row(
                     children: [
-                      const Icon(Icons.schedule_rounded,
-                          size: 16, color: AppColors.primary),
-                      const SizedBox(width: 6),
+                      Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.schedule_rounded,
+                            size: 15, color: AppColors.primary),
+                      ),
+                      const SizedBox(width: 8),
                       Text(
-                        "${calculatedTotalHours.toStringAsFixed(1)} hours worked",
+                        "${calculatedTotalHours.toStringAsFixed(1)} hrs worked",
                         style: const TextStyle(
                           color: AppColors.textBody,
                           fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                      const SizedBox(width: 14),
+                      const Spacer(),
                       Container(
-                          width: 4, height: 4, decoration: const BoxDecoration(
-                              color: AppColors.cardBorder, shape: BoxShape.circle)),
-                      const SizedBox(width: 14),
-                      const Icon(Icons.payments_outlined,
-                          size: 16, color: AppColors.success),
-                      const SizedBox(width: 6),
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: AppColors.success.withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.payments_outlined,
+                            size: 15, color: AppColors.success),
+                      ),
+                      const SizedBox(width: 8),
                       Text(
-                        "₱${hourlyRate.toStringAsFixed(2)} per hour",
+                        "₱${hourlyRate.toStringAsFixed(2)} / hr",
                         style: const TextStyle(
                           color: AppColors.textBody,
                           fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ],
@@ -265,7 +281,7 @@ class _AllowanceScreenState extends State<AllowanceScreen> {
                   const Divider(height: 1, color: AppColors.cardBorder),
                   const SizedBox(height: 14),
 
-                  // Month Progress Counters (Clear for students)
+                  // Month Progress Counters
                   Row(
                     children: [
                       _buildSummaryPill(
@@ -304,12 +320,19 @@ class _AllowanceScreenState extends State<AllowanceScreen> {
             ),
             const SizedBox(height: 10),
 
-            // Ledger Grouped Card
+            // Ledger Grouped Table Card
             Container(
               decoration: BoxDecoration(
                 color: AppColors.bgDeep,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(18),
                 border: Border.all(color: AppColors.cardBorder),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x04000000),
+                    blurRadius: 8,
+                    offset: Offset(0, 2),
+                  ),
+                ],
               ),
               child: ListView.separated(
                 shrinkWrap: true,
@@ -318,7 +341,6 @@ class _AllowanceScreenState extends State<AllowanceScreen> {
                 separatorBuilder: (_, __) =>
                     const Divider(height: 1, color: AppColors.cardBorder),
                 itemBuilder: (context, index) {
-                  // Show most recent day on top
                   final item = dailyItems.reversed.toList()[index];
                   final double hours = item['hours'] as double;
                   final double earnings = item['earnings'] as double;
@@ -330,7 +352,7 @@ class _AllowanceScreenState extends State<AllowanceScreen> {
                         horizontal: 16, vertical: 14),
                     child: Row(
                       children: [
-                        // Left: Date + Status Badge
+                        // Left: Date + Dot Status Indicator
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -385,7 +407,7 @@ class _AllowanceScreenState extends State<AllowanceScreen> {
                                 fontSize: 15,
                               ),
                             ),
-                            const SizedBox(height: 3),
+                            const SizedBox(height: 2),
                             Text(
                               hours > 0
                                   ? "${hours.toStringAsFixed(1)} hrs"
