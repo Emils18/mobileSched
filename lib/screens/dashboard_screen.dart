@@ -1,5 +1,5 @@
 import 'dart:async';
-
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -1330,9 +1330,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                       decoration: const BoxDecoration(
                         color: Color(0xFF2B92D5), // Bright Scholar Sky Blue
                       ),
-                      child: CustomPaint(
-                        painter: _CampusHorizonPainter(),
-                      ),
+                                            child: const _CampusHorizonBackground(),
                     ),
 
                     // Canopy Content (Greeting + Day Strip)
@@ -2611,27 +2609,190 @@ Widget _buildTodayLedgerCard() {
 // ===========================================================================
 // VECTOR ART PAINTER: CAMPUS HORIZON CANOPY (Concept 1)
 // ===========================================================================
+class _CampusHorizonBackground extends StatefulWidget {
+  const _CampusHorizonBackground();
 
+  @override
+  State<_CampusHorizonBackground> createState() =>
+      _CampusHorizonBackgroundState();
+}
 
+class _CampusHorizonBackgroundState extends State<_CampusHorizonBackground>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 8),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return CustomPaint(
+          painter: _CampusHorizonPainter(t: _controller.value),
+          size: Size.infinite,
+        );
+      },
+    );
+  }
+}
 
 class _CampusHorizonPainter extends CustomPainter {
+  final double t; // 0..1 looping animation value
+
+  _CampusHorizonPainter({required this.t});
+
   @override
   void paint(Canvas canvas, Size size) {
     // 1. Daylight Sky Base
     final skyPaint = Paint()..color = const Color(0xFF2B92D5);
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), skyPaint);
 
-    // 2. Micro Isometric Cube (Far Background)
-    _drawAws3DCube(canvas, Offset(size.width * 0.45, size.height * 0.18), size: 16, opacity: 0.14);
+    // 2. Subtle dot grid texture — top-right area only
+    _drawDotGrid(canvas, size);
 
-    // 3. Medium Isometric Cube (Floating Left)
-    _drawAws3DCube(canvas, Offset(size.width * 0.12, size.height * 0.40), size: 30, opacity: 0.22);
+    // 3. Giant AWS watermark — very light, top-right corner
+   _drawAwsWordmark(canvas, size);
 
-    // 4. Hero Master 3D Cube (Floating Right - True Brand Geometry)
-    _drawAws3DCube(canvas, Offset(size.width * 0.86, size.height * 0.46), size: 54, opacity: 0.32, hasBevel: true);
+    // 4. Soft pulsing glow behind hero cube
+    final pulse = (sin(t * 2 * pi) + 1) / 2; // 0..1 smooth
+    final glowCenter = Offset(size.width * 0.86, size.height * 0.46);
+    final glowRadius = 88 + pulse * 14;
+    final glowPaint = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          Colors.white.withValues(alpha: 0.14 + pulse * 0.06),
+          Colors.white.withValues(alpha: 0.0),
+        ],
+      ).createShader(Rect.fromCircle(center: glowCenter, radius: glowRadius));
+    canvas.drawCircle(glowCenter, glowRadius, glowPaint);
+
+    // 5. Cubes — each floats on its own phase
+
+    // Micro cube (top-center-left)
+    _drawAws3DCube(
+      canvas,
+      Offset(
+        size.width * 0.33,
+        size.height * 0.24 + sin(t * 2 * pi + 0.0) * 2.5,
+      ),
+      size: 11,
+      opacity: 0.16,
+    );
+
+    // Micro cube (top-right small)
+    _drawAws3DCube(
+      canvas,
+      Offset(
+        size.width * 0.45,
+        size.height * 0.18 + sin(t * 2 * pi + 1.2) * 3.0,
+      ),
+      size: 16,
+      opacity: 0.20,
+    );
+
+    // Medium cube (left)
+    _drawAws3DCube(
+      canvas,
+      Offset(
+        size.width * 0.12,
+        size.height * 0.40 + sin(t * 2 * pi + 2.4) * 4.0,
+      ),
+      size: 30,
+      opacity: 0.26,
+    );
+
+    // Accent cube (bottom-right, adds depth)
+    _drawAws3DCube(
+      canvas,
+      Offset(
+        size.width * 0.68,
+        size.height * 0.68 + sin(t * 2 * pi + 3.6) * 3.0,
+      ),
+      size: 14,
+      opacity: 0.22,
+    );
+
+    // Hero Master Cube (top-right, gentle float)
+    _drawAws3DCube(
+      canvas,
+      Offset(
+        size.width * 0.86,
+        size.height * 0.46 + sin(t * 2 * pi + 4.8) * 5.0,
+      ),
+      size: 54,
+      opacity: 0.42,
+      hasBevel: true,
+    );
   }
 
-  void _drawAws3DCube(Canvas canvas, Offset center, {required double size, required double opacity, bool hasBevel = false}) {
+  void _drawDotGrid(Canvas canvas, Size size) {
+    final dotPaint = Paint()..color = Colors.white.withValues(alpha: 0.055);
+    const spacing = 16.0;
+    final startX = size.width * 0.55;
+    final endY = size.height * 0.60;
+    for (double x = startX; x < size.width; x += spacing) {
+      for (double y = 12; y < endY; y += spacing) {
+        canvas.drawCircle(Offset(x, y), 1.1, dotPaint);
+      }
+    }
+  }
+
+   void _drawAwsWordmark(Canvas canvas, Size size) {
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: 'AWS HUB',
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 2.6,
+          color: Colors.white.withValues(alpha: 0.55),
+          height: 1.0,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    );
+    textPainter.layout();
+
+    // Positioned top-right, properly placed
+    final double dx = size.width - textPainter.width - 18;
+    final double dy = 14;
+
+    textPainter.paint(canvas, Offset(dx, dy));
+
+    // Small warm-orange accent underline (brand signature)
+    final linePaint = Paint()
+      ..color = const Color(0xFFFFB066).withValues(alpha: 0.75)
+      ..strokeWidth = 1.6
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(
+      Offset(dx, dy + textPainter.height + 5),
+      Offset(dx + 26, dy + textPainter.height + 5),
+      linePaint,
+    );
+  }
+
+
+  void _drawAws3DCube(
+    Canvas canvas,
+    Offset center, {
+    required double size,
+    required double opacity,
+    bool hasBevel = false,
+  }) {
     final double h = size * 0.577; // 30-degree isometric ratio
 
     // TOP FACE: Warm Campus Orange (Sunlit)
@@ -2641,7 +2802,12 @@ class _CampusHorizonPainter extends CustomPainter {
       ..lineTo(center.dx, center.dy + h - (size - h))
       ..lineTo(center.dx - size, center.dy - (size - h))
       ..close();
-    canvas.drawPath(topPath, Paint()..color = AppColors.orange.withValues(alpha: opacity * 1.3));
+    canvas.drawPath(
+      topPath,
+      Paint()
+        ..color = AppColors.orange
+            .withValues(alpha: (opacity * 1.5).clamp(0.0, 1.0)),
+    );
 
     // LEFT FACE: Scholar Sky Blue
     final leftPath = Path()
@@ -2650,7 +2816,12 @@ class _CampusHorizonPainter extends CustomPainter {
       ..lineTo(center.dx, center.dy + size)
       ..lineTo(center.dx - size, center.dy + (size - h))
       ..close();
-    canvas.drawPath(leftPath, Paint()..color = Colors.white.withValues(alpha: opacity));
+    canvas.drawPath(
+      leftPath,
+      Paint()
+        ..color = Colors.white
+            .withValues(alpha: (opacity * 1.15).clamp(0.0, 1.0)),
+    );
 
     // RIGHT FACE: Deep Royal Navy (Shaded side)
     final rightPath = Path()
@@ -2659,26 +2830,30 @@ class _CampusHorizonPainter extends CustomPainter {
       ..lineTo(center.dx, center.dy + size)
       ..lineTo(center.dx + size, center.dy + (size - h))
       ..close();
-    canvas.drawPath(rightPath, Paint()..color = const Color(0xFF103A70).withValues(alpha: opacity * 0.9));
+    canvas.drawPath(
+      rightPath,
+      Paint()
+        ..color = const Color(0xFF103A70)
+            .withValues(alpha: (opacity * 1.05).clamp(0.0, 1.0)),
+    );
 
-    // High-End 3D White Bevel Edges
+    // High-End 3D White Bevel Edges (hero cube only)
     if (hasBevel) {
       final edgePaint = Paint()
-        ..color = Colors.white.withValues(alpha: opacity * 1.4)
+        ..color =
+            Colors.white.withValues(alpha: (opacity * 1.6).clamp(0.0, 1.0))
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.2;
 
       canvas.drawLine(center, Offset(center.dx, center.dy + size), edgePaint);
-      canvas.drawLine(center, Offset(center.dx - size, center.dy - (size - h)), edgePaint);
-      canvas.drawLine(center, Offset(center.dx + size, center.dy - (size - h)), edgePaint);
+      canvas.drawLine(
+          center, Offset(center.dx - size, center.dy - (size - h)), edgePaint);
+      canvas.drawLine(
+          center, Offset(center.dx + size, center.dy - (size - h)), edgePaint);
     }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _CampusHorizonPainter oldDelegate) =>
+      oldDelegate.t != t;
 }
-
-    
-    
-    
- 
