@@ -35,50 +35,58 @@ class _MainShellState extends State<MainShell> {
     ];
 
     return Scaffold(
-      backgroundColor: AppColors.bgDeep,
+      backgroundColor: AppColors.bgDark,
       body: IndexedStack(
         index: _currentIndex,
         children: tabs,
       ),
       bottomNavigationBar: SafeArea(
         top: false,
-        child: NavigationBarTheme(
-          data: NavigationBarThemeData(
-            indicatorColor: AppColors.primary.withValues(alpha: 0.15),
-            iconTheme: WidgetStateProperty.resolveWith<IconThemeData>((states) {
-              if (states.contains(WidgetState.selected)) {
-                return const IconThemeData(color: AppColors.primary);
-              }
-              return const IconThemeData(color: AppColors.textMuted);
-            }),
-            labelTextStyle:
-                WidgetStateProperty.resolveWith<TextStyle>((states) {
-              if (states.contains(WidgetState.selected)) {
+        child: Container(
+          decoration: const BoxDecoration(
+            color: AppColors.bgDeep,
+            border: Border(
+              top: BorderSide(
+                color: AppColors.cardBorder,
+                width: 1,
+              ),
+            ),
+          ),
+          child: NavigationBarTheme(
+            data: NavigationBarThemeData(
+              height: 66,
+              backgroundColor: AppColors.bgDeep,
+              indicatorColor: AppColors.primary.withValues(alpha: 0.12),
+              iconTheme: WidgetStateProperty.resolveWith<IconThemeData>((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return const IconThemeData(
+                    color: AppColors.primary,
+                    size: 23,
+                  );
+                }
+                return const IconThemeData(
+                  color: AppColors.textMuted,
+                  size: 22,
+                );
+              }),
+              labelTextStyle:
+                  WidgetStateProperty.resolveWith<TextStyle>((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return const TextStyle(
+                    color: AppColors.textTitle,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.2,
+                  );
+                }
                 return const TextStyle(
-                  color: AppColors.primary,
+                  color: AppColors.textMuted,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 );
-              }
-              return const TextStyle(
-                color: AppColors.textMuted,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              );
-            }),
-          ),
-          child: Container(
-            decoration: const BoxDecoration(
-              border: Border(
-                top: BorderSide(
-                  color: AppColors.cardBorder,
-                  width: 1,
-                ),
-              ),
+              }),
             ),
             child: NavigationBar(
-              height: 68,
-              backgroundColor: AppColors.bgDark,
               selectedIndex: _currentIndex,
               onDestinationSelected: (index) {
                 setState(() {
@@ -98,8 +106,8 @@ class _MainShellState extends State<MainShell> {
                   label: 'Allowance',
                 ),
                 NavigationDestination(
-                  icon: Icon(Icons.settings_outlined),
-                  selectedIcon: Icon(Icons.settings_rounded),
+                  icon: Icon(Icons.tune_outlined),
+                  selectedIcon: Icon(Icons.tune_rounded),
                   label: 'Settings',
                 ),
               ],

@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_animate/flutter_animate.dart';
+
 import 'package:url_launcher/url_launcher.dart';
 import '../services/attendance_service.dart';
 import '../services/notification_service.dart';
