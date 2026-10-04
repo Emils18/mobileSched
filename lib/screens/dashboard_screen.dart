@@ -122,10 +122,8 @@ class _DashboardScreenState extends State<DashboardScreen>
         dutyDays: _service.getDutyDays(),
         timeIn: _service.getScheduledTimeIn(),
         timeOut: _service.getScheduledTimeOut(),
-        timeInReminderMinutes:
-            _service.getTimeInReminderMinutes(),
-        timeOutReminderMinutes:
-            _service.getTimeOutReminderMinutes(),
+        timeInReminderMinutes: _service.getTimeInReminderMinutes(),
+        timeOutReminderMinutes: _service.getTimeOutReminderMinutes(),
       );
     } catch (error) {
       debugPrint('Failed to schedule reminders: $error');
@@ -134,7 +132,6 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   void _showFeedback(String message, {bool isError = false}) {
     if (!context.mounted) return;
-    HapticFeedback.lightImpact();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -261,7 +258,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               decoration: InputDecoration(
                 filled: true,
                 fillColor: AppColors.bgDark,
-                hintText: "E.g., Library cataloging, office filing, desk assistance...",
+                hintText: "E.g., Desk assistance, office filing, library duty...",
                 hintStyle: const TextStyle(
                     color: AppColors.textMuted, fontSize: 13),
                 border: OutlineInputBorder(
@@ -1066,8 +1063,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
- 
-Future<void> _showFormInstructionAndLaunch(
+  Future<void> _showFormInstructionAndLaunch(
       String url, String logId, String type) async {
     await showModalBottomSheet(
       context: context,
@@ -1087,10 +1083,10 @@ Future<void> _showFormInstructionAndLaunch(
               height: 52,
               decoration: BoxDecoration(
                 color: AppColors.primary.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
+                borderRadius: BorderRadius.circular(14),
               ),
-              child: const Icon(Icons.open_in_browser,
-                  size: 28, color: AppColors.primary),
+              child: const Icon(Icons.open_in_browser_rounded,
+                  size: 26, color: AppColors.primary),
             ),
             const SizedBox(height: 16),
             const Text(
@@ -1110,21 +1106,22 @@ Future<void> _showFormInstructionAndLaunch(
             const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
-              height: 50,
+              height: 48,
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
+                      borderRadius: BorderRadius.circular(12)),
                 ),
-                icon: const Icon(Icons.open_in_new, color: Colors.white, size: 18),
+                icon: const Icon(Icons.open_in_new_rounded,
+                    color: Colors.white, size: 18),
                 label: const Text(
                   "Open Google Form",
                   style: TextStyle(
                       color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700),
                 ),
                 onPressed: () async {
                   Navigator.pop(ctx);
@@ -1146,7 +1143,6 @@ Future<void> _showFormInstructionAndLaunch(
     if (!context.mounted) return;
     setState(() => _pendingSubmission = pending);
   }
-
 
   Future<void> _launchFormUrl(String url) async {
     final uri = Uri.parse(url);
@@ -1193,7 +1189,7 @@ Future<void> _showFormInstructionAndLaunch(
         "title": "Scheduled Day Off",
         "sub": "No campus duty scheduled today.",
         "color": AppColors.textMuted,
-        "icon": Icons.weekend_outlined,
+        "icon": Icons.weekend_rounded,
         "warn": false,
         "countdown": "",
       };
@@ -1215,7 +1211,7 @@ Future<void> _showFormInstructionAndLaunch(
         final diff = now.difference(schedInDT);
         final minutes = diff.inMinutes;
         return {
-          "title": "Shift Overdue (Clock In Required)",
+          "title": "Shift Overdue (Clock In)",
           "sub": "Duty started at ${AppFormatters.formatTimeOfDay(schedIn)}.",
           "color": AppColors.error,
           "icon": Icons.warning_amber_rounded,
@@ -1230,7 +1226,7 @@ Future<void> _showFormInstructionAndLaunch(
             "title": "Shift Starting Soon",
             "sub": "Duty begins at ${AppFormatters.formatTimeOfDay(schedIn)}.",
             "color": AppColors.orange,
-            "icon": Icons.alarm,
+            "icon": Icons.alarm_rounded,
             "warn": false,
             "countdown": "Starts in $minutes min",
           };
@@ -1239,7 +1235,7 @@ Future<void> _showFormInstructionAndLaunch(
             "title": "Duty Later Today",
             "sub": "Scheduled for ${AppFormatters.formatTimeOfDay(schedIn)}.",
             "color": AppColors.primary,
-            "icon": Icons.schedule,
+            "icon": Icons.schedule_rounded,
             "warn": false,
             "countdown": "Starts in ${diff.inHours}h ${(diff.inMinutes % 60)}m",
           };
@@ -1252,10 +1248,10 @@ Future<void> _showFormInstructionAndLaunch(
         final diff = now.difference(schedOutDT);
         final minutes = diff.inMinutes;
         return {
-          "title": "Shift Ended (Clock Out Required)",
+          "title": "Shift Ended (Clock Out)",
           "sub": "Scheduled end was ${AppFormatters.formatTimeOfDay(schedOut)}.",
           "color": AppColors.error,
-          "icon": Icons.timer_off_outlined,
+          "icon": Icons.timer_off_rounded,
           "warn": true,
           "countdown": "Past shift by $minutes min",
         };
@@ -1267,7 +1263,7 @@ Future<void> _showFormInstructionAndLaunch(
             "title": "Shift Ending Soon",
             "sub": "Duty ends at ${AppFormatters.formatTimeOfDay(schedOut)}.",
             "color": AppColors.orange,
-            "icon": Icons.alarm,
+            "icon": Icons.alarm_rounded,
             "warn": false,
             "countdown": "Ends in $minutes min",
           };
@@ -1299,7 +1295,7 @@ Future<void> _showFormInstructionAndLaunch(
       "title": "Working Scholar Hub",
       "sub": "Campus duty tracking active.",
       "color": AppColors.textMuted,
-      "icon": Icons.school_outlined,
+      "icon": Icons.school_rounded,
       "warn": false,
       "countdown": "",
     };
@@ -1323,35 +1319,39 @@ Future<void> _showFormInstructionAndLaunch(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 1. ACADEMIC CAMPUS HEADER
-                _buildAcademicHeader(),
+                // 1. CAMPUS AGENDA HEADER
+                _buildAgendaHeader(),
+                const SizedBox(height: 14),
+
+                // 2. HORIZONTAL WEEKLY DUTY STRIP (From Reference Image 2)
+                _buildWeeklyDutyStrip(),
                 const SizedBox(height: 16),
 
-                // 2. GOOGLE FORM CONFIRMATION PROMPT (if pending)
+                // 3. GOOGLE FORM SUBMISSION PROMPT (if pending)
                 if (_pendingSubmission != null) ...[
                   _buildFormSubmissionBanner(),
                   const SizedBox(height: 16),
                 ],
 
-                // 3. DUTY STATION COMMAND CARD
+                // 4. DUTY STATION COMMAND CARD
                 _buildDutyStationCard(state),
                 const SizedBox(height: 14),
 
-                // 4. STIPEND & HOURS METRIC CARDS (Bento Row)
-                _buildMetricsBentoRow(),
+                // 5. SCHOLAR METRIC PODS (From Reference Image 1)
+                _buildScholarMetricPods(),
                 const SizedBox(height: 24),
 
-                // 5. CAMPUS BULLETIN (Announcements & Birthdays)
+                // 6. CAMPUS BULLETIN (Announcements & Birthdays)
                 const HubUpdatesSection(),
                 const SizedBox(height: 24),
 
-                // 6. SCHOLAR ADMINISTRATIVE SERVICES
+                // 7. SCHOLAR ADMINISTRATIVE SERVICES
                 _buildSectionHeader("Scholar Services"),
                 const SizedBox(height: 10),
                 _buildServicesDock(),
                 const SizedBox(height: 24),
 
-                // 7. TODAY'S DUTY LEDGER
+                // 8. TODAY'S DUTY LEDGER
                 _buildSectionHeader(
                   "Today's Activity",
                   trailing: _todayLogs.isNotEmpty
@@ -1437,7 +1437,7 @@ Future<void> _showFormInstructionAndLaunch(
                 _buildTodayLedgerCard(),
                 const SizedBox(height: 24),
 
-                // 8. RECENT HISTORY (1-Month Retention)
+                // 9. RECENT HISTORY (1-Month Retention)
                 _buildSectionHeader(
                   "Recent History",
                   trailing: Container(
@@ -1466,11 +1466,9 @@ Future<void> _showFormInstructionAndLaunch(
   }
 
   // =========================================================================
-  // 1. CAMPUS HEADER
+  // 1. CAMPUS AGENDA HEADER (LearnUp Style)
   // =========================================================================
-  
-
-Widget _buildAcademicHeader() {
+  Widget _buildAgendaHeader() {
     final greeting = AppFormatters.getGreeting();
     final displayName = _userName?.trim().isNotEmpty == true
         ? _userName!.trim()
@@ -1478,71 +1476,166 @@ Widget _buildAcademicHeader() {
     final initial =
         displayName.isNotEmpty ? displayName[0].toUpperCase() : 'S';
 
+    return Row(
+      children: [
+        // Squircle Profile Pod
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.22), width: 1.2),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            initial,
+            style: const TextStyle(
+              color: AppColors.primary,
+              fontWeight: FontWeight.w900,
+              fontSize: 20,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '$greeting, $displayName',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: AppColors.textTitle,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.4,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Total days present: $_totalDays',
+                style: const TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // =========================================================================
+  // 2. HORIZONTAL WEEKLY DUTY STRIP (From Reference Image 2 - MyTask)
+  // =========================================================================
+  Widget _buildWeeklyDutyStrip() {
+    final now = DateTime.now();
+    final todayWeekday = now.weekday;
+
+    const weekDays = [
+      {'num': 1, 'short': 'M', 'label': 'Mon'},
+      {'num': 2, 'short': 'T', 'label': 'Tue'},
+      {'num': 3, 'short': 'W', 'label': 'Wed'},
+      {'num': 4, 'short': 'T', 'label': 'Thu'},
+      {'num': 5, 'short': 'F', 'label': 'Fri'},
+      {'num': 6, 'short': 'S', 'label': 'Sat'},
+      {'num': 7, 'short': 'S', 'label': 'Sun'},
+    ];
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
         color: AppColors.bgDeep,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppColors.cardBorder),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                  color: AppColors.primary.withValues(alpha: 0.25)),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              initial,
-              style: const TextStyle(
-                color: AppColors.primary,
-                fontWeight: FontWeight.w900,
-                fontSize: 18,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '$greeting, $displayName',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppColors.textTitle,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Total days present: $_totalDays',
-                  style: const TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x04000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
           ),
         ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: weekDays.map((d) {
+          final int dayNum = d['num'] as int;
+          final String short = d['short'] as String;
+          final String label = d['label'] as String;
+          final bool isToday = dayNum == todayWeekday;
+          final bool isAssignedDuty = _dutyDays.contains(dayNum);
+
+          return Expanded(
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 2),
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              decoration: BoxDecoration(
+                color: isToday ? AppColors.primary : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isToday
+                      ? AppColors.primary
+                      : (isAssignedDuty
+                          ? AppColors.orange.withValues(alpha: 0.3)
+                          : Colors.transparent),
+                ),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Dot indicator for duty days (Zero emojis!)
+                  Container(
+                    width: 5,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isToday
+                          ? Colors.white
+                          : (isAssignedDuty
+                              ? AppColors.orange
+                              : Colors.transparent),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    short,
+                    style: TextStyle(
+                      color: isToday
+                          ? Colors.white
+                          : (isAssignedDuty
+                              ? AppColors.textTitle
+                              : AppColors.textMuted),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: isToday
+                          ? Colors.white.withValues(alpha: 0.85)
+                          : AppColors.textMuted,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }
 
-
-
   // =========================================================================
-  // 2. DUTY STATION COMMAND CARD
+  // 3. DUTY STATION COMMAND CARD
   // =========================================================================
   Widget _buildDutyStationCard(Map<String, dynamic> state) {
     final Color badgeColor = state['color'] as Color;
@@ -1552,14 +1645,14 @@ Widget _buildAcademicHeader() {
     final isDuty = _dutyDays.contains(now.weekday);
 
     final shiftText = isDuty
-        ? "Scheduled: ${AppFormatters.formatTimeOfDay(schedIn)} – ${AppFormatters.formatTimeOfDay(schedOut)}"
-        : "No scheduled shift for today";
+        ? "${AppFormatters.formatTimeOfDay(schedIn)} – ${AppFormatters.formatTimeOfDay(schedOut)}"
+        : "Off Duty";
 
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: AppColors.bgDeep,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(
           color: state['warn'] == true
               ? badgeColor.withValues(alpha: 0.5)
@@ -1569,92 +1662,98 @@ Widget _buildAcademicHeader() {
         boxShadow: const [
           BoxShadow(
             color: Color(0x06000000),
-            blurRadius: 10,
-            offset: Offset(0, 3),
+            blurRadius: 12,
+            offset: Offset(0, 4),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Station Header: Live status + Countdown pill
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: badgeColor,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    state['title'] as String,
-                    style: TextStyle(
-                      color: badgeColor,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
+              // Squircle Status Pod
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: badgeColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Icon(state['icon'] as IconData,
+                    color: badgeColor, size: 20),
               ),
-              if ((state['countdown'] as String).isNotEmpty)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: badgeColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    state['countdown'] as String,
-                    style: TextStyle(
-                      color: badgeColor,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      state['title'] as String,
+                      style: TextStyle(
+                        color: badgeColor,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
+                      ),
                     ),
+                    const SizedBox(height: 2),
+                    Text(
+                      state['sub'] as String,
+                      style: const TextStyle(
+                        color: AppColors.textTitle,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Dark Time Capsule Badge (From Reference 2 - MyTask)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E293B),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  shiftText,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 11,
+                    letterSpacing: 0.2,
                   ),
                 ),
+              ),
             ],
           ),
-          const SizedBox(height: 10),
 
-          // Subtitle / Shift Schedule info
-          Text(
-            state['sub'] as String,
-            style: const TextStyle(
-              color: AppColors.textTitle,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.2,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              const Icon(Icons.schedule_rounded,
-                  color: AppColors.textMuted, size: 14),
-              const SizedBox(width: 6),
-              Text(
-                shiftText,
-                style: const TextStyle(
-                  color: AppColors.textMuted,
+          if ((state['countdown'] as String).isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: badgeColor.withValues(alpha: 0.09),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                state['countdown'] as String,
+                style: TextStyle(
+                  color: badgeColor,
                   fontSize: 12,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
 
           const SizedBox(height: 18),
           const Divider(height: 1, color: AppColors.cardBorder),
           const SizedBox(height: 14),
 
-          // TACTILE ATTENDANCE CONTROLS (Side-by-Side)
+          // TACTILE ATTENDANCE CONTROLS
           Row(
             children: [
               Expanded(
@@ -1673,7 +1772,7 @@ Widget _buildAcademicHeader() {
                       foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
+                          borderRadius: BorderRadius.circular(14)),
                     ),
                   ),
                 ),
@@ -1684,18 +1783,20 @@ Widget _buildAcademicHeader() {
                   height: 48,
                   child: OutlinedButton.icon(
                     onPressed: _handleTimeOut,
-                    icon: const Icon(Icons.logout_rounded, size: 18),
+                    icon: const Icon(Icons.logout_rounded,
+                        size: 18, color: AppColors.secondary),
                     label: const Text(
                       "Clock Out",
                       style: TextStyle(
-                          fontSize: 14, fontWeight: FontWeight.w700),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textTitle),
                     ),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.textTitle,
                       side: const BorderSide(color: AppColors.cardBorder),
                       backgroundColor: AppColors.bgDark,
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
+                          borderRadius: BorderRadius.circular(14)),
                     ),
                   ),
                 ),
@@ -1708,20 +1809,26 @@ Widget _buildAcademicHeader() {
   }
 
   // =========================================================================
-  // 3. STIPEND & HOURS METRIC BENTO CARDS
+  // 4. SCHOLAR METRIC PODS (LearnUp Style)
   // =========================================================================
-
-Widget _buildMetricsBentoRow() {
+  Widget _buildScholarMetricPods() {
     return Row(
       children: [
-        // Box 1: Total Hours
+        // Pod 1: Hours
         Expanded(
           child: Container(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: AppColors.bgDeep,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(18),
               border: Border.all(color: AppColors.cardBorder),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x04000000),
+                  blurRadius: 8,
+                  offset: Offset(0, 2),
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1729,53 +1836,77 @@ Widget _buildMetricsBentoRow() {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(11),
+                      ),
+                      child: const Icon(Icons.schedule_rounded,
+                          color: AppColors.primary, size: 18),
+                    ),
                     const Text(
-                      "TOTAL HOURS",
+                      "HOURS",
                       style: TextStyle(
                         color: AppColors.textMuted,
-                        fontSize: 12,
+                        fontSize: 11,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.5,
                       ),
                     ),
-                    Icon(Icons.schedule_rounded,
-                        color: AppColors.primary.withValues(alpha: 0.7),
-                        size: 18),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 Text(
                   "${_monthlyHours.toStringAsFixed(1)} hrs",
                   style: const TextStyle(
                     color: AppColors.textTitle,
-                    fontSize: 20,
+                    fontSize: 22,
                     fontWeight: FontWeight.w900,
-                    letterSpacing: -0.4,
+                    letterSpacing: -0.5,
                   ),
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: LinearProgressIndicator(
+                    value: (_monthlyHours / 50.0).clamp(0.0, 1.0),
+                    minHeight: 5,
+                    color: AppColors.primary,
+                    backgroundColor: AppColors.cardBorder,
+                  ),
+                ),
+                const SizedBox(height: 6),
                 const Text(
-                  "This month",
+                  "Current month duty",
                   style: TextStyle(
                     color: AppColors.textMuted,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
             ),
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 12),
 
-        // Box 2: Allowance
+        // Pod 2: Allowance
         Expanded(
           child: Container(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: AppColors.bgDeep,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(18),
               border: Border.all(color: AppColors.cardBorder),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x04000000),
+                  blurRadius: 8,
+                  offset: Offset(0, 2),
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1783,36 +1914,52 @@ Widget _buildMetricsBentoRow() {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: AppColors.success.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(11),
+                      ),
+                      child: const Icon(Icons.payments_outlined,
+                          color: AppColors.success, size: 18),
+                    ),
                     const Text(
                       "ALLOWANCE",
                       style: TextStyle(
                         color: AppColors.textMuted,
-                        fontSize: 12,
+                        fontSize: 11,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.5,
                       ),
                     ),
-                    const Icon(Icons.payments_outlined,
-                        color: AppColors.success, size: 18),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 Text(
                   "₱${_monthlyAllowance.toStringAsFixed(2)}",
                   style: const TextStyle(
                     color: AppColors.success,
-                    fontSize: 20,
+                    fontSize: 22,
                     fontWeight: FontWeight.w900,
-                    letterSpacing: -0.4,
+                    letterSpacing: -0.5,
                   ),
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  "₱${_hourlyRate.toStringAsFixed(2)} per hour",
-                  style: const TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                const SizedBox(height: 6),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.success.withValues(alpha: 0.09),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    "₱${_hourlyRate.toStringAsFixed(2)} / hr",
+                    style: const TextStyle(
+                      color: AppColors.success,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ],
@@ -1824,33 +1971,40 @@ Widget _buildMetricsBentoRow() {
   }
 
   // =========================================================================
-  // 4. SCHOLAR ADMINISTRATIVE SERVICES
+  // 5. SCHOLAR ADMINISTRATIVE SERVICES (Squircle Tiles)
   // =========================================================================
   Widget _buildServicesDock() {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: AppColors.bgDeep,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppColors.cardBorder),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x04000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          _buildServiceItem(
+          _buildServicePod(
             icon: Icons.event_busy_rounded,
             title: "Absence",
             color: AppColors.orange,
             onTap: _showAbsenceDialog,
           ),
-          Container(width: 1, height: 32, color: AppColors.cardBorder),
-          _buildServiceItem(
+          Container(width: 1, height: 36, color: AppColors.cardBorder),
+          _buildServicePod(
             icon: Icons.more_time_rounded,
             title: "Overtime",
             color: AppColors.primary,
             onTap: _showOvertimeDialog,
           ),
-          Container(width: 1, height: 32, color: AppColors.cardBorder),
-          _buildServiceItem(
+          Container(width: 1, height: 36, color: AppColors.cardBorder),
+          _buildServicePod(
             icon: Icons.receipt_long_rounded,
             title: "Excuse Slip",
             color: AppColors.secondary,
@@ -1861,7 +2015,7 @@ Widget _buildMetricsBentoRow() {
     );
   }
 
-  Widget _buildServiceItem({
+  Widget _buildServicePod({
     required IconData icon,
     required String title,
     required Color color,
@@ -1870,14 +2024,22 @@ Widget _buildMetricsBentoRow() {
     return Expanded(
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 10),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, color: color, size: 22),
-              const SizedBox(height: 6),
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: color, size: 22),
+              ),
+              const SizedBox(height: 7),
               Text(
                 title,
                 style: const TextStyle(
@@ -1894,7 +2056,7 @@ Widget _buildMetricsBentoRow() {
   }
 
   // =========================================================================
-  // 5. DUTY LEDGER (TODAY)
+  // 6. TODAY'S DUTY LEDGER
   // =========================================================================
   Widget _buildTodayLedgerCard() {
     if (_todayLogs.isEmpty) {
@@ -1903,7 +2065,7 @@ Widget _buildMetricsBentoRow() {
         padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
         decoration: BoxDecoration(
           color: AppColors.bgDeep,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(18),
           border: Border.all(color: AppColors.cardBorder),
         ),
         child: const Center(
@@ -1929,7 +2091,7 @@ Widget _buildMetricsBentoRow() {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.bgDeep,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppColors.cardBorder),
       ),
       child: ListView.separated(
@@ -1991,11 +2153,10 @@ Widget _buildMetricsBentoRow() {
                       border: Border.all(color: AppColors.cardBorder),
                     ),
                     child: Text(
-                      '“${log.accomplishment!.trim()}”',
+                      log.accomplishment!.trim(),
                       style: const TextStyle(
                         color: AppColors.textBody,
                         fontSize: 12,
-                        fontStyle: FontStyle.italic,
                         height: 1.35,
                       ),
                     ),
@@ -2010,7 +2171,7 @@ Widget _buildMetricsBentoRow() {
   }
 
   // =========================================================================
-  // 6. RECENT HISTORY LEDGER (1-MONTH)
+  // 7. RECENT HISTORY LEDGER (1-MONTH)
   // =========================================================================
   Widget _buildHistoryLedgerCard() {
     if (_history.isEmpty) {
@@ -2019,7 +2180,7 @@ Widget _buildMetricsBentoRow() {
         padding: const EdgeInsets.symmetric(vertical: 20),
         decoration: BoxDecoration(
           color: AppColors.bgDeep,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(18),
           border: Border.all(color: AppColors.cardBorder),
         ),
         child: const Center(
@@ -2034,7 +2195,7 @@ Widget _buildMetricsBentoRow() {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.bgDeep,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppColors.cardBorder),
       ),
       child: ListView.separated(
@@ -2054,18 +2215,16 @@ Widget _buildMetricsBentoRow() {
             child: Row(
               children: [
                 Container(
-                  width: 32,
-                  height: 32,
+                  width: 34,
+                  height: 34,
                   decoration: BoxDecoration(
                     color: actionColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
-                    isTimeIn
-                        ? Icons.login_rounded
-                        : Icons.logout_rounded,
+                    isTimeIn ? Icons.login_rounded : Icons.logout_rounded,
                     color: actionColor,
-                    size: 16,
+                    size: 17,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -2102,7 +2261,7 @@ Widget _buildMetricsBentoRow() {
   }
 
   // =========================================================================
-  // HELPER: SECTION HEADERS & NOTICES
+  // HELPER: HEADERS & BANNERS
   // =========================================================================
   Widget _buildSectionHeader(String title, {Widget? trailing}) {
     return Row(
@@ -2127,7 +2286,7 @@ Widget _buildMetricsBentoRow() {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppColors.bgDeep,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.orange.withValues(alpha: 0.4)),
       ),
       child: Column(
