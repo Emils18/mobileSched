@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/hub_content_service.dart';
@@ -409,7 +408,6 @@ class _HubUpdatesSectionState
     final currentMonthCelebrants = _currentMonthCelebrants(celebrants);
     final currentIds = currentMonthCelebrants.map((item) => item.id).toSet();
 
-    // Keep every celebrant for the CURRENT month highlighted for the whole month.
     if (mounted) {
       setState(() {
         _highlightCelebrantIds
@@ -425,7 +423,6 @@ class _HubUpdatesSectionState
 
       _celebrantBaselineReady = true;
 
-      // Show the monthly notice once when the app first loads this month's list.
       if (currentMonthCelebrants.isNotEmpty) {
         _triggerBirthdayEffects(
           currentMonthCelebrants,
@@ -491,8 +488,8 @@ class _HubUpdatesSectionState
     if (kIsWeb) {
       if (showWebBanner) {
         final message = names.length == 1
-            ? '${names.first} is celebrating this $monthName! 🎉'
-            : '${names.length} working scholars are celebrating this $monthName! 🎉';
+            ? '${names.first} is celebrating this $monthName.'
+            : '${names.length} working scholars are celebrating this $monthName.';
 
         _showWebNotice(
           title: '$monthName Birthday Celebrants',
@@ -516,84 +513,68 @@ class _HubUpdatesSectionState
     required String message,
     required IconData icon,
   }) {
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
 
-    WidgetsBinding.instance
-        .addPostFrameCallback(
-      (_) {
-        if (!mounted) {
-          return;
-        }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
 
-        ScaffoldMessenger.of(
-          context,
-        )
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-            SnackBar(
-              behavior:
-                  SnackBarBehavior
-                      .floating,
-              duration:
-                  const Duration(
-                seconds: 4,
-              ),
-              content: Row(
-                children: [
-                  Icon(
-                    icon,
-                    color:
-                        Colors.white,
-                  ),
-                  const SizedBox(
-                    width: 12,
-                  ),
-                  Expanded(
-                    child: Column(
-                      mainAxisSize:
-                          MainAxisSize
-                              .min,
-                      crossAxisAlignment:
-                          CrossAxisAlignment
-                              .start,
-                      children: [
-                        Text(
-                          title,
-                          style:
-                              const TextStyle(
-                            color:
-                                Colors
-                                    .white,
-                            fontWeight:
-                                FontWeight
-                                    .w800,
-                          ),
-                        ),
-                        const SizedBox(
-                          height: 2,
-                        ),
-                        Text(
-                          message,
-                          style:
-                              const TextStyle(
-                            color:
-                                Colors
-                                    .white70,
-                            fontSize:
-                                12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            behavior: SnackBarBehavior.floating,
+            elevation: 4,
+            duration: const Duration(seconds: 4),
+            margin: const EdgeInsets.fromLTRB(16, 0, 16, 86),
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+              side: const BorderSide(color: AppColors.cardBorder, width: 1.2),
             ),
-          );
-      },
-    );
+            content: Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2B92D5).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, color: const Color(0xFF2B92D5), size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          color: AppColors.textTitle,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        message,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.textBody,
+                          fontSize: 12,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+    });
   }
 
   @override
@@ -613,6 +594,220 @@ class _HubUpdatesSectionState
     );
   }
 
+
+
+Widget _birthdayGreetingCard(
+    BirthdayCelebrant person,
+    bool isActive,
+  ) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final monthName = _fullMonthName(DateTime.now().month);
+    const accent = AppColors.brandOrange;
+
+    final firstName = person.name.trim().isEmpty
+        ? 'Scholar'
+        : person.name.trim().split(' ').first;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: isActive ? accent : const Color(0xFFCBD5E1),
+          width: isActive ? 1.8 : 1.2,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A0C2340),
+            blurRadius: 14,
+            offset: Offset(0, 5),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(22),
+        child: Column(
+          children: [
+            // VIP Celebration Ribbon Header
+            Container(
+              height: 56,
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFFE67319), // Campus Orange
+                    Color(0xFFFFB066), // Warm Gold
+                  ],
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.25),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.auto_awesome_rounded,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'CAMPUS CELEBRANT',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                        const SizedBox(height: 1),
+                        Text(
+                          'Happy Birthday Month!',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.25),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      monthName.toUpperCase(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Card Body Content
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // VIP Avatar Ring
+                    Container(
+                      width: 78,
+                      height: 78,
+                      padding: const EdgeInsets.all(3.5),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: const LinearGradient(
+                          colors: [
+                            Color(0xFFE67319),
+                            Color(0xFF2B92D5),
+                          ],
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.orange.withValues(alpha: 0.2),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                        child: ClipOval(
+                          child: person.imageUrl == null
+                              ? _avatarFallback(person.name)
+                              : Image.network(
+                                  person.imageUrl!,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) =>
+                                      _avatarFallback(person.name),
+                                ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Name
+                    Text(
+                      person.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: AppColors.textTitle,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+
+                    // Department Pill
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: colors.primary.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        person.department,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: colors.primary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Greeting
+                    Text(
+                      'Wishing you a wonderful year ahead, $firstName!',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+
   Widget _buildDisclosureHeader({
     required IconData icon,
     required String title,
@@ -626,160 +821,139 @@ class _HubUpdatesSectionState
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
 
-    return GlassCard(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 14,
-        vertical: 12,
-      ),
-      borderRadius:
-          BorderRadius.circular(20),
-      borderColor: hasUnread
-          ? accent.withValues(alpha: 0.48)
-          : colors.primary.withValues(alpha: 0.16),
-      onTap: onTap,
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  accent,
-                  accent.withValues(alpha: 0.72),
-                ],
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: colors.surface,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: hasUnread
+                  ? accent.withValues(alpha: 0.5)
+                  : theme.dividerColor,
+              width: 1.2,
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x060C2340),
+                blurRadius: 8,
+                offset: Offset(0, 2),
               ),
-              borderRadius:
-                  BorderRadius.circular(14),
-            ),
-            child: Icon(
-              icon,
-              color: Colors.white,
-              size: 21,
-            ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
-              children: [
-                Row(
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: accent, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
                   children: [
-                    Flexible(
-                      child: Text(
-                        title,
-                        maxLines: 1,
-                        overflow:
-                            TextOverflow.ellipsis,
-                        style: theme
-                            .textTheme
-                            .titleLarge
-                            ?.copyWith(
-                          fontSize: 18,
-                          fontWeight:
-                              FontWeight.w900,
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            title,
+                            maxLines: 1,
+                            overflow:
+                                TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: AppColors.textTitle,
+                              fontSize: 15,
+                              fontWeight:
+                                  FontWeight.w800,
+                            ),
+                          ),
                         ),
+                        if (hasUnread) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            width: 7,
+                            height: 7,
+                            decoration:
+                                const BoxDecoration(
+                              color: Colors.redAccent,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow:
+                          TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: hasUnread
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                        color: hasUnread
+                            ? accent
+                            : AppColors.textMuted,
                       ),
                     ),
-                    if (hasUnread) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        width: 9,
-                        height: 9,
-                        decoration:
-                            BoxDecoration(
-                          color: Colors.redAccent,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.redAccent
-                                  .withValues(
-                                alpha: 0.35,
-                              ),
-                              blurRadius: 8,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
                   ],
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  subtitle,
-                  maxLines: 1,
-                  overflow:
-                      TextOverflow.ellipsis,
-                  style: theme
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(
-                    fontSize: 10,
-                    fontWeight: hasUnread
-                        ? FontWeight.w700
-                        : FontWeight.w500,
-                    color: hasUnread
-                        ? accent
-                        : null,
+              ),
+              if (count != null &&
+                  count > 0) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: accent.withValues(
+                      alpha: 0.10,
+                    ),
+                    borderRadius:
+                        BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '$count',
+                    style: TextStyle(
+                      color: accent,
+                      fontSize: 11,
+                      fontWeight:
+                          FontWeight.w800,
+                    ),
                   ),
                 ),
               ],
-            ),
+              const SizedBox(width: 6),
+              AnimatedRotation(
+                turns: expanded ? 0.5 : 0,
+                duration:
+                    const Duration(
+                  milliseconds: 180,
+                ),
+                child: Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: colors.primary,
+                  size: 22,
+                ),
+              ),
+            ],
           ),
-          if (count != null &&
-              count > 0) ...[
-            const SizedBox(width: 8),
-            Container(
-              constraints:
-                  const BoxConstraints(
-                minWidth: 28,
-              ),
-              height: 28,
-              alignment: Alignment.center,
-              padding:
-                  const EdgeInsets.symmetric(
-                horizontal: 8,
-              ),
-              decoration: BoxDecoration(
-                color: accent.withValues(
-                  alpha: 0.10,
-                ),
-                borderRadius:
-                    BorderRadius.circular(18),
-                border: Border.all(
-                  color: accent.withValues(
-                    alpha: 0.20,
-                  ),
-                ),
-              ),
-              child: Text(
-                '$count',
-                style: TextStyle(
-                  color: accent,
-                  fontSize: 10,
-                  fontWeight:
-                      FontWeight.w900,
-                ),
-              ),
-            ),
-          ],
-          const SizedBox(width: 8),
-          AnimatedRotation(
-            turns: expanded ? 0.5 : 0,
-            duration:
-                const Duration(
-              milliseconds: 180,
-            ),
-            child: Icon(
-              Icons.keyboard_arrow_down_rounded,
-              color: colors.primary,
-              size: 24,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -951,9 +1125,6 @@ Widget _announcementCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // =====================================
-          // ANNOUNCEMENT HERO
-          // =====================================
           if (announcement.imageUrl != null)
             Stack(
               children: [
@@ -990,27 +1161,6 @@ Widget _announcementCard(
                     );
                   },
                 ),
-
-                Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          Colors.black.withValues(
-                            alpha: 0.15,
-                          ),
-                          Colors.black.withValues(
-                            alpha: 0.72,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-
                 Positioned(
                   top: 14,
                   left: 14,
@@ -1024,7 +1174,6 @@ Widget _announcementCard(
                           color:
                               AppColors.brandOrange,
                         ),
-
                       if (isNew)
                         _announcementBadge(
                           label: 'NEW',
@@ -1035,7 +1184,6 @@ Widget _announcementCard(
                     ],
                   ),
                 ),
-
                 if (announcement.pinned)
                   Positioned(
                     top: 14,
@@ -1048,84 +1196,12 @@ Widget _announcementCard(
                           AppColors.brandOrange,
                     ),
                   ),
-
-                Positioned(
-                  left: 16,
-                  bottom: 15,
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 38,
-                        height: 38,
-                        decoration: BoxDecoration(
-                          color:
-                              AppColors.brandOrange,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black
-                                  .withValues(
-                                alpha: 0.25,
-                              ),
-                              blurRadius: 12,
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.campaign_rounded,
-                          color: Colors.white,
-                          size: 19,
-                        ),
-                      )
-                          .animate(
-                            onPlay: (controller) {
-                              controller.repeat(
-                                reverse: true,
-                              );
-                            },
-                          )
-                          .scale(
-                            begin: const Offset(
-                              0.94,
-                              0.94,
-                            ),
-                            end: const Offset(
-                              1.07,
-                              1.07,
-                            ),
-                            duration: 1000.ms,
-                          ),
-
-                      const SizedBox(
-                        width: 9,
-                      ),
-
-                      const Text(
-                        'AWS HUB UPDATE',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight:
-                              FontWeight.w900,
-                          letterSpacing: 1,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ],
             )
           else
-            // =====================================
-            // NO IMAGE HERO
-            // =====================================
             Container(
               width: double.infinity,
-              height: 120,
-              padding:
-                  const EdgeInsets.symmetric(
-                horizontal: 20,
-              ),
+              height: 100,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
@@ -1137,167 +1213,34 @@ Widget _announcementCard(
                   ],
                 ),
               ),
-              child: Stack(
-                children: [
-                  Positioned(
-                    right: -20,
-                    top: -35,
-                    child: Icon(
-                      Icons.campaign_rounded,
-                      size: 150,
-                      color:
-                          Colors.white.withValues(
-                        alpha: 0.08,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  children: [
+                    const Icon(Icons.campaign_rounded, color: Colors.white, size: 36),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Text(
+                        isLatest ? 'LATEST AWS HUB UPDATE' : 'ANNOUNCEMENT',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.8,
+                        ),
                       ),
                     ),
-                  ),
-
-                  Row(
-                    children: [
-                      Container(
-                        width: 52,
-                        height: 52,
-                        decoration: BoxDecoration(
-                          color: Colors.white
-                              .withValues(
-                            alpha: 0.16,
-                          ),
-                          borderRadius:
-                              BorderRadius.circular(
-                            17,
-                          ),
-                          border: Border.all(
-                            color: Colors.white
-                                .withValues(
-                              alpha: 0.20,
-                            ),
-                          ),
-                        ),
-                        child: const Icon(
-                          Icons.campaign_rounded,
-                          color: Colors.white,
-                          size: 26,
-                        ),
-                      )
-                          .animate(
-                            onPlay: (controller) {
-                              controller.repeat(
-                                reverse: true,
-                              );
-                            },
-                          )
-                          .scale(
-                            begin:
-                                const Offset(
-                              0.94,
-                              0.94,
-                            ),
-                            end:
-                                const Offset(
-                              1.06,
-                              1.06,
-                            ),
-                            duration: 1000.ms,
-                          ),
-
-                      const SizedBox(
-                        width: 14,
-                      ),
-
-                      Expanded(
-                        child: Column(
-                          mainAxisAlignment:
-                              MainAxisAlignment
-                                  .center,
-                          crossAxisAlignment:
-                              CrossAxisAlignment
-                                  .start,
-                          children: [
-                            Text(
-                              isLatest
-                                  ? 'LATEST AWS HUB UPDATE'
-                                  : 'AWS HUB ANNOUNCEMENT',
-                              style:
-                                  const TextStyle(
-                                color:
-                                    Colors.white,
-                                fontSize: 11,
-                                fontWeight:
-                                    FontWeight
-                                        .w900,
-                                letterSpacing:
-                                    0.8,
-                              ),
-                            ),
-
-                            const SizedBox(
-                              height: 5,
-                            ),
-
-                            Text(
-                              'Tap to read the full announcement',
-                              style: TextStyle(
-                                color: Colors.white
-                                    .withValues(
-                                  alpha: 0.75,
-                                ),
-                                fontSize: 10,
-                                fontWeight:
-                                    FontWeight
-                                        .w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      if (isLatest)
-                        Container(
-                          padding:
-                              const EdgeInsets
-                                  .symmetric(
-                            horizontal: 10,
-                            vertical: 6,
-                          ),
-                          decoration:
-                              BoxDecoration(
-                            color: AppColors
-                                .brandOrange,
-                            borderRadius:
-                                BorderRadius
-                                    .circular(
-                              20,
-                            ),
-                          ),
-                          child:
-                              const Text(
-                            'NEW',
-                            style: TextStyle(
-                              color:
-                                  Colors.white,
-                              fontSize: 8,
-                              fontWeight:
-                                  FontWeight
-                                      .w900,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-
-          // =====================================
-          // ANNOUNCEMENT DETAILS
-          // =====================================
           Padding(
             padding:
                 const EdgeInsets.fromLTRB(
                     20,
-                    8,
+                    16,
                     20,
-                    8,
+                    16,
                   ),
             child: Column(
               crossAxisAlignment:
@@ -1311,47 +1254,14 @@ Widget _announcementCard(
                           .campaign_outlined,
                       color: colors.primary,
                     ),
-
-                    if (isNew) ...[
-                      const SizedBox(
-                        width: 8,
-                      ),
-
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration:
-                            const BoxDecoration(
-                          color: AppColors
-                              .brandOrange,
-                          shape:
-                              BoxShape.circle,
-                        ),
-                      )
-                          .animate(
-                            onPlay:
-                                (controller) {
-                              controller.repeat(
-                                reverse: true,
-                              );
-                            },
-                          )
-                          .fade(
-                            begin: 0.20,
-                            end: 1,
-                            duration: 650.ms,
-                          ),
-                    ],
-
                     const Spacer(),
-
                     if (isLatest)
                       const Text(
                         'NEWEST UPDATE',
                         style: TextStyle(
                           color: AppColors
                               .brandOrange,
-                          fontSize: 8,
+                          fontSize: 9,
                           fontWeight:
                               FontWeight.w900,
                           letterSpacing: 0.6,
@@ -1359,28 +1269,24 @@ Widget _announcementCard(
                       ),
                   ],
                 ),
-
                 const SizedBox(
-                  height: 14,
+                  height: 12,
                 ),
-
                 Text(
                   announcement.title,
                   style: theme
                       .textTheme.titleLarge
                       ?.copyWith(
-                    fontSize: 22,
+                    fontSize: 20,
                     fontWeight:
                         FontWeight.w900,
                     height: 1.15,
                     letterSpacing: -0.3,
                   ),
                 ),
-
                 const SizedBox(
                   height: 8,
                 ),
-
                 Text(
                   _previewText(
                     announcement,
@@ -1395,11 +1301,9 @@ Widget _announcementCard(
                     height: 1.45,
                   ),
                 ),
-
                 const SizedBox(
-                  height: 17,
+                  height: 16,
                 ),
-
                 Container(
                   padding:
                       const EdgeInsets.symmetric(
@@ -1428,11 +1332,9 @@ Widget _announcementCard(
                         color: accent,
                         size: 15,
                       ),
-
                       const SizedBox(
                         width: 7,
                       ),
-
                       Expanded(
                         child: Text(
                           _announcementDateLabel(
@@ -1450,7 +1352,6 @@ Widget _announcementCard(
                           ),
                         ),
                       ),
-
                       Container(
                         padding:
                             const EdgeInsets
@@ -1472,17 +1373,6 @@ Widget _announcementCard(
                                   .circular(
                             20,
                           ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: colors
-                                  .primary
-                                  .withValues(
-                                alpha: 0.22,
-                              ),
-                              blurRadius: 12,
-                              spreadRadius: -4,
-                            ),
-                          ],
                         ),
                         child: const Row(
                           mainAxisSize:
@@ -1494,7 +1384,7 @@ Widget _announcementCard(
                                   TextStyle(
                                 color:
                                     Colors.white,
-                                fontSize: 9,
+                                fontSize: 10,
                                 fontWeight:
                                     FontWeight
                                         .w900,
@@ -1526,40 +1416,8 @@ Widget _announcementCard(
     ),
   );
 
-  Widget result = card
-      .animate()
-      .fadeIn(
-        duration: 400.ms,
-      )
-      .slideY(
-        begin: 0.05,
-        end: 0,
-        duration: 450.ms,
-        curve:
-            Curves.easeOutCubic,
-      );
-
-  if (isNew) {
-    result = result
-        .animate(
-          onPlay: (controller) {
-            controller.repeat(
-              reverse: true,
-            );
-          },
-        )
-        .shimmer(
-          duration: 1900.ms,
-          color: AppColors.brandOrange
-              .withValues(
-            alpha: 0.10,
-          ),
-        );
-  }
-
-  return result;
+  return card;
 }
-
 
   Widget _announcementBadge({
     required String label,
@@ -1700,11 +1558,9 @@ Widget _announcementCard(
               size: 20,
             ),
           ),
-
           const SizedBox(
             width: 12,
           ),
-
           Expanded(
             child: Column(
               crossAxisAlignment:
@@ -1755,11 +1611,9 @@ Widget _announcementCard(
                     ),
                   ],
                 ),
-
                 const SizedBox(
                   height: 4,
                 ),
-
                 Text(
                   announcement
                       .title,
@@ -1777,11 +1631,9 @@ Widget _announcementCard(
                             .w800,
                   ),
                 ),
-
                 const SizedBox(
                   height: 3,
                 ),
-
                 Text(
                   _previewText(
                     announcement,
@@ -1800,11 +1652,9 @@ Widget _announcementCard(
               ],
             ),
           ),
-
           const SizedBox(
             width: 8,
           ),
-
           Icon(
             Icons
                 .chevron_right_rounded,
@@ -1877,452 +1727,403 @@ Widget _announcementCard(
         final colors =
             theme.colorScheme;
 
-        return DraggableScrollableSheet(
-          initialChildSize:
-              0.88,
-          minChildSize:
-              0.58,
-          maxChildSize:
-              0.96,
-          expand: false,
-          builder: (
-            context,
-            scrollController,
-          ) {
-            return Container(
-              decoration:
-                  BoxDecoration(
-                color: theme
-                    .scaffoldBackgroundColor,
-                borderRadius:
-                    const BorderRadius
-                        .vertical(
-                  top:
-                      Radius.circular(
-                    30,
-                  ),
-                ),
-                border:
-                    Border.all(
+        return Container(
+          height: MediaQuery.sizeOf(context).height * 0.88,
+          decoration:
+              BoxDecoration(
+            color: theme
+                .scaffoldBackgroundColor,
+            borderRadius:
+                const BorderRadius
+                    .vertical(
+              top:
+                  Radius.circular(
+                24,
+              ),
+            ),
+            border:
+                Border.all(
+              color: theme
+                  .dividerColor,
+            ),
+          ),
+          child: Column(
+            children: [
+              const SizedBox(
+                height: 12,
+              ),
+              Container(
+                width: 44,
+                height: 5,
+                decoration:
+                    BoxDecoration(
                   color: theme
                       .dividerColor,
+                  borderRadius:
+                      BorderRadius
+                          .circular(
+                    20,
+                  ),
                 ),
               ),
-              child: Column(
-                children: [
-                  const SizedBox(
-                    height: 12,
-                  ),
-
-                  Container(
-                    width: 44,
-                    height: 5,
-                    decoration:
-                        BoxDecoration(
-                      color: theme
-                          .dividerColor,
-                      borderRadius:
-                          BorderRadius
-                              .circular(
-                        20,
+              Padding(
+                padding:
+                    const EdgeInsets
+                        .fromLTRB(
+                  20,
+                  18,
+                  12,
+                  15,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 46,
+                      height: 46,
+                      decoration:
+                          BoxDecoration(
+                        gradient:
+                            LinearGradient(
+                          colors: [
+                            colors
+                                .primary,
+                            colors
+                                .secondary,
+                          ],
+                        ),
+                        borderRadius:
+                            BorderRadius
+                                .circular(
+                          15,
+                        ),
+                      ),
+                      child:
+                          const Icon(
+                        Icons
+                            .campaign_rounded,
+                        color: Colors
+                            .white,
+                        size: 23,
                       ),
                     ),
-                  ),
-
-                  Padding(
-                    padding:
-                        const EdgeInsets
-                            .fromLTRB(
-                      20,
-                      18,
-                      12,
-                      15,
+                    const SizedBox(
+                      width: 12,
                     ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 46,
-                          height: 46,
-                          decoration:
-                              BoxDecoration(
-                            gradient:
-                                LinearGradient(
-                              colors: [
-                                colors
-                                    .primary,
-                                colors
-                                    .secondary,
-                              ],
-                            ),
-                            borderRadius:
-                                BorderRadius
-                                    .circular(
-                              15,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment:
+                            CrossAxisAlignment
+                                .start,
+                        children: [
+                          Text(
+                            'All Announcements',
+                            style: theme
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(
+                              fontSize:
+                                  20,
+                              fontWeight:
+                                  FontWeight
+                                      .w900,
                             ),
                           ),
-                          child:
-                              const Icon(
-                            Icons
-                                .campaign_rounded,
-                            color: Colors
-                                .white,
-                            size: 23,
+                          const SizedBox(
+                            height:
+                                3,
                           ),
-                        ),
-
-                        const SizedBox(
-                          width: 12,
-                        ),
-
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment
-                                    .start,
-                            children: [
-                              Text(
-                                'All Announcements',
-                                style: theme
-                                    .textTheme
-                                    .titleLarge
-                                    ?.copyWith(
-                                  fontSize:
-                                      20,
-                                  fontWeight:
-                                      FontWeight
-                                          .w900,
-                                ),
-                              ),
-                              const SizedBox(
-                                height:
-                                    3,
-                              ),
-                              Text(
-                                '${displayItems.length} ${displayItems.length == 1 ? 'announcement' : 'announcements'}',
-                                style: theme
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(
-                                  fontSize:
-                                      10,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        IconButton(
-                          onPressed:
-                              () {
-                            Navigator.pop(
-                              sheetContext,
-                            );
-                          },
-                          icon: Icon(
-                            Icons
-                                .close_rounded,
-                            color: theme
+                          Text(
+                            '${displayItems.length} ${displayItems.length == 1 ? 'announcement' : 'announcements'}',
+                            style: theme
                                 .textTheme
                                 .bodySmall
-                                ?.color,
+                                ?.copyWith(
+                              fontSize:
+                                  10,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
+                    IconButton(
+                      onPressed:
+                          () {
+                        Navigator.pop(
+                          sheetContext,
+                        );
+                      },
+                      icon: Icon(
+                        Icons
+                            .close_rounded,
+                        color: theme
+                            .textTheme
+                            .bodySmall
+                            ?.color,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Divider(
+                height: 1,
+                color: theme
+                    .dividerColor,
+              ),
+              Expanded(
+                child:
+                    ListView
+                        .separated(
+                  padding:
+                      const EdgeInsets
+                          .all(
+                    16,
                   ),
-
-                  Divider(
-                    height: 1,
-                    color: theme
-                        .dividerColor,
+                  physics:
+                      const BouncingScrollPhysics(),
+                  itemCount:
+                      displayItems
+                          .length,
+                  separatorBuilder:
+                      (
+                    _,
+                    __,
+                  ) =>
+                          const SizedBox(
+                    height:
+                        10,
                   ),
+                  itemBuilder: (
+                    context,
+                    index,
+                  ) {
+                    final announcement =
+                        displayItems[
+                            index];
 
-                  Expanded(
-                    child:
-                        ListView
-                            .separated(
-                      controller:
-                          scrollController,
+                    final bool latest =
+                        announcement.id ==
+                            latestId;
+
+                    return GlassCard(
                       padding:
                           const EdgeInsets
                               .all(
-                        16,
+                        15,
                       ),
-                      physics:
-                          const BouncingScrollPhysics(),
-                      itemCount:
-                          displayItems
-                              .length,
-                      separatorBuilder:
-                          (
-                        _,
-                        __,
-                      ) =>
-                              const SizedBox(
-                        height:
-                            10,
+                      borderRadius:
+                          BorderRadius
+                              .circular(
+                        19,
                       ),
-                      itemBuilder: (
-                        context,
-                        index,
-                      ) {
-                        final announcement =
-                            displayItems[
-                                index];
-
-                        final bool latest =
-                            announcement.id ==
-                                latestId;
-
-                        return GlassCard(
-                          padding:
-                              const EdgeInsets
-                                  .all(
-                            15,
-                          ),
-                          borderRadius:
-                              BorderRadius
-                                  .circular(
-                            19,
-                          ),
-                          borderColor:
-                              announcement
-                                      .pinned
-                                  ? AppColors
-                                      .brandOrange
+                      borderColor:
+                          announcement
+                                  .pinned
+                              ? AppColors
+                                  .brandOrange
+                                  .withValues(
+                                  alpha:
+                                      0.42,
+                                )
+                              : latest
+                                  ? colors
+                                      .primary
                                       .withValues(
                                       alpha:
-                                          0.42,
+                                          0.35,
                                     )
-                                  : latest
-                                      ? colors
+                                  : null,
+                      onTap: () {
+                        Navigator.pop(
+                          sheetContext,
+                        );
+
+                        Future<void>
+                            .delayed(
+                          const Duration(
+                            milliseconds:
+                                180,
+                          ),
+                          () {
+                            if (mounted) {
+                              _showAnnouncement(
+                                announcement,
+                              );
+                            }
+                          },
+                        );
+                      },
+                      child: Row(
+                        crossAxisAlignment:
+                            CrossAxisAlignment
+                                .start,
+                        children: [
+                          Container(
+                            width: 46,
+                            height: 46,
+                            decoration:
+                                BoxDecoration(
+                              color:
+                                  announcement
+                                          .pinned
+                                      ? AppColors
+                                          .brandOrange
+                                          .withValues(
+                                          alpha:
+                                              0.12,
+                                        )
+                                      : colors
                                           .primary
                                           .withValues(
                                           alpha:
-                                              0.35,
-                                        )
-                                      : null,
-                          onTap: () {
-                            Navigator.pop(
-                              sheetContext,
-                            );
-
-                            Future<void>
-                                .delayed(
-                              const Duration(
-                                milliseconds:
-                                    180,
+                                              0.10,
+                                        ),
+                              borderRadius:
+                                  BorderRadius
+                                      .circular(
+                                14,
                               ),
-                              () {
-                                if (mounted) {
-                                  _showAnnouncement(
-                                    announcement,
-                                  );
-                                }
-                              },
-                            );
-                          },
-                          child: Row(
-                            crossAxisAlignment:
-                                CrossAxisAlignment
-                                    .start,
-                            children: [
-                              Container(
-                                width: 46,
-                                height: 46,
-                                decoration:
-                                    BoxDecoration(
-                                  color:
-                                      announcement
-                                              .pinned
-                                          ? AppColors
-                                              .brandOrange
-                                              .withValues(
-                                              alpha:
-                                                  0.12,
-                                            )
-                                          : colors
-                                              .primary
-                                              .withValues(
-                                              alpha:
-                                                  0.10,
-                                            ),
-                                  borderRadius:
-                                      BorderRadius
-                                          .circular(
-                                    14,
-                                  ),
-                                ),
-                                child: Icon(
+                            ),
+                            child: Icon(
+                              announcement
+                                      .pinned
+                                  ? Icons
+                                      .push_pin_rounded
+                                  : Icons
+                                      .campaign_outlined,
+                              color:
                                   announcement
                                           .pinned
-                                      ? Icons
-                                          .push_pin_rounded
-                                      : Icons
-                                          .campaign_outlined,
-                                  color:
-                                      announcement
-                                              .pinned
-                                          ? AppColors
-                                              .brandOrange
-                                          : colors
-                                              .primary,
-                                ),
-                              ),
-
-                              const SizedBox(
-                                width: 12,
-                              ),
-
-                              Expanded(
-                                child:
-                                    Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment
-                                          .start,
+                                      ? AppColors
+                                          .brandOrange
+                                      : colors
+                                          .primary,
+                            ),
+                          ),
+                          const SizedBox(
+                            width: 12,
+                          ),
+                          Expanded(
+                            child:
+                                Column(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment
+                                      .start,
+                              children: [
+                                Wrap(
+                                  spacing:
+                                      6,
+                                  runSpacing:
+                                      5,
                                   children: [
-                                    Wrap(
-                                      spacing:
-                                          6,
-                                      runSpacing:
-                                          5,
-                                      children: [
-                                        if (latest)
-                                          _announcementBadge(
-                                            label:
-                                                'LATEST',
-                                            icon: Icons
-                                                .bolt_rounded,
-                                            color:
-                                                AppColors
-                                                    .brandOrange,
-                                          ),
-
-                                        if (announcement
-                                            .pinned)
-                                          _announcementBadge(
-                                            label:
-                                                'PINNED',
-                                            icon: Icons
-                                                .push_pin_rounded,
-                                            color:
-                                                AppColors
-                                                    .brandOrange,
-                                          ),
-
-                                        _announcementBadge(
-                                          label: announcement
-                                                  .tag
-                                                  .trim()
-                                                  .isEmpty
-                                              ? 'ANNOUNCEMENT'
-                                              : announcement
-                                                  .tag
-                                                  .trim()
-                                                  .toUpperCase(),
-                                          color:
-                                              colors
-                                                  .primary,
-                                        ),
-                                      ],
-                                    ),
-
-                                    const SizedBox(
-                                      height:
-                                          9,
-                                    ),
-
-                                    Text(
-                                      announcement
-                                          .title,
-                                      style: theme
-                                          .textTheme
-                                          .titleMedium
-                                          ?.copyWith(
-                                        fontSize:
-                                            14,
-                                        fontWeight:
-                                            FontWeight
-                                                .w900,
+                                    if (latest)
+                                      _announcementBadge(
+                                        label:
+                                            'LATEST',
+                                        icon: Icons
+                                            .bolt_rounded,
+                                        color:
+                                            AppColors
+                                                .brandOrange,
                                       ),
-                                    ),
-
-                                    const SizedBox(
-                                      height:
-                                          5,
-                                    ),
-
-                                    Text(
-                                      _previewText(
-                                        announcement,
+                                    if (announcement
+                                        .pinned)
+                                      _announcementBadge(
+                                        label:
+                                            'PINNED',
+                                        icon: Icons
+                                            .push_pin_rounded,
+                                        color:
+                                            AppColors
+                                                .brandOrange,
                                       ),
-                                      maxLines:
-                                          2,
-                                      overflow:
-                                          TextOverflow
-                                              .ellipsis,
-                                      style: theme
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(
-                                        fontSize:
-                                            10,
-                                        height:
-                                            1.35,
-                                      ),
-                                    ),
-
-                                    const SizedBox(
-                                      height:
-                                          8,
-                                    ),
-
-                                    Text(
-                                      _announcementDateLabel(
-                                        announcement
-                                            .publishedAt,
-                                      ),
-                                      style: theme
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(
-                                        fontSize:
-                                            9,
-                                        fontWeight:
-                                            FontWeight
-                                                .w700,
-                                      ),
+                                    _announcementBadge(
+                                      label: announcement
+                                              .tag
+                                              .trim()
+                                              .isEmpty
+                                          ? 'ANNOUNCEMENT'
+                                          : announcement
+                                              .tag
+                                              .trim()
+                                              .toUpperCase(),
+                                      color:
+                                          colors
+                                              .primary,
                                     ),
                                   ],
                                 ),
-                              ),
-                            ],
+                                const SizedBox(
+                                  height:
+                                      9,
+                                ),
+                                Text(
+                                  announcement
+                                      .title,
+                                  style: theme
+                                      .textTheme
+                                      .titleMedium
+                                      ?.copyWith(
+                                    fontSize:
+                                        14,
+                                    fontWeight:
+                                        FontWeight
+                                            .w900,
+                                  ),
+                                ),
+                                const SizedBox(
+                                  height:
+                                      5,
+                                ),
+                                Text(
+                                  _previewText(
+                                    announcement,
+                                  ),
+                                  maxLines:
+                                      2,
+                                  overflow:
+                                      TextOverflow
+                                          .ellipsis,
+                                  style: theme
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                    fontSize:
+                                        10,
+                                    height:
+                                        1.35,
+                                  ),
+                                ),
+                                const SizedBox(
+                                  height:
+                                      8,
+                                ),
+                                Text(
+                                  _announcementDateLabel(
+                                    announcement
+                                        .publishedAt,
+                                  ),
+                                  style: theme
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                    fontSize:
+                                        9,
+                                    fontWeight:
+                                        FontWeight
+                                            .w700,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        )
-                            .animate(
-                              delay:
-                                  (index *
-                                          45)
-                                      .ms,
-                            )
-                            .fadeIn(
-                              duration:
-                                  300.ms,
-                            )
-                            .slideY(
-                              begin:
-                                  0.04,
-                              end: 0,
-                              duration:
-                                  300.ms,
-                            );
-                      },
-                    ),
-                  ),
-                ],
+                        ],
+                      ),
+                    );
+                  },
+                ),
               ),
-            );
-          },
+            ],
+          ),
         );
       },
     );
@@ -2584,309 +2385,231 @@ Widget _announcementCard(
       useSafeArea: true,
       builder:
           (sheetContext) {
-        return DraggableScrollableSheet(
-          initialChildSize:
-              0.86,
-          minChildSize:
-              0.55,
-          maxChildSize:
-              0.96,
-          expand: false,
-          builder: (
-            context,
-            scrollController,
-          ) {
-            return Container(
-              decoration:
-                  BoxDecoration(
-                color:
-                    AppColors.bgDeep,
-                borderRadius:
-                    const BorderRadius
-                        .vertical(
-                  top:
-                      Radius.circular(
-                    30,
-                  ),
+        return Container(
+          height: MediaQuery.sizeOf(context).height * 0.85,
+          decoration:
+              BoxDecoration(
+            color:
+                AppColors.bgDeep,
+            borderRadius:
+                const BorderRadius
+                    .vertical(
+              top:
+                  Radius.circular(
+                24,
+              ),
+            ),
+            border:
+                Border.all(
+              color: AppColors
+                  .cardBorder,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black
+                    .withValues(
+                  alpha:
+                      0.35,
                 ),
-                border:
-                    Border.all(
+                blurRadius:
+                    30,
+                offset:
+                    const Offset(
+                  0,
+                  -6,
+                ),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              const SizedBox(
+                height: 12,
+              ),
+              Container(
+                width: 45,
+                height: 5,
+                decoration:
+                    BoxDecoration(
                   color: AppColors
                       .cardBorder,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black
-                        .withValues(
-                      alpha:
-                          0.35,
-                    ),
-                    blurRadius:
-                        30,
-                    offset:
-                        const Offset(
-                      0,
-                      -6,
-                    ),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  const SizedBox(
-                    height: 12,
-                  ),
-
-                  Container(
-                    width: 45,
-                    height: 5,
-                    decoration:
-                        BoxDecoration(
-                      color: AppColors
-                          .cardBorder,
-                      borderRadius:
-                          BorderRadius
-                              .circular(
+                  borderRadius:
+                      BorderRadius
+                          .circular(
                         20,
                       ),
-                    ),
-                  ),
-
-                  Padding(
-                    padding:
-                        const EdgeInsets
-                            .fromLTRB(
-                      20,
-                      18,
-                      12,
-                      14,
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration:
-                              BoxDecoration(
-                            color: AppColors
-                                .orange
-                                .withValues(
-                              alpha:
-                                  0.12,
-                            ),
-                            borderRadius:
-                                BorderRadius
-                                    .circular(
-                              14,
-                            ),
-                          ),
-                          child:
-                              const Icon(
-                            Icons
-                                .cake_rounded,
-                            color: AppColors
-                                .orange,
-                            size: 22,
-                          ),
-                        )
-                            .animate(
-                              onPlay:
-                                  (controller) =>
-                                      controller
-                                          .repeat(),
-                            )
-                            .shimmer(
-                              duration:
-                                  1700.ms,
-                              color: AppColors
-                                  .warning
-                                  .withValues(
-                                alpha:
-                                    0.35,
-                              ),
-                            ),
-
-                        const SizedBox(
-                          width: 12,
+                ),
+              ),
+              Padding(
+                padding:
+                    const EdgeInsets
+                        .fromLTRB(
+                  20,
+                  18,
+                  12,
+                  14,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration:
+                          BoxDecoration(
+                        color: AppColors
+                            .orange
+                            .withValues(
+                          alpha:
+                              0.12,
                         ),
-
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment
-                                    .start,
-                            children: [
-                              Text(
-                                '${_fullMonthName(now.month)} Celebrants',
-                                style:
-                                    const TextStyle(
-                                  color:
-                                      AppColors
-                                          .textTitle,
-                                  fontSize:
-                                      19,
-                                  fontWeight:
-                                      FontWeight
-                                          .w900,
-                                ),
-                              ),
-                              const SizedBox(
-                                height:
-                                    3,
-                              ),
-                              Text(
-                                '${sortedCelebrants.length} ${sortedCelebrants.length == 1 ? 'birthday' : 'birthdays'} this month',
-                                style:
-                                    const TextStyle(
-                                  color:
-                                      AppColors
-                                          .textMuted,
-                                  fontSize:
-                                      10,
-                                ),
-                              ),
-                            ],
-                          ),
+                        borderRadius:
+                            BorderRadius
+                                .circular(
+                          14,
                         ),
-
-                        IconButton(
-                          tooltip:
-                              'Close',
-                          onPressed:
-                              () {
-                            Navigator.pop(
-                              sheetContext,
-                            );
-                          },
-                          icon:
-                              const Icon(
-                            Icons
-                                .close_rounded,
-                            color:
-                                AppColors
-                                    .textMuted,
-                          ),
-                        ),
-                      ],
+                      ),
+                      child:
+                          const Icon(
+                        Icons
+                            .cake_rounded,
+                        color: AppColors
+                            .orange,
+                        size: 22,
+                      ),
                     ),
-                  ),
-
-                  Divider(
-                    height: 1,
-                    color: AppColors
-                        .cardBorder
-                        .withValues(
-                      alpha: 0.8,
+                    const SizedBox(
+                      width: 12,
                     ),
-                  ),
-
-                  Expanded(
-                    child:
-                        LayoutBuilder(
-                      builder: (
-                        context,
-                        constraints,
-                      ) {
-                        int columns =
-                            2;
-
-                        if (constraints
-                                .maxWidth >=
-                            720) {
-                          columns =
-                              4;
-                        } else if (constraints
-                                .maxWidth >=
-                            520) {
-                          columns =
-                              3;
-                        }
-
-                        return GridView
-                            .builder(
-                          controller:
-                              scrollController,
-                          padding:
-                              const EdgeInsets
-                                  .all(
-                            16,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment:
+                            CrossAxisAlignment
+                                .start,
+                        children: [
+                          Text(
+                            '${_fullMonthName(now.month)} Celebrants',
+                            style:
+                                const TextStyle(
+                              color:
+                                  AppColors
+                                      .textTitle,
+                              fontSize:
+                                  19,
+                              fontWeight:
+                                  FontWeight
+                                      .w900,
+                            ),
                           ),
-                          physics:
-                              const BouncingScrollPhysics(),
-                          itemCount:
-                              sortedCelebrants
-                                  .length,
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount:
-                                columns,
-                            crossAxisSpacing:
-                                12,
-                            mainAxisSpacing:
-                                12,
-                            childAspectRatio:
-                                0.78,
+                          const SizedBox(
+                            height:
+                                3,
                           ),
-                          itemBuilder: (
-                            context,
-                            index,
-                          ) {
-                            final person =
-                                sortedCelebrants[
-                                    index];
-
-                            return _celebrantGridCard(
-                              person,
-                            )
-                                .animate(
-                                  delay:
-                                      (index *
-                                              55)
-                                          .ms,
-                                )
-                                .fadeIn(
-                                  duration:
-                                      380.ms,
-                                )
-                                .scale(
-                                  begin:
-                                      const Offset(
-                                    0.94,
-                                    0.94,
-                                  ),
-                                  end:
-                                      const Offset(
-                                    1,
-                                    1,
-                                  ),
-                                  duration:
-                                      380.ms,
-                                  curve: Curves
-                                      .easeOutBack,
-                                );
-                          },
+                          Text(
+                            '${sortedCelebrants.length} ${sortedCelebrants.length == 1 ? 'birthday' : 'birthdays'} this month',
+                            style:
+                                const TextStyle(
+                              color:
+                                  AppColors
+                                      .textMuted,
+                              fontSize:
+                                  10,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      tooltip:
+                          'Close',
+                      onPressed:
+                          () {
+                        Navigator.pop(
+                          sheetContext,
                         );
                       },
+                      icon:
+                          const Icon(
+                        Icons
+                            .close_rounded,
+                        color:
+                            AppColors
+                                .textMuted,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            )
-                .animate()
-                .fadeIn(
-                  duration:
-                      250.ms,
-                )
-                .slideY(
-                  begin:
-                      0.06,
-                  end: 0,
-                  duration:
-                      350.ms,
-                  curve: Curves
-                      .easeOutCubic,
-                );
-          },
+              Divider(
+                height: 1,
+                color: AppColors
+                    .cardBorder
+                    .withValues(
+                  alpha: 0.8,
+                ),
+              ),
+              Expanded(
+                child:
+                    LayoutBuilder(
+                  builder: (
+                    context,
+                    constraints,
+                  ) {
+                    int columns =
+                        2;
+
+                    if (constraints
+                            .maxWidth >=
+                        720) {
+                      columns =
+                          4;
+                    } else if (constraints
+                            .maxWidth >=
+                        520) {
+                      columns =
+                          3;
+                    }
+
+                    return GridView
+                        .builder(
+                      padding:
+                          const EdgeInsets
+                              .all(
+                        16,
+                      ),
+                      physics:
+                          const BouncingScrollPhysics(),
+                      itemCount:
+                          sortedCelebrants
+                              .length,
+                      gridDelegate:
+                          SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount:
+                            columns,
+                        crossAxisSpacing:
+                            12,
+                        mainAxisSpacing:
+                            12,
+                        childAspectRatio:
+                            0.78,
+                      ),
+                      itemBuilder: (
+                        context,
+                        index,
+                      ) {
+                        final person =
+                            sortedCelebrants[
+                                index];
+
+                        return _celebrantGridCard(
+                          person,
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         );
       },
     );
@@ -2914,26 +2637,7 @@ Widget _announcementCard(
                 padding: const EdgeInsets.all(3),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: highlighted
-                      ? const LinearGradient(
-                          colors: [
-                            AppColors.brandOrange,
-                            Color(0xFFF3A34D),
-                          ],
-                        )
-                      : null,
-                  border: highlighted
-                      ? null
-                      : Border.all(color: AppColors.cardBorder),
-                  boxShadow: highlighted
-                      ? [
-                          BoxShadow(
-                            color: AppColors.brandOrange.withValues(alpha: 0.24),
-                            blurRadius: 18,
-                            spreadRadius: -4,
-                          ),
-                        ]
-                      : null,
+                  border: Border.all(color: AppColors.cardBorder),
                 ),
                 child: ClipOval(
                   child: SizedBox(
@@ -2951,31 +2655,6 @@ Widget _announcementCard(
                   ),
                 ),
               ),
-              if (highlighted)
-                Positioned(
-                  right: -5,
-                  bottom: -2,
-                  child: Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: AppColors.orange,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.bgDeep, width: 2),
-                    ),
-                    child: const Icon(
-                      Icons.celebration_rounded,
-                      color: Colors.white,
-                      size: 14,
-                    ),
-                  )
-                      .animate(onPlay: (controller) => controller.repeat(reverse: true))
-                      .scale(
-                        begin: const Offset(0.94, 0.94),
-                        end: const Offset(1.06, 1.06),
-                        duration: 900.ms,
-                      ),
-                ),
             ],
           ),
           const SizedBox(height: 10),
@@ -3027,640 +2706,6 @@ Widget _announcementCard(
     );
   }
 
-
-Widget _birthdayGreetingCard(
-  BirthdayCelebrant person,
-  bool isActive,
-) {
-  final theme = Theme.of(context);
-  final colors = theme.colorScheme;
-
-  final monthName =
-      _fullMonthName(DateTime.now().month);
-
-  const accent = AppColors.brandOrange;
-
-  final firstName =
-      person.name.trim().isEmpty
-          ? 'Scholar'
-          : person.name.trim().split(' ').first;
-
-  final Widget card = GlassCard(
-    padding: EdgeInsets.zero,
-    borderRadius: BorderRadius.circular(28),
-    hasGlow: true,
-    borderColor: accent.withValues(
-      alpha: isActive ? 0.75 : 0.38,
-    ),
-    child: ClipRRect(
-      borderRadius: BorderRadius.circular(28),
-      child: Stack(
-        children: [
-          // =====================================
-          // SOFT BACKGROUND EFFECTS
-          // =====================================
-          Positioned(
-            top: -55,
-            right: -40,
-            child: Container(
-              width: 150,
-              height: 150,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: accent.withValues(
-                  alpha: 0.08,
-                ),
-              ),
-            ),
-          ),
-
-          Positioned(
-            bottom: -60,
-            left: -45,
-            child: Container(
-              width: 160,
-              height: 160,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: colors.primary.withValues(
-                  alpha: 0.07,
-                ),
-              ),
-            ),
-          ),
-
-          Column(
-            children: [
-              // =====================================
-              // BIRTHDAY HEADER
-              // =====================================
-              Container(
-                height: 62,
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                ),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                    colors: [
-                      AppColors.brandOrange,
-                      Color(0xFFF49A3A),
-                      Color(0xFFEF7F1A),
-                    ],
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(
-                          alpha: 0.18,
-                        ),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: Colors.white.withValues(
-                            alpha: 0.18,
-                          ),
-                        ),
-                      ),
-                      child: const Icon(
-                        Icons.celebration_rounded,
-                        color: Colors.white,
-                        size: 19,
-                      ),
-                    )
-                        .animate(
-                          onPlay: (controller) {
-                            controller.repeat(
-                              reverse: true,
-                            );
-                          },
-                        )
-                        .scale(
-                          begin: const Offset(
-                            0.92,
-                            0.92,
-                          ),
-                          end: const Offset(
-                            1.07,
-                            1.07,
-                          ),
-                          duration: 1000.ms,
-                        ),
-
-                    const SizedBox(width: 10),
-
-                    const Expanded(
-                      child: Column(
-                        mainAxisAlignment:
-                            MainAxisAlignment.center,
-                        crossAxisAlignment:
-                            CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'BIRTHDAY CELEBRANT',
-                            maxLines: 1,
-                            overflow:
-                                TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight:
-                                  FontWeight.w900,
-                              letterSpacing: 1,
-                            ),
-                          ),
-                          SizedBox(height: 2),
-                          Text(
-                            'Celebrating our scholar',
-                            maxLines: 1,
-                            overflow:
-                                TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 9,
-                              fontWeight:
-                                  FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    Container(
-                      padding:
-                          const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(
-                          alpha: 0.18,
-                        ),
-                        borderRadius:
-                            BorderRadius.circular(18),
-                      ),
-                      child: Text(
-                        monthName.toUpperCase(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 8,
-                          fontWeight:
-                              FontWeight.w900,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // =====================================
-              // MAIN CONTENT
-              // =====================================
-              Expanded(
-                child: Stack(
-                  children: [
-                    // Animated sparkle left
-                    Positioned(
-                      top: 12,
-                      left: 22,
-                      child: Icon(
-                        Icons.auto_awesome_rounded,
-                        color: accent.withValues(
-                          alpha: 0.55,
-                        ),
-                        size: 17,
-                      )
-                          .animate(
-                            onPlay: (controller) {
-                              controller.repeat(
-                                reverse: true,
-                              );
-                            },
-                          )
-                          .fade(
-                            begin: 0.25,
-                            end: 1,
-                            duration: 1000.ms,
-                          ),
-                    ),
-
-                    // Animated star right
-                    Positioned(
-                      top: 22,
-                      right: 25,
-                      child: Icon(
-                        Icons.star_rounded,
-                        color: colors.primary.withValues(
-                          alpha: 0.40,
-                        ),
-                        size: 15,
-                      )
-                          .animate(
-                            onPlay: (controller) {
-                              controller.repeat(
-                                reverse: true,
-                              );
-                            },
-                          )
-                          .scale(
-                            begin: const Offset(
-                              0.80,
-                              0.80,
-                            ),
-                            end: const Offset(
-                              1.12,
-                              1.12,
-                            ),
-                            duration: 1200.ms,
-                          ),
-                    ),
-
-                    Positioned.fill(
-                      child: Padding(
-                        padding:
-                            const EdgeInsets.fromLTRB(
-                          18,
-                          6,
-                          18,
-                          6,
-                        ),
-                        child: Column(
-                          mainAxisAlignment:
-                              MainAxisAlignment.center,
-                          children: [
-                            // =====================================
-                            // PROFILE PHOTO
-                            // =====================================
-                            Stack(
-                              clipBehavior: Clip.none,
-                              alignment:
-                                  Alignment.center,
-                              children: [
-                                Container(
-                                  width: 82,
-                                  height: 82,
-                                  decoration:
-                                      BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    gradient:
-                                        LinearGradient(
-                                      begin:
-                                          Alignment.topLeft,
-                                      end: Alignment
-                                          .bottomRight,
-                                      colors: [
-                                        accent,
-                                        colors.primary,
-                                      ],
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: accent
-                                            .withValues(
-                                          alpha: 0.28,
-                                        ),
-                                        blurRadius: 20,
-                                        spreadRadius: -4,
-                                      ),
-                                    ],
-                                  ),
-                                )
-                                    .animate(
-                                      onPlay:
-                                          (controller) {
-                                        controller.repeat(
-                                          reverse: true,
-                                        );
-                                      },
-                                    )
-                                    .scale(
-                                      begin:
-                                          const Offset(
-                                        0.97,
-                                        0.97,
-                                      ),
-                                      end:
-                                          const Offset(
-                                        1.03,
-                                        1.03,
-                                      ),
-                                      duration: 1500.ms,
-                                    ),
-
-                                Container(
-                                  width: 74,
-                                  height: 74,
-                                  padding:
-                                      const EdgeInsets.all(
-                                    3,
-                                  ),
-                                  decoration:
-                                      BoxDecoration(
-                                    color: theme
-                                        .scaffoldBackgroundColor,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: ClipOval(
-                                    child:
-                                        person.imageUrl ==
-                                                null
-                                            ? _avatarFallback(
-                                                person
-                                                    .name,
-                                              )
-                                            : Image.network(
-                                                person
-                                                    .imageUrl!,
-                                                fit:
-                                                    BoxFit
-                                                        .cover,
-                                                errorBuilder: (
-                                                  context,
-                                                  error,
-                                                  stackTrace,
-                                                ) {
-                                                  return _avatarFallback(
-                                                    person
-                                                        .name,
-                                                  );
-                                                },
-                                              ),
-                                  ),
-                                ),
-
-                                Positioned(
-                                  right: -2,
-                                  bottom: 0,
-                                  child: Container(
-                                    width: 27,
-                                    height: 27,
-                                    decoration:
-                                        BoxDecoration(
-                                      color: accent,
-                                      shape:
-                                          BoxShape.circle,
-                                      border: Border.all(
-                                        color: theme
-                                            .scaffoldBackgroundColor,
-                                        width: 2.5,
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: accent
-                                              .withValues(
-                                            alpha:
-                                                0.30,
-                                          ),
-                                          blurRadius: 8,
-                                        ),
-                                      ],
-                                    ),
-                                    child:
-                                        const Icon(
-                                      Icons.cake_rounded,
-                                      color: Colors.white,
-                                      size: 13,
-                                    ),
-                                  )
-                                      .animate(
-                                        onPlay:
-                                            (controller) {
-                                          controller
-                                              .repeat(
-                                            reverse: true,
-                                          );
-                                        },
-                                      )
-                                      .scale(
-                                        begin:
-                                            const Offset(
-                                          0.90,
-                                          0.90,
-                                        ),
-                                        end:
-                                            const Offset(
-                                          1.08,
-                                          1.08,
-                                        ),
-                                        duration: 900.ms,
-                                      ),
-                                ),
-                              ],
-                            ),
-
-                            const SizedBox(height: 5),
-
-                            // =====================================
-                            // NAME
-                            // =====================================
-                            Text(
-                              person.name,
-                              maxLines: 1,
-                              overflow:
-                                  TextOverflow.ellipsis,
-                              textAlign:
-                                  TextAlign.center,
-                              style: theme
-                                  .textTheme
-                                  .titleLarge
-                                  ?.copyWith(
-                                fontSize: 17,
-                                fontWeight:
-                                    FontWeight.w900,
-                                height: 1.05,
-                                letterSpacing: -0.2,
-                              ),
-                            ),
-
-                            const SizedBox(height: 3),
-
-                            // =====================================
-                            // DEPARTMENT
-                            // =====================================
-                            Container(
-                              padding:
-                                  const EdgeInsets
-                                      .symmetric(
-                                horizontal: 11,
-                                vertical: 4,
-                              ),
-                              decoration:
-                                  BoxDecoration(
-                                color: colors.primary
-                                    .withValues(
-                                  alpha: 0.09,
-                                ),
-                                borderRadius:
-                                    BorderRadius
-                                        .circular(
-                                  16,
-                                ),
-                                border: Border.all(
-                                  color: colors.primary
-                                      .withValues(
-                                    alpha: 0.12,
-                                  ),
-                                ),
-                              ),
-                              child: Text(
-                                person.department,
-                                maxLines: 1,
-                                overflow:
-                                    TextOverflow
-                                        .ellipsis,
-                                style: theme
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(
-                                  color:
-                                      colors.primary,
-                                  fontSize: 9,
-                                  height: 1,
-                                  fontWeight:
-                                      FontWeight.w800,
-                                ),
-                              ),
-                            ),
-
-                            const SizedBox(height: 5),
-
-                            // =====================================
-                            // CURRENT MONTH BADGE
-                            // =====================================
-                            Container(
-                              padding:
-                                  const EdgeInsets
-                                      .symmetric(
-                                horizontal: 11,
-                                vertical: 6,
-                              ),
-                              decoration:
-                                  BoxDecoration(
-                                gradient:
-                                    LinearGradient(
-                                  colors: [
-                                    accent.withValues(
-                                      alpha: 0.14,
-                                    ),
-                                    colors.primary
-                                        .withValues(
-                                      alpha: 0.07,
-                                    ),
-                                  ],
-                                ),
-                                borderRadius:
-                                    BorderRadius
-                                        .circular(
-                                  14,
-                                ),
-                                border: Border.all(
-                                  color:
-                                      accent.withValues(
-                                    alpha: 0.20,
-                                  ),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize:
-                                    MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons
-                                        .auto_awesome_rounded,
-                                    color: accent,
-                                    size: 12,
-                                  ),
-                                  const SizedBox(
-                                    width: 5,
-                                  ),
-                                  Flexible(
-                                    child: Text(
-                                      'Celebrating this $monthName',
-                                      maxLines: 1,
-                                      overflow:
-                                          TextOverflow
-                                              .ellipsis,
-                                      style:
-                                          const TextStyle(
-                                        color: accent,
-                                        fontSize: 9,
-                                        height: 1,
-                                        fontWeight:
-                                            FontWeight
-                                                .w900,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            const SizedBox(height: 5),
-
-                            // =====================================
-                            // SHORT MESSAGE
-                            // =====================================
-                            Text(
-                              'Happy birthday month, $firstName!',
-                              maxLines: 1,
-                              overflow:
-                                  TextOverflow.ellipsis,
-                              textAlign:
-                                  TextAlign.center,
-                              style: theme
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(
-                                fontSize: 9,
-                                height: 1,
-                                fontWeight:
-                                    FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    ),
-  );
-
-  if (!isActive) {
-    return card;
-  }
-
-  return card
-      .animate()
-      .fadeIn(
-        duration: 350.ms,
-      )
-      .slideY(
-        begin: 0.03,
-        end: 0,
-        duration: 400.ms,
-        curve: Curves.easeOutCubic,
-      )
-      .shimmer(
-        delay: 600.ms,
-        duration: 1800.ms,
-        color: accent.withValues(
-          alpha: 0.08,
-        ),
-      );
-}
-
   Widget _avatarFallback(
     String name,
   ) {
@@ -3703,40 +2748,23 @@ Widget _birthdayGreetingCard(
     String message,
   ) {
     return GlassCard(
-      padding:
-          const EdgeInsets.all(
-        18,
-      ),
+      padding: const EdgeInsets.all(18),
       child: Row(
         children: [
-          Icon(
-            icon,
-            color: AppColors
-                .textMuted,
-          ),
-          const SizedBox(
-            width: 12,
-          ),
+          Icon(icon, color: AppColors.textMuted),
+          const SizedBox(width: 12),
           Expanded(
             child: Text(
               message,
-              style:
-                  const TextStyle(
-                color: AppColors
-                    .textBody,
-                fontSize:
-                    12,
+              style: const TextStyle(
+                color: AppColors.textBody,
+                fontSize: 12,
               ),
             ),
           ),
         ],
       ),
-    )
-        .animate()
-        .fadeIn(
-          duration:
-              350.ms,
-        );
+    );
   }
 
   void _showAnnouncement(
@@ -3795,11 +2823,9 @@ Widget _birthdayGreetingCard(
                         ),
                       ),
                     ),
-
                     const SizedBox(
                       height: 24,
                     ),
-
                     if (announcement
                             .imageUrl !=
                         null) ...[
@@ -3829,12 +2855,10 @@ Widget _birthdayGreetingCard(
                           },
                         ),
                       ),
-
                       const SizedBox(
                         height: 20,
                       ),
                     ],
-
                     Text(
                       announcement
                           .tag
@@ -3853,11 +2877,9 @@ Widget _birthdayGreetingCard(
                             1,
                       ),
                     ),
-
                     const SizedBox(
                       height: 8,
                     ),
-
                     Text(
                       announcement
                           .title,
@@ -3875,11 +2897,9 @@ Widget _birthdayGreetingCard(
                             1.2,
                       ),
                     ),
-
                     const SizedBox(
                       height: 8,
                     ),
-
                     Text(
                       AppFormatters
                           .formatDate(
@@ -3896,7 +2916,6 @@ Widget _birthdayGreetingCard(
                             11,
                       ),
                     ),
-
                     if (announcement
                         .summary
                         .trim()
@@ -3924,7 +2943,6 @@ Widget _birthdayGreetingCard(
                         ),
                       ),
                     ],
-
                     if (announcement
                         .body
                         .trim()
@@ -3949,11 +2967,9 @@ Widget _birthdayGreetingCard(
                         ),
                       ),
                     ],
-
                     const SizedBox(
                       height: 28,
                     ),
-
                     SizedBox(
                       width: double
                           .infinity,
@@ -3976,18 +2992,7 @@ Widget _birthdayGreetingCard(
               ),
             ),
           ),
-        )
-            .animate()
-            .fadeIn(
-              duration:
-                  300.ms,
-            )
-            .slideY(
-              begin: 0.08,
-              end: 0,
-              duration:
-                  350.ms,
-            );
+        );
       },
     );
   }
@@ -4037,6 +3042,4 @@ Widget _birthdayGreetingCard(
     return months[
         month - 1];
   }
-
-
 }

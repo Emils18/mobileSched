@@ -28,93 +28,36 @@ class GlassCard extends StatelessWidget {
     this.onTap,
   });
 
-  @override
+ @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+    final ColorScheme colors = theme.colorScheme;
+    final BorderRadius radius = borderRadius ?? BorderRadius.circular(24);
+    final Color effectiveBorderColor = borderColor ?? theme.dividerColor;
 
-    final ColorScheme colors =
-        theme.colorScheme;
-
-    final bool isDark =
-        theme.brightness == Brightness.dark;
-
-    final BorderRadius radius =
-        borderRadius ??
-            BorderRadius.circular(24);
-
-    final Color effectiveBorderColor =
-        borderColor ??
-            theme.dividerColor;
-
-    final Color glowColor =
-        borderColor ??
-            colors.primary;
-
-    final Widget card = AnimatedContainer(
-      duration: const Duration(
-        milliseconds: 260,
-      ),
-      curve: Curves.easeOutCubic,
-
+    final Widget card = Container(
       width: width,
       height: height,
-
       decoration: BoxDecoration(
+        color: colors.surface,
         borderRadius: radius,
-
-        boxShadow: hasGlow
-            ? [
-                BoxShadow(
-                  color: glowColor.withValues(
-                    alpha: isDark
-                        ? 0.18
-                        : 0.12,
-                  ),
-                  blurRadius: 26,
-                  spreadRadius: -7,
-                  offset: const Offset(
-                    0,
-                    8,
-                  ),
-                ),
-              ]
-            : [
-                BoxShadow(
-                  color: Colors.black.withValues(
-                    alpha: isDark
-                        ? 0.18
-                        : 0.07,
-                  ),
-                  blurRadius: 18,
-                  spreadRadius: -8,
-                  offset: const Offset(
-                    0,
-                    8,
-                  ),
-                ),
-              ],
+        border: Border.all(
+          color: effectiveBorderColor,
+          width: borderColor == null ? 1 : 1.2,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x060C2340),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
-
       child: ClipRRect(
         borderRadius: radius,
-
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: colors.surface,
-            borderRadius: radius,
-
-            border: Border.all(
-              color: effectiveBorderColor,
-              width: borderColor == null
-                  ? 1
-                  : 1.4,
-            ),
-          ),
-
-          child: Padding(
-            padding: padding,
-            child: child,
-          ),
+        child: Padding(
+          padding: padding,
+          child: child,
         ),
       ),
     );

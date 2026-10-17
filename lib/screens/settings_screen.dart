@@ -367,30 +367,45 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                           const SizedBox(height: 14),
 
-                          // Broken schedule switch
-                          SwitchListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: const Text(
-                              "Custom Daily Shifts",
-                              style: TextStyle(
-                                color: AppColors.textTitle,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                              ),
+                          // Broken schedule switch (Crash-proof Row layout)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Row(
+                              children: [
+                                const Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        "Custom Daily Shifts",
+                                        style: TextStyle(
+                                          color: AppColors.textTitle,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      SizedBox(height: 2),
+                                      Text(
+                                        "Enable to set different shift hours for specific days",
+                                        style: TextStyle(
+                                          color: AppColors.textMuted,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Switch(
+                                  value: _isBrokenSchedule,
+                                  activeColor: AppColors.primary,
+                                  onChanged: (val) async {
+                                    await _service.setBrokenScheduleEnabled(val);
+                                    setState(() => _isBrokenSchedule = val);
+                                  },
+                                ),
+                              ],
                             ),
-                            subtitle: const Text(
-                              "Enable to set different shift hours for specific days",
-                              style: TextStyle(
-                                color: AppColors.textMuted,
-                                fontSize: 12,
-                              ),
-                            ),
-                            value: _isBrokenSchedule,
-                            activeColor: AppColors.primary,
-                            onChanged: (val) async {
-                              await _service.setBrokenScheduleEnabled(val);
-                              setState(() => _isBrokenSchedule = val);
-                            },
                           ),
                           const SizedBox(height: 8),
 
@@ -648,32 +663,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     const SizedBox(height: 18),
 
-                    // 5. GOOGLE FORM INTEGRATION
+                  // 5. GOOGLE FORM INTEGRATION
                     _buildSettingsGroup(
                       title: "Google Form Integration",
                       subtitle:
                           "Automatically open prefilled form when clocking attendance",
-                      child: SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text(
-                          "Auto-Open Google Form",
-                          style: TextStyle(
-                            color: AppColors.textTitle,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                          ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          children: [
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "Auto-Open Google Form",
+                                    style: TextStyle(
+                                      color: AppColors.textTitle,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  SizedBox(height: 2),
+                                  Text(
+                                    "Prefills date, time, and student details",
+                                    style: TextStyle(
+                                        color: AppColors.textMuted, fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Switch(
+                              value: GoogleFormService().isEnabled,
+                              activeColor: AppColors.primary,
+                              onChanged: (val) async {
+                                await GoogleFormService().setEnabled(val);
+                                setState(() {});
+                              },
+                            ),
+                          ],
                         ),
-                        subtitle: const Text(
-                          "Prefills date, time, and student details",
-                          style: TextStyle(
-                              color: AppColors.textMuted, fontSize: 12),
-                        ),
-                        value: GoogleFormService().isEnabled,
-                        activeColor: AppColors.primary,
-                        onChanged: (val) async {
-                          await GoogleFormService().setEnabled(val);
-                          setState(() {});
-                        },
                       ),
                     ),
                     const SizedBox(height: 20),

@@ -97,103 +97,41 @@ class StatusChip
     }
   }
 
-  @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final AppPalette palette =
-        MobileSchedTheme.palette(
+@override
+  Widget build(BuildContext context) {
+    final AppPalette palette = MobileSchedTheme.palette(
       ThemeService().preset,
     );
 
-    final Color color =
-        _getColor(
-      palette,
-    );
+    final Color color = _getColor(palette);
 
-    return AnimatedContainer(
-      duration:
-          const Duration(
-        milliseconds: 220,
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 170),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.36)),
       ),
-
-      constraints:
-          const BoxConstraints(
-        maxWidth: 170,
-      ),
-
-      padding:
-          const EdgeInsets
-              .symmetric(
-        horizontal: 10,
-        vertical: 6,
-      ),
-
-      decoration:
-          BoxDecoration(
-        color:
-            color.withValues(
-          alpha: 0.12,
-        ),
-
-        borderRadius:
-            BorderRadius.circular(
-          20,
-        ),
-
-        border:
-            Border.all(
-          color:
-              color.withValues(
-            alpha: 0.36,
-          ),
-        ),
-      ),
-
-      child:
-          Row(
-        mainAxisSize:
-            MainAxisSize.min,
-
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
             _getIcon(),
-            color:
-                color,
-            size:
-                13,
+            color: color,
+            size: 13,
           ),
-
-          const SizedBox(
-            width: 5,
-          ),
-
+          const SizedBox(width: 5),
           Flexible(
-            child:
-                Text(
+            child: Text(
               status,
-
-              maxLines:
-                  1,
-
-              overflow:
-                  TextOverflow
-                      .ellipsis,
-
-              style:
-                  TextStyle(
-                color:
-                    color,
-
-                fontSize:
-                    9,
-
-                fontWeight:
-                    FontWeight
-                        .w800,
-
-                letterSpacing:
-                    0.25,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: color,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.25,
               ),
             ),
           ),

@@ -1318,34 +1318,38 @@ class _DashboardScreenState extends State<DashboardScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+             // =======================================================
+                // 1. LIGHT SKY HORIZON CANOPY (Smooth Curved Wave)
                 // =======================================================
-                // 1. LIGHT SKY HORIZON CANOPY (Top Layer - Concept 1)
-                // =======================================================
-                Stack(
-                  children: [
-                    // Vector Hills / Horizon Art Painter
+                ClipPath(
+                  clipper: _CanopyWaveClipper(),
+                  child: Stack(
+                    children: [
                     Container(
-                      width: double.infinity,
-                      height: 190,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF2B92D5), // Bright Scholar Sky Blue
+                        width: double.infinity,
+                        height: 204,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF2B92D5),
+                        ),
+                        child: CustomPaint(
+                          painter: _CampusHorizonPainter(),
+                        ),
                       ),
-                                            child: const _CampusHorizonBackground(),
-                    ),
 
-                    // Canopy Content (Greeting + Day Strip)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildBrightSkyHeader(),
-                          const SizedBox(height: 14),
-                          _buildWeeklyDutyStripBrightSky(),
-                        ],
+                      // Canopy Content (Greeting + Day Strip)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildBrightSkyHeader(),
+                            const SizedBox(height: 14),
+                            _buildWeeklyDutyStripBrightSky(),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
 
                 // =======================================================
@@ -1690,7 +1694,6 @@ Widget _buildIllustratedDutyPass(Map<String, dynamic> state) {
     final bool hasIn = inLog != null;
     final bool hasOut = _todayLogs.any((l) => l.type == 'out');
 
-    // Live Elapsed Shift Counter (Ticks live every second when on duty!)
     String liveElapsedText = "";
     if (hasIn && !hasOut) {
       final elapsed = now.difference(inLog.timestamp);
@@ -1706,8 +1709,8 @@ Widget _buildIllustratedDutyPass(Map<String, dynamic> state) {
 
     final bool isShiftActive = hasIn && !hasOut;
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
+    // Instant static container (Zero CPU animation lag for low-end phones)
+    return Container(
       decoration: BoxDecoration(
         color: AppColors.bgDeep,
         borderRadius: BorderRadius.circular(22),
@@ -1719,13 +1722,11 @@ Widget _buildIllustratedDutyPass(Map<String, dynamic> state) {
                   : AppColors.cardBorder),
           width: isShiftActive || state['warn'] == true ? 1.6 : 1,
         ),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-            color: isShiftActive
-                ? AppColors.orange.withValues(alpha: 0.16)
-                : const Color(0x120C2340),
-            blurRadius: 20,
-            offset: const Offset(0, 6),
+            color: Color(0x0C0C2340),
+            blurRadius: 14,
+            offset: Offset(0, 4),
           ),
         ],
       ),
@@ -1763,7 +1764,6 @@ Widget _buildIllustratedDutyPass(Map<String, dynamic> state) {
                   ),
                 ),
                 const Spacer(),
-                // Dynamic Status Pill
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
@@ -1811,11 +1811,11 @@ Widget _buildIllustratedDutyPass(Map<String, dynamic> state) {
                 const SizedBox(width: 8),
                 Text(
                   isShiftActive ? liveElapsedText : shiftText,
-                  style: TextStyle(
-                    color: isShiftActive ? AppColors.textTitle : AppColors.textTitle,
-                    fontSize: isShiftActive ? 20 : 17,
+                  style: const TextStyle(
+                    color: AppColors.textTitle,
+                    fontSize: 17,
                     fontWeight: FontWeight.w900,
-                    letterSpacing: isShiftActive ? 0.2 : -0.3,
+                    letterSpacing: -0.3,
                   ),
                 ),
                 const Spacer(),
@@ -1842,7 +1842,7 @@ Widget _buildIllustratedDutyPass(Map<String, dynamic> state) {
             const Divider(height: 1, color: AppColors.cardBorder),
             const SizedBox(height: 14),
 
-            // DYNAMIC DUAL-TIER ATTENDANCE ACTIONS
+            // TACTILE ATTENDANCE ACTIONS (Instant Static Containers)
             Row(
               children: [
                 // CLOCK IN BUTTON
@@ -1852,8 +1852,7 @@ Widget _buildIllustratedDutyPass(Map<String, dynamic> state) {
                     child: InkWell(
                       onTap: _handleTimeIn,
                       borderRadius: BorderRadius.circular(16),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 250),
+                      child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                         decoration: BoxDecoration(
                           color: hasIn
@@ -1865,11 +1864,11 @@ Widget _buildIllustratedDutyPass(Map<String, dynamic> state) {
                               : null,
                           boxShadow: hasIn
                               ? null
-                              : [
+                              : const [
                                   BoxShadow(
-                                    color: const Color(0xFF2B92D5).withValues(alpha: 0.35),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
+                                    color: Color(0x222B92D5),
+                                    blurRadius: 8,
+                                    offset: Offset(0, 3),
                                   ),
                                 ],
                         ),
@@ -1925,15 +1924,14 @@ Widget _buildIllustratedDutyPass(Map<String, dynamic> state) {
                 ),
                 const SizedBox(width: 10),
 
-                // CLOCK OUT BUTTON (Glows active Campus Orange when on duty!)
+                // CLOCK OUT BUTTON
                 Expanded(
                   child: Material(
                     color: Colors.transparent,
                     child: InkWell(
                       onTap: _handleTimeOut,
                       borderRadius: BorderRadius.circular(16),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 250),
+                      child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                         decoration: BoxDecoration(
                           color: isShiftActive
@@ -1944,11 +1942,11 @@ Widget _buildIllustratedDutyPass(Map<String, dynamic> state) {
                               ? null
                               : Border.all(color: AppColors.cardBorder, width: 1.2),
                           boxShadow: isShiftActive
-                              ? [
+                              ? const [
                                   BoxShadow(
-                                    color: AppColors.orange.withValues(alpha: 0.38),
-                                    blurRadius: 12,
-                                    offset: const Offset(0, 4),
+                                    color: Color(0x28E5791E),
+                                    blurRadius: 8,
+                                    offset: Offset(0, 3),
                                   ),
                                 ]
                               : null,
@@ -2008,7 +2006,6 @@ Widget _buildIllustratedDutyPass(Map<String, dynamic> state) {
       ),
     );
   }
-
   // =========================================================================
   // 4. LEARNUP PASTEL METRIC PODS (Ice-Blue & Mint)
   // =========================================================================
@@ -2609,52 +2606,8 @@ Widget _buildTodayLedgerCard() {
 // ===========================================================================
 // VECTOR ART PAINTER: CAMPUS HORIZON CANOPY (Concept 1)
 // ===========================================================================
-class _CampusHorizonBackground extends StatefulWidget {
-  const _CampusHorizonBackground();
-
-  @override
-  State<_CampusHorizonBackground> createState() =>
-      _CampusHorizonBackgroundState();
-}
-
-class _CampusHorizonBackgroundState extends State<_CampusHorizonBackground>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 8),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        return CustomPaint(
-          painter: _CampusHorizonPainter(t: _controller.value),
-          size: Size.infinite,
-        );
-      },
-    );
-  }
-}
 
 class _CampusHorizonPainter extends CustomPainter {
-  final double t; // 0..1 looping animation value
-
-  _CampusHorizonPainter({required this.t});
-
   @override
   void paint(Canvas canvas, Size size) {
     // 1. Daylight Sky Base
@@ -2664,79 +2617,26 @@ class _CampusHorizonPainter extends CustomPainter {
     // 2. Subtle dot grid texture — top-right area only
     _drawDotGrid(canvas, size);
 
-    // 3. Giant AWS watermark — very light, top-right corner
-   _drawAwsWordmark(canvas, size);
+    // 3. AWS wordmark
+    _drawAwsWordmark(canvas, size);
 
-    // 4. Soft pulsing glow behind hero cube
-    final pulse = (sin(t * 2 * pi) + 1) / 2; // 0..1 smooth
+    // 4. Static glowing accent behind hero cube
     final glowCenter = Offset(size.width * 0.86, size.height * 0.46);
-    final glowRadius = 88 + pulse * 14;
     final glowPaint = Paint()
       ..shader = RadialGradient(
         colors: [
-          Colors.white.withValues(alpha: 0.14 + pulse * 0.06),
+          Colors.white.withValues(alpha: 0.16),
           Colors.white.withValues(alpha: 0.0),
         ],
-      ).createShader(Rect.fromCircle(center: glowCenter, radius: glowRadius));
-    canvas.drawCircle(glowCenter, glowRadius, glowPaint);
+      ).createShader(Rect.fromCircle(center: glowCenter, radius: 92));
+    canvas.drawCircle(glowCenter, 92, glowPaint);
 
-    // 5. Cubes — each floats on its own phase
-
-    // Micro cube (top-center-left)
-    _drawAws3DCube(
-      canvas,
-      Offset(
-        size.width * 0.33,
-        size.height * 0.24 + sin(t * 2 * pi + 0.0) * 2.5,
-      ),
-      size: 11,
-      opacity: 0.16,
-    );
-
-    // Micro cube (top-right small)
-    _drawAws3DCube(
-      canvas,
-      Offset(
-        size.width * 0.45,
-        size.height * 0.18 + sin(t * 2 * pi + 1.2) * 3.0,
-      ),
-      size: 16,
-      opacity: 0.20,
-    );
-
-    // Medium cube (left)
-    _drawAws3DCube(
-      canvas,
-      Offset(
-        size.width * 0.12,
-        size.height * 0.40 + sin(t * 2 * pi + 2.4) * 4.0,
-      ),
-      size: 30,
-      opacity: 0.26,
-    );
-
-    // Accent cube (bottom-right, adds depth)
-    _drawAws3DCube(
-      canvas,
-      Offset(
-        size.width * 0.68,
-        size.height * 0.68 + sin(t * 2 * pi + 3.6) * 3.0,
-      ),
-      size: 14,
-      opacity: 0.22,
-    );
-
-    // Hero Master Cube (top-right, gentle float)
-    _drawAws3DCube(
-      canvas,
-      Offset(
-        size.width * 0.86,
-        size.height * 0.46 + sin(t * 2 * pi + 4.8) * 5.0,
-      ),
-      size: 54,
-      opacity: 0.42,
-      hasBevel: true,
-    );
+    // 5. Perfectly fixed, static 3D cubes (Zero floating, zero CPU drain)
+    _drawAws3DCube(canvas, Offset(size.width * 0.33, size.height * 0.24), size: 11, opacity: 0.16);
+    _drawAws3DCube(canvas, Offset(size.width * 0.45, size.height * 0.18), size: 16, opacity: 0.20);
+    _drawAws3DCube(canvas, Offset(size.width * 0.12, size.height * 0.40), size: 30, opacity: 0.26);
+    _drawAws3DCube(canvas, Offset(size.width * 0.68, size.height * 0.68), size: 14, opacity: 0.22);
+    _drawAws3DCube(canvas, Offset(size.width * 0.86, size.height * 0.46), size: 54, opacity: 0.42, hasBevel: true);
   }
 
   void _drawDotGrid(Canvas canvas, Size size) {
@@ -2751,7 +2651,7 @@ class _CampusHorizonPainter extends CustomPainter {
     }
   }
 
-   void _drawAwsWordmark(Canvas canvas, Size size) {
+  void _drawAwsWordmark(Canvas canvas, Size size) {
     final textPainter = TextPainter(
       text: TextSpan(
         text: 'AWS HUB',
@@ -2767,13 +2667,11 @@ class _CampusHorizonPainter extends CustomPainter {
     );
     textPainter.layout();
 
-    // Positioned top-right, properly placed
     final double dx = size.width - textPainter.width - 18;
     final double dy = 14;
 
     textPainter.paint(canvas, Offset(dx, dy));
 
-    // Small warm-orange accent underline (brand signature)
     final linePaint = Paint()
       ..color = const Color(0xFFFFB066).withValues(alpha: 0.75)
       ..strokeWidth = 1.6
@@ -2785,7 +2683,6 @@ class _CampusHorizonPainter extends CustomPainter {
     );
   }
 
-
   void _drawAws3DCube(
     Canvas canvas,
     Offset center, {
@@ -2793,9 +2690,8 @@ class _CampusHorizonPainter extends CustomPainter {
     required double opacity,
     bool hasBevel = false,
   }) {
-    final double h = size * 0.577; // 30-degree isometric ratio
+    final double h = size * 0.577;
 
-    // TOP FACE: Warm Campus Orange (Sunlit)
     final topPath = Path()
       ..moveTo(center.dx, center.dy - size)
       ..lineTo(center.dx + size, center.dy - (size - h))
@@ -2809,7 +2705,6 @@ class _CampusHorizonPainter extends CustomPainter {
             .withValues(alpha: (opacity * 1.5).clamp(0.0, 1.0)),
     );
 
-    // LEFT FACE: Scholar Sky Blue
     final leftPath = Path()
       ..moveTo(center.dx - size, center.dy - (size - h))
       ..lineTo(center.dx, center.dy + h - (size - h))
@@ -2823,7 +2718,6 @@ class _CampusHorizonPainter extends CustomPainter {
             .withValues(alpha: (opacity * 1.15).clamp(0.0, 1.0)),
     );
 
-    // RIGHT FACE: Deep Royal Navy (Shaded side)
     final rightPath = Path()
       ..moveTo(center.dx + size, center.dy - (size - h))
       ..lineTo(center.dx, center.dy + h - (size - h))
@@ -2837,7 +2731,6 @@ class _CampusHorizonPainter extends CustomPainter {
             .withValues(alpha: (opacity * 1.05).clamp(0.0, 1.0)),
     );
 
-    // High-End 3D White Bevel Edges (hero cube only)
     if (hasBevel) {
       final edgePaint = Paint()
         ..color =
@@ -2854,6 +2747,21 @@ class _CampusHorizonPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _CampusHorizonPainter oldDelegate) =>
-      oldDelegate.t != t;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _CanopyWaveClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path()
+      ..lineTo(0, size.height - 20)
+      ..quadraticBezierTo(
+          size.width * 0.50, size.height + 14, size.width, size.height - 20)
+      ..lineTo(size.width, 0)
+      ..close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }

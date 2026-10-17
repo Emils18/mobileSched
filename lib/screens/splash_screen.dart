@@ -159,17 +159,24 @@ class _SplashScreenState extends State<SplashScreen>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(
+                 Container(
                     width: 118,
                     height: 118,
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(28),
-                      color: AppColors.cardGlass,
+                      borderRadius: BorderRadius.circular(26),
+                      color: AppColors.bgDeep,
                       border: Border.all(color: AppColors.cardBorder),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x080C2340),
+                          blurRadius: 18,
+                          offset: Offset(0, 6),
+                        ),
+                      ],
                     ),
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(18),
                       child: Image.asset(
                         'assets/images/mobilesched_logo.png',
                         fit: BoxFit.cover,
